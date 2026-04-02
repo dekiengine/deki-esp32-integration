@@ -1,0 +1,14 @@
+{
+  "id": "deki:esp32-hal",
+  "displayName": "ESP32 Integration",
+  "buildDefine": "DEKI_MODULE_ESP32_HAL",
+  "features": [
+    {"id": "memory", "displayName": "Memory", "buildDefine": "DEKI_FEATURE_ESP32_MEMORY_SETUP", "defaultEnabled": true, "componentGuids": ["a7b2c8d4-3e6f-4a1b-9d05-8f2e7c4b6a39"]},
+    {"id": "filesystem", "displayName": "File System", "buildDefine": "DEKI_FEATURE_ESP32_FILE_SYSTEM_SETUP", "defaultEnabled": true, "componentGuids": ["b8c3d9e5-4f70-4b2c-ae16-9f3e8d5c7b40"]},
+    {"id": "serial", "displayName": "Serial Commands", "buildDefine": "DEKI_FEATURE_ESP32_SERIAL_SETUP", "defaultEnabled": true, "componentGuids": ["c9d4eaf6-5081-4c3d-bf27-a04f9e6d8c51"]},
+    {"id": "sd", "displayName": "SD Card (ESP-IDF)", "buildDefine": "DEKI_FEATURE_ESP32_SD", "defaultEnabled": true, "componentGuids": []}
+  ],
+  "dependencies": {
+    "espidf": ["fatfs", "sdmmc", "driver"]
+  }
+}

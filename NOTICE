@@ -1,0 +1,10 @@
+Deki ESP32 Integration Module
+Copyright 2026 Team Dekiru and Contributors
+
+This product includes software developed by third parties:
+
+ESP-IDF (https://github.com/espressif/esp-idf)
+  License: Apache License 2.0
+  Copyright (c) Espressif Systems
+  Components used: fatfs, sdmmc, driver
+  Full license: https://github.com/espressif/esp-idf/blob/master/LICENSE
