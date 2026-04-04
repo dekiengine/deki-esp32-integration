@@ -2,7 +2,7 @@
 #include "ESPIDFSDFileSystem.h"
 
 #ifdef DEKI_EDITOR
-#include "../../DekiModuleMeta.h"
+#include "DekiModuleMeta.h"
 #endif
 
 // ESP-IDF native SD card APIs

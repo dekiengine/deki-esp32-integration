@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../../../providers/IDekiSDCard.h"
-#include "../../ModuleConfig.h"
+#include "providers/IDekiSDCard.h"
+#include "ModuleConfig.h"
 #include <string>
 #include <memory>
 

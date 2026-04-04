@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../../providers/IDekiFileSystem.h"
+#include "providers/IDekiFileSystem.h"
 #include <string>
 
 // Forward declaration

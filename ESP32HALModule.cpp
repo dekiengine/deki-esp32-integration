@@ -8,7 +8,7 @@
 
 #include "ESP32HALModule.h"
 #include "interop/DekiPlugin.h"
-#include "modules/DekiModuleFeatureMeta.h"
+#include "DekiModuleFeatureMeta.h"
 #include "ESP32SerialSetup.h"
 #include "reflection/ComponentRegistry.h"
 #include "reflection/ComponentFactory.h"
