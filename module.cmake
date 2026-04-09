@@ -4,9 +4,4 @@ set(MODULE_PREFIX "DekiESP32HAL")
 set(MODULE_UPPER "ESP32_HAL")
 set(MODULE_TARGET "deki-esp32-hal")
 set(MODULE_FILE_PREFIX "ESP32HAL")
-set(MODULE_SOURCES
-    ESP32SerialSetup.cpp
-    sd/ESPIDFSDCard.cpp
-    sd/ESPIDFSDFileSystem.cpp
-)
 set(MODULE_ENTRY ESP32HALModule.cpp)
