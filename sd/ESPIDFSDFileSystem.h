@@ -46,4 +46,7 @@ private:
 
     // Convert virtual path (S:/... or D:/...) to VFS path (/sdcard/...)
     std::string ConvertVirtualPath(const char* virtualPath);
+
+    // Stack-buffer version — avoids heap allocation
+    bool ConvertVirtualPathTo(const char* virtualPath, char* outBuffer, size_t bufSize);
 };

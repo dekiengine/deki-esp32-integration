@@ -2,9 +2,9 @@
 #include "ESPIDFSDCard.h"
 #include <cstring>
 #include <cstdio>
+#include <sys/stat.h>
 
 #if defined(ESP32)
-#include <sys/stat.h>
 #include "esp_log.h"
 
 static const char* TAG = "ESPIDFSDFS";
@@ -64,24 +64,49 @@ std::string ESPIDFSDFileSystem::ConvertVirtualPath(const char* virtualPath)
     return path;
 }
 
-bool ESPIDFSDFileSystem::ConvertPath(const char* virtualPath, char* outBuffer, size_t bufferSize)
+bool ESPIDFSDFileSystem::ConvertVirtualPathTo(const char* virtualPath, char* outBuffer, size_t bufSize)
 {
-    std::string converted = ConvertVirtualPath(virtualPath);
-
-    if (converted.length() + 1 > bufferSize)
+    if (!virtualPath || !outBuffer || bufSize == 0)
         return false;
 
-    std::strncpy(outBuffer, converted.c_str(), bufferSize);
-    outBuffer[bufferSize - 1] = '\0';
+    const char* suffix = virtualPath;
+    bool hasPrefix = false;
+
+    // Check S:/ or D:/ prefix
+    if (virtualPath[0] && virtualPath[1] == ':' && virtualPath[2] == '/' &&
+        (virtualPath[0] == 'S' || virtualPath[0] == 's' || virtualPath[0] == 'D' || virtualPath[0] == 'd'))
+    {
+        suffix = virtualPath + 3;
+        hasPrefix = true;
+    }
+
+    if (hasPrefix)
+    {
+        int written = snprintf(outBuffer, bufSize, "%s/%s", m_MountPoint.c_str(), suffix);
+        if (written < 0 || static_cast<size_t>(written) >= bufSize)
+            return false;
+    }
+    else
+    {
+        size_t len = strlen(virtualPath);
+        if (len + 1 > bufSize)
+            return false;
+        memcpy(outBuffer, virtualPath, len + 1);
+    }
+
     return true;
+}
+
+bool ESPIDFSDFileSystem::ConvertPath(const char* virtualPath, char* outBuffer, size_t bufferSize)
+{
+    return ConvertVirtualPathTo(virtualPath, outBuffer, bufferSize);
 }
 
 IDekiFileSystem::FileHandle ESPIDFSDFileSystem::OpenFile(const char* path, OpenMode mode)
 {
-    std::string realPath = ConvertVirtualPath(path);
-
-    // Common extensions to try if file not found (for extension-less loading)
-    static const char* extensions[] = { "", ".prefab", ".png", ".jpg", ".tex", ".dfont", ".frameanim", ".wav", ".mp3", nullptr };
+    char realPath[128];
+    if (!ConvertVirtualPathTo(path, realPath, sizeof(realPath)))
+        return nullptr;
 
     const char* modeStr;
     switch (mode)
@@ -102,16 +127,8 @@ IDekiFileSystem::FileHandle ESPIDFSDFileSystem::OpenFile(const char* path, OpenM
             return nullptr;
     }
 
-    // Try exact path first, then with extensions
-    for (const char** ext = extensions; *ext != nullptr; ++ext)
-    {
-        std::string tryPath = realPath + *ext;
-        FILE* file = std::fopen(tryPath.c_str(), modeStr);
-        if (file)
-            return static_cast<FileHandle>(file);
-    }
-
-    return nullptr;
+    FILE* file = std::fopen(realPath, modeStr);
+    return file ? static_cast<FileHandle>(file) : nullptr;
 }
 
 void ESPIDFSDFileSystem::CloseFile(FileHandle handle)
@@ -184,40 +201,18 @@ long ESPIDFSDFileSystem::GetFileSize(FileHandle handle)
         return -1;
 
     FILE* file = static_cast<FILE*>(handle);
-    long currentPos = std::ftell(file);
-    std::fseek(file, 0, SEEK_END);
-    long size = std::ftell(file);
-    std::fseek(file, currentPos, SEEK_SET);
-    return size;
+    int fd = fileno(file);
+    struct stat st;
+    if (fstat(fd, &st) == 0)
+        return st.st_size;
+    return -1;
 }
 
 bool ESPIDFSDFileSystem::FileExists(const char* path)
 {
-    std::string realPath = ConvertVirtualPath(path);
-
-    // Common extensions to try if file not found
-    static const char* extensions[] = { "", ".prefab", ".png", ".jpg", ".tex", ".dfont", ".frameanim", ".wav", ".mp3", nullptr };
-
-#if defined(ESP32)
-    for (const char** ext = extensions; *ext != nullptr; ++ext)
-    {
-        std::string tryPath = realPath + *ext;
-        struct stat st;
-        if (stat(tryPath.c_str(), &st) == 0)
-            return true;
-    }
-    return false;
-#else
-    for (const char** ext = extensions; *ext != nullptr; ++ext)
-    {
-        std::string tryPath = realPath + *ext;
-        FILE* file = std::fopen(tryPath.c_str(), "r");
-        if (file)
-        {
-            std::fclose(file);
-            return true;
-        }
-    }
-    return false;
-#endif
+    char realPath[128];
+    if (!ConvertVirtualPathTo(path, realPath, sizeof(realPath)))
+        return false;
+    struct stat st;
+    return stat(realPath, &st) == 0;
 }
