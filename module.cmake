@@ -5,3 +5,6 @@ set(MODULE_UPPER "ESP32_HAL")
 set(MODULE_TARGET "deki-esp32-hal")
 set(MODULE_FILE_PREFIX "ESP32HAL")
 set(MODULE_ENTRY ESP32HALModule.cpp)
+# Link to deki-rendering so blit/S3PIEBlitKernels can register row kernels
+# via QuadBlit::RegisterKernel at module init.
+set(MODULE_LINK_DEPS deki-rendering)

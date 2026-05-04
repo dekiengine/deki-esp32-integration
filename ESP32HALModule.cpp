@@ -23,6 +23,13 @@
 #include "DekiTime.h"
 #include "sd/ESPIDFSDCard.h"
 #include "providers/DekiSDCardProvider.h"
+#include "i2c/ESPIDFI2C.h"
+#include "providers/DekiI2CProvider.h"
+#include "uart/ESPIDFUART.h"
+#include "providers/DekiUARTProvider.h"
+#include "i2s/ESPIDFI2S.h"
+#include "providers/DekiI2SProvider.h"
+#include "blit/S3PIEBlitKernels.h"
 
 namespace
 {
@@ -32,6 +39,17 @@ struct ESP32BackendInit {
         DekiFileSystemProvider::SetFileSystem(new ESP32FileSystem());
         DekiTime::SetTimeProvider(std::make_unique<ESP32TimeProvider>());
         DekiSDCardProvider::SetFactory([]() -> IDekiSDCard* { return new ESPIDFSDCard(); });
+        DekiI2CProvider::SetFactory([]() -> IDekiI2C* { return new ESPIDFI2C(); });
+        DekiUARTProvider::SetFactory([]() -> IDekiUART* { return new ESPIDFUART(); });
+        DekiI2SProvider::SetFactory([]() -> IDekiI2S* { return new ESPIDFI2S(); });
+
+#if defined(CONFIG_IDF_TARGET_ESP32S3)
+        // S3 PIE SIMD blit kernels. Only kernels with verified implementations
+        // are registered; the dispatcher in QuadBlit runs its scalar inner
+        // loop for unregistered ops. See blit/S3PIEBlitKernels.cpp.
+        QuadBlit::RegisterKernel(QuadBlit::KernelOp::RGB565_Copy_Row,
+                                 &DekiESP32::Blit::S3PIE_RGB565_Copy_Row);
+#endif
     }
 };
 static ESP32BackendInit s_esp32_init;
