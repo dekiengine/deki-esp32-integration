@@ -18,30 +18,30 @@
 #include "platforms/esp32/ESP32MemoryProvider.h"
 #include "platforms/esp32/ESP32FileSystem.h"
 #include "platforms/esp32/ESP32TimeProvider.h"
-#include "providers/DekiMemoryProvider.h"
-#include "providers/DekiFileSystemProvider.h"
+#include "providers/DekiMemory.h"
+#include "providers/DekiFileSystem.h"
 #include "DekiTime.h"
 #include "sd/ESPIDFSDCard.h"
-#include "providers/DekiSDCardProvider.h"
+#include "providers/DekiSDCard.h"
 #include "i2c/ESPIDFI2C.h"
-#include "providers/DekiI2CProvider.h"
+#include "providers/DekiI2C.h"
 #include "uart/ESPIDFUART.h"
-#include "providers/DekiUARTProvider.h"
+#include "providers/DekiUART.h"
 #include "i2s/ESPIDFI2S.h"
-#include "providers/DekiI2SProvider.h"
+#include "providers/DekiI2S.h"
 #include "blit/S3PIEBlitKernels.h"
 
 namespace
 {
 struct ESP32BackendInit {
     ESP32BackendInit() {
-        DekiMemoryProvider::SetBackend(new ESP32MemoryProvider());
-        DekiFileSystemProvider::SetFileSystem(new ESP32FileSystem());
+        DekiMemory::SetBackend(new ESP32MemoryProvider());
+        DekiFileSystem::SetFileSystem(new ESP32FileSystem());
         DekiTime::SetTimeProvider(std::make_unique<ESP32TimeProvider>());
-        DekiSDCardProvider::SetFactory([]() -> IDekiSDCard* { return new ESPIDFSDCard(); });
-        DekiI2CProvider::SetFactory([]() -> IDekiI2C* { return new ESPIDFI2C(); });
-        DekiUARTProvider::SetFactory([]() -> IDekiUART* { return new ESPIDFUART(); });
-        DekiI2SProvider::SetFactory([]() -> IDekiI2S* { return new ESPIDFI2S(); });
+        DekiSDCard::SetFactory([]() -> IDekiSDCard* { return new ESPIDFSDCard(); });
+        DekiI2C::SetFactory([]() -> IDekiI2C* { return new ESPIDFI2C(); });
+        DekiUART::SetFactory([]() -> IDekiUART* { return new ESPIDFUART(); });
+        DekiI2S::SetFactory([]() -> IDekiI2S* { return new ESPIDFI2S(); });
 
 #if defined(CONFIG_IDF_TARGET_ESP32S3)
         // S3 PIE SIMD blit kernels. Only kernels with verified implementations
