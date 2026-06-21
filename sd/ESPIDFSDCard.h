@@ -1,6 +1,6 @@
 #pragma once
 
-#include "providers/IDekiSDCard.h"
+#include "IDekiSDCard.h"  // from deki-sdcard
 #include "ModuleConfig.h"
 #include <string>
 #include <memory>

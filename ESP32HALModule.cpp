@@ -22,14 +22,22 @@
 #include "providers/DekiFileSystem.h"
 #include "DekiTime.h"
 #include "sd/ESPIDFSDCard.h"
-#include "providers/DekiSDCard.h"
+#include "DekiSDCard.h"  // from deki-sdcard
 #include "i2c/ESPIDFI2C.h"
-#include "providers/DekiI2C.h"
+#include "DekiI2C.h"  // from deki-i2c
 #include "uart/ESPIDFUART.h"
-#include "providers/DekiUART.h"
+#include "DekiUART.h"  // from deki-uart
 #include "i2s/ESPIDFI2S.h"
-#include "providers/DekiI2S.h"
+#include "DekiI2S.h"  // from deki-i2s
 #include "blit/S3PIEBlitKernels.h"
+#include "wifi/ESPIDFWiFi.h"
+#include "DekiWiFi.h"           // from deki-wifi
+#include "ble/ESPIDFBLE.h"
+#include "DekiBLE.h"            // from deki-ble
+#include "http/ESPIDFHttpClient.h"
+#include "DekiHttp.h"           // from deki-http
+#include "power/ESPIDFPower.h"
+#include "providers/DekiPower.h"
 
 namespace
 {
@@ -42,6 +50,29 @@ struct ESP32BackendInit {
         DekiI2C::SetFactory([]() -> IDekiI2C* { return new ESPIDFI2C(); });
         DekiUART::SetFactory([]() -> IDekiUART* { return new ESPIDFUART(); });
         DekiI2S::SetFactory([]() -> IDekiI2S* { return new ESPIDFI2S(); });
+
+        // WiFi: single-active. The driver instance is intentionally leaked at
+        // process exit, matching the rest of this init block.
+        static ESPIDFWiFi s_WiFi;
+        s_WiFi.Initialize();
+        DekiWiFi::SetCurrent(&s_WiFi);
+
+        // BLE: single-active, NimBLE-backed. Same leak rationale as WiFi.
+        static ESPIDFBLE s_BLE;
+        s_BLE.Initialize();
+        DekiBLE::SetCurrent(&s_BLE);
+
+        // HTTP: register ESP-IDF backed client with the abstract facade from
+        // deki-http. Consumers (location/weather providers) reach the active
+        // client through DekiHttp::Get / PostJson, never via the concrete type.
+        static ESPIDFHttpClient s_Http;
+        DekiHttp::SetCurrent(&s_Http);
+
+        // Power: light-sleep driver. Idle timeout / wake GPIO are configured
+        // by the app at runtime via DekiPower::GetCurrent()->Set*.
+        static ESPIDFPower s_Power;
+        s_Power.Initialize();
+        DekiPower::SetCurrent(&s_Power);
 
 #if defined(CONFIG_IDF_TARGET_ESP32S3)
         // S3 PIE SIMD blit kernels. Only kernels with verified implementations

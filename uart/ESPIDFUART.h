@@ -1,6 +1,6 @@
 #pragma once
 
-#include "providers/IDekiUART.h"
+#include "IDekiUART.h"  // from deki-uart
 #include "ModuleConfig.h"
 #include <string>
 

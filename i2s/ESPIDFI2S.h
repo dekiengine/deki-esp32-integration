@@ -1,6 +1,6 @@
 #pragma once
 
-#include "providers/IDekiI2S.h"
+#include "IDekiI2S.h"  // from deki-i2s
 #include "ModuleConfig.h"
 #include <string>
 
