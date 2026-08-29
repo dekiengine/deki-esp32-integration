@@ -8,7 +8,7 @@
 /**
  * @brief Component to configure and initialize ESP32 serial command handling
  *
- * Add this component to your boot prefab to enable serial command processing
+ * Add this component to your boot scene to enable serial command processing
  * for editor communication (storage mode, status queries, etc.).
  *
  * Registers a per-frame update callback via DekiEngine::RegisterUpdate()

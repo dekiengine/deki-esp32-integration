@@ -10,7 +10,7 @@
  * - ESP32SerialSetup (configures serial command handler for editor communication)
  *
  * Backend implementations stay in platforms/esp32/ (ESP-IDF APIs).
- * This module provides SetupComponent wrappers for boot.prefab-driven initialization.
+ * This module provides SetupComponent wrappers for boot.scene-driven initialization.
  */
 
 // DLL export macro

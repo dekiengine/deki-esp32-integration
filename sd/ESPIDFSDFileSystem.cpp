@@ -43,7 +43,7 @@ std::string ESPIDFSDFileSystem::ConvertVirtualPath(const char* virtualPath)
     std::string path(virtualPath);
 
     // Convert "S:/" prefix to VFS mount point path
-    // ESP-IDF VFS uses full mount point paths (e.g., "/sdcard/prefabs/Demo")
+    // ESP-IDF VFS uses full mount point paths (e.g., "/sdcard/scenes/Demo")
     if (path.length() >= 3 && (path[0] == 'S' || path[0] == 's') && path[1] == ':' && path[2] == '/')
     {
         path = m_MountPoint + "/" + path.substr(3);
