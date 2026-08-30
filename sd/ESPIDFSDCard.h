@@ -32,7 +32,7 @@ struct sdmmc_card_t;
  * - mode: "SPI" (only SPI supported currently)
  * - auto_mount: "true" or "false"
  * - mount_point: Filesystem mount point (default "/sdcard")
- * - spi_mhz: SPI clock frequency in MHz (1-40)
+ * - spiMhz: SPI clock frequency in MHz (1-40)
  */
 class ESPIDFSDCard : public IDekiSDCard
 {

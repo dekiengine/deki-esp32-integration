@@ -25,7 +25,7 @@ public:
     DEKI_EXPORT
     DEKI_TOOLTIP("Serial baud rate")
     DEKI_RANGE(9600, 921600)
-    int32_t baud_rate = 115200;
+    int32_t baudRate = 115200;
 
     void Setup(SetupCallback onComplete) override;
     const char* GetSetupName() const override { return "ESP32 Serial Commands"; }

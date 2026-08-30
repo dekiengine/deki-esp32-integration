@@ -46,7 +46,7 @@ static const DekiPackageSettingInfo s_ESPIDFSDCardSettings[] = {
     {"mode", "enum", "Interface mode", "SPI", s_ESPIDFSDCardModes, 2},
     {"auto_mount", "bool", "Automatically mount card on initialization", "true", nullptr, 0},
     {"mount_point", "string", "Virtual filesystem mount point", "/sdcard", nullptr, 0},
-    {"spi_mhz", "int", "SPI clock frequency in MHz (1-40)", "20", nullptr, 0},
+    {"spiMhz", "int", "SPI clock frequency in MHz (1-40)", "20", nullptr, 0},
 };
 
 static const DekiPackageMeta s_ESPIDFSDCardMeta = {
@@ -96,7 +96,7 @@ void ESPIDFSDCard::Configure(const PackageConfig& config)
         m_PinD1 = config.GetPin("D1", -1);
         m_PinD2 = config.GetPin("D2", -1);
         m_PinD3 = config.GetPin("D3", -1);
-        int sdmmcMhz = config.GetInt("sdmmc_mhz", 20);
+        int sdmmcMhz = config.GetInt("sdmmcMhz", 20);
         m_SdmmcFrequency = static_cast<uint32_t>(sdmmcMhz) * 1000000;
     }
     else if (modeStr == "SDMMC_1BIT")
@@ -104,7 +104,7 @@ void ESPIDFSDCard::Configure(const PackageConfig& config)
         m_Mode = SDCardMode::SDMMC_1BIT;
         m_PinCMD = config.GetPin("CMD", -1);
         m_PinD0 = config.GetPin("D0", -1);
-        int sdmmcMhz = config.GetInt("sdmmc_mhz", 20);
+        int sdmmcMhz = config.GetInt("sdmmcMhz", 20);
         m_SdmmcFrequency = static_cast<uint32_t>(sdmmcMhz) * 1000000;
     }
     else
@@ -115,7 +115,7 @@ void ESPIDFSDCard::Configure(const PackageConfig& config)
         m_PinCS = config.GetPin("CS", -1);
 
         // SPI frequency in MHz (convert to Hz)
-        int spiMhz = config.GetInt("spi_mhz", 20);
+        int spiMhz = config.GetInt("spiMhz", 20);
         m_SpiFrequency = static_cast<uint32_t>(spiMhz) * 1000000;
     }
 }

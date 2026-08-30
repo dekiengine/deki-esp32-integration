@@ -10,9 +10,9 @@ static const char* TAG = "ESP32Serial";
 
 void ESP32SerialSetup::Setup(SetupCallback onComplete)
 {
-    ESP_LOGI(TAG, "Initializing serial at %d baud...", (int)baud_rate);
+    ESP_LOGI(TAG, "Initializing serial at %d baud...", (int)baudRate);
 
-    ESP32SerialCommands::Initialize(static_cast<unsigned long>(baud_rate));
+    ESP32SerialCommands::Initialize(static_cast<unsigned long>(baudRate));
 
     DekiEngine::GetInstance().RegisterUpdate([](uint32_t) {
         ESP32SerialCommands::ProcessCommands();

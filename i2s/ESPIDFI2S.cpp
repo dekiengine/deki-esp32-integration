@@ -16,8 +16,8 @@ void ESPIDFI2S::Configure(const PackageConfig& config)
     m_PinBCLK       = config.GetPin("BCLK", -1);
     m_PinLRCLK      = config.GetPin("LRCLK", -1);
     m_PinDOUT       = config.GetPin("DOUT", -1);
-    m_Port          = config.GetInt("i2s_port", 0);
-    m_SampleRate    = config.GetInt("sample_rate", 16000);
+    m_Port          = config.GetInt("i2sPort", 0);
+    m_SampleRate    = config.GetInt("sampleRate", 16000);
     m_BitsPerSample = config.GetInt("bits_per_sample", 16);
     m_Channels      = config.GetInt("channels", 1);
 }

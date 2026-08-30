@@ -32,7 +32,7 @@ void ESP32SerialCommands::Initialize(unsigned long baudRate)
     }
 
     uart_config_t uart_config = {};
-    uart_config.baud_rate = static_cast<int>(baudRate);
+    uart_config.baudRate = static_cast<int>(baudRate);
     uart_config.data_bits = UART_DATA_8_BITS;
     uart_config.parity = UART_PARITY_DISABLE;
     uart_config.stop_bits = UART_STOP_BITS_1;

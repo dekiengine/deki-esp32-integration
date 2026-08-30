@@ -9,7 +9,7 @@ void ESPIDFUART::Configure(const PackageConfig& config)
 {
     m_PinTX = config.GetPin("TX", -1);
     m_PinRX = config.GetPin("RX", -1);
-    m_Port  = config.GetInt("uart_port", 1);
+    m_Port  = config.GetInt("uartPort", 1);
     m_Baud  = (uint32_t)config.GetInt("baud", 9600);
     m_RxBufSize = (size_t)config.GetInt("rx_buf_size", 1024);
 }
@@ -25,7 +25,7 @@ bool ESPIDFUART::Initialize()
     }
 
     uart_config_t cfg = {};
-    cfg.baud_rate  = (int)m_Baud;
+    cfg.baudRate  = (int)m_Baud;
     cfg.data_bits  = UART_DATA_8_BITS;
     cfg.parity     = UART_PARITY_DISABLE;
     cfg.stop_bits  = UART_STOP_BITS_1;

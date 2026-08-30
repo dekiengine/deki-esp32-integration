@@ -9,8 +9,8 @@ void ESPIDFI2C::Configure(const PackageConfig& config)
 {
     m_PinSDA = config.GetPin("SDA", -1);
     m_PinSCL = config.GetPin("SCL", -1);
-    m_Port   = config.GetInt("i2c_port", 0);
-    m_FreqHz = (uint32_t)config.GetInt("i2c_hz", 400000);
+    m_Port   = config.GetInt("i2cPort", 0);
+    m_FreqHz = (uint32_t)config.GetInt("i2cHz", 400000);
 }
 
 bool ESPIDFI2C::Initialize()
