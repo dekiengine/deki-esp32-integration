@@ -97,7 +97,7 @@ void ToNimbleUuid(const DekiBLEUUID& in, ble_uuid_any_t& out)
 {
     if (in.is16bit) {
         out.u.type = BLE_UUID_TYPE_16;
-        out.u16.value = in.short_id;
+        out.u16.value = in.shortId;
     } else {
         out.u.type = BLE_UUID_TYPE_128;
         // NimBLE expects little-endian; DekiBLEUUID is big-endian canonical.
@@ -111,7 +111,7 @@ void FromNimbleUuid(const ble_uuid_t* in, DekiBLEUUID& out)
     if (in->type == BLE_UUID_TYPE_16) {
         const ble_uuid16_t* u = (const ble_uuid16_t*)in;
         out.is16bit  = true;
-        out.short_id = u->value;
+        out.shortId = u->value;
         // Splice into Bluetooth base UUID: 00000000-0000-1000-8000-00805F9B34FB
         static const uint8_t base[16] = {
             0x00,0x00,0x00,0x00, 0x00,0x00, 0x10,0x00,
@@ -123,7 +123,7 @@ void FromNimbleUuid(const ble_uuid_t* in, DekiBLEUUID& out)
     } else if (in->type == BLE_UUID_TYPE_128) {
         const ble_uuid128_t* u = (const ble_uuid128_t*)in;
         out.is16bit = false;
-        out.short_id = 0;
+        out.shortId = 0;
         for (int i = 0; i < 16; ++i) out.bytes[i] = u->value[15 - i];
     }
 }
@@ -191,7 +191,7 @@ void DispatchScanResult(const struct ble_gap_disc_desc& disc)
 
     uint8_t copyLen = disc.length_data > 31 ? 31 : disc.length_data;
     std::memcpy(dev.adv_data, disc.data, copyLen);
-    dev.adv_len = copyLen;
+    dev.advLen = copyLen;
 
     // Parse common AD types out of the raw payload.
     struct ble_hs_adv_fields fields;
@@ -203,26 +203,26 @@ void DispatchScanResult(const struct ble_gap_disc_desc& disc)
             dev.name[n] = '\0';
         }
         if (fields.mfg_data && fields.mfg_data_len >= 2) {
-            dev.manufacturer_id = (uint16_t)fields.mfg_data[0]
+            dev.manufacturerId = (uint16_t)fields.mfg_data[0]
                                 | ((uint16_t)fields.mfg_data[1] << 8);
             uint8_t mlen = fields.mfg_data_len - 2;
-            if (mlen > sizeof(dev.manufacturer_data)) mlen = sizeof(dev.manufacturer_data);
-            std::memcpy(dev.manufacturer_data, fields.mfg_data + 2, mlen);
-            dev.manufacturer_data_len = mlen;
+            if (mlen > sizeof(dev.manufacturerData)) mlen = sizeof(dev.manufacturerData);
+            std::memcpy(dev.manufacturerData, fields.mfg_data + 2, mlen);
+            dev.manufacturerDataLen = mlen;
         }
         // Parse up to 4 service UUIDs across 16/32/128 lists.
         uint8_t out_i = 0;
         for (uint8_t i = 0; i < fields.num_uuids16 && out_i < 4; ++i) {
             ble_uuid16_t u = { .u = { .type = BLE_UUID_TYPE_16 }, .value = fields.uuids16[i].value };
-            FromNimbleUuid((const ble_uuid_t*)&u, dev.service_uuids[out_i++]);
+            FromNimbleUuid((const ble_uuid_t*)&u, dev.serviceUuids[out_i++]);
         }
         for (uint8_t i = 0; i < fields.num_uuids128 && out_i < 4; ++i) {
             ble_uuid128_t u;
             u.u.type = BLE_UUID_TYPE_128;
             std::memcpy(u.value, fields.uuids128[i].value, 16);
-            FromNimbleUuid((const ble_uuid_t*)&u, dev.service_uuids[out_i++]);
+            FromNimbleUuid((const ble_uuid_t*)&u, dev.serviceUuids[out_i++]);
         }
-        dev.service_uuid_count = out_i;
+        dev.serviceUuidCount = out_i;
     }
 
     s_ScanCb(dev, s_ScanUser);
@@ -453,9 +453,9 @@ bool ESPIDFBLE::StartAdvertising(const DekiBLEAdvData& data)
     if (!InitStackOnce()) return false;
     if (s_Advertising) ble_gap_adv_stop();
 
-    if (data.raw_override && data.raw_override_len > 0 && data.raw_override_len <= 31) {
-        std::memcpy(s_AdvRawBuf, data.raw_override, data.raw_override_len);
-        s_AdvRawLen = data.raw_override_len;
+    if (data.rawOverride && data.rawOverrideLen > 0 && data.rawOverrideLen <= 31) {
+        std::memcpy(s_AdvRawBuf, data.rawOverride, data.rawOverrideLen);
+        s_AdvRawLen = data.rawOverrideLen;
         int rc = ble_gap_adv_set_data(s_AdvRawBuf, s_AdvRawLen);
         if (rc != 0) {
             m_LastError = "ble_gap_adv_set_data raw failed";
@@ -464,27 +464,27 @@ bool ESPIDFBLE::StartAdvertising(const DekiBLEAdvData& data)
     } else {
         struct ble_hs_adv_fields fields = {};
         fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
-        if (data.local_name) {
-            fields.name        = (uint8_t*)data.local_name;
-            fields.name_len    = (uint8_t)std::strlen(data.local_name);
+        if (data.localName) {
+            fields.name        = (uint8_t*)data.localName;
+            fields.name_len    = (uint8_t)std::strlen(data.localName);
             fields.name_is_complete = 1;
         }
         // Marshal manufacturer data with leading manufacturer_id (LE).
         uint8_t mfg_buf[29];
-        if (data.manufacturer_id != 0xFFFF && data.manufacturer_data_len > 0
-            && data.manufacturer_data_len <= 27)
+        if (data.manufacturerId != 0xFFFF && data.manufacturerDataLen > 0
+            && data.manufacturerDataLen <= 27)
         {
-            mfg_buf[0] = data.manufacturer_id & 0xFF;
-            mfg_buf[1] = (data.manufacturer_id >> 8) & 0xFF;
-            std::memcpy(mfg_buf + 2, data.manufacturer_data, data.manufacturer_data_len);
+            mfg_buf[0] = data.manufacturerId & 0xFF;
+            mfg_buf[1] = (data.manufacturerId >> 8) & 0xFF;
+            std::memcpy(mfg_buf + 2, data.manufacturerData, data.manufacturerDataLen);
             fields.mfg_data     = mfg_buf;
-            fields.mfg_data_len = data.manufacturer_data_len + 2;
+            fields.mfg_data_len = data.manufacturerDataLen + 2;
         }
         // Service UUIDs: only 128-bit emitted here (16-bit can be added if asked).
         std::vector<ble_uuid128_t> u128s;
-        for (uint8_t i = 0; i < data.service_uuid_count && i < 4; ++i) {
+        for (uint8_t i = 0; i < data.serviceUuidCount && i < 4; ++i) {
             ble_uuid_any_t any;
-            ToNimbleUuid(data.service_uuids[i], any);
+            ToNimbleUuid(data.serviceUuids[i], any);
             if (any.u.type == BLE_UUID_TYPE_128) u128s.push_back(any.u128);
         }
         if (!u128s.empty()) {
@@ -504,7 +504,7 @@ bool ESPIDFBLE::StartAdvertising(const DekiBLEAdvData& data)
     struct ble_gap_adv_params ap = {};
     ap.conn_mode = data.connectable ? BLE_GAP_CONN_MODE_UND : BLE_GAP_CONN_MODE_NON;
     ap.disc_mode = BLE_GAP_DISC_MODE_GEN;
-    uint16_t itvl = (uint16_t)((data.interval_ms * 1000) / 625);
+    uint16_t itvl = (uint16_t)((data.intervalMs * 1000) / 625);
     ap.itvl_min = itvl;
     ap.itvl_max = itvl;
 
@@ -547,14 +547,14 @@ bool ESPIDFBLE::BuildGattServer(DekiBLEServiceSpec* services, uint8_t count)
         rec.deki_uuid = services[s].uuid;
         ToNimbleUuid(rec.deki_uuid, rec.nimble_uuid);
 
-        rec.chars.resize(services[s].char_count);
-        rec.chr_defs.resize(services[s].char_count + 1);
+        rec.chars.resize(services[s].charCount);
+        rec.chr_defs.resize(services[s].charCount + 1);
 
-        for (uint8_t c = 0; c < services[s].char_count; ++c) {
+        for (uint8_t c = 0; c < services[s].charCount; ++c) {
             GattCharRecord& cr = rec.chars[c];
             cr.deki_uuid     = services[s].chars[c].uuid;
             cr.props         = services[s].chars[c].props;
-            cr.max_len       = services[s].chars[c].max_len;
+            cr.maxLen       = services[s].chars[c].maxLen;
             cr.idx_in_service = c;
             ToNimbleUuid(cr.deki_uuid, cr.nimble_uuid);
 
@@ -567,7 +567,7 @@ bool ESPIDFBLE::BuildGattServer(DekiBLEServiceSpec* services, uint8_t count)
             d.val_handle  = &cr.val_handle;
         }
         // Terminator
-        std::memset(&rec.chr_defs[services[s].char_count], 0, sizeof(ble_gatt_chr_def));
+        std::memset(&rec.chr_defs[services[s].charCount], 0, sizeof(ble_gatt_chr_def));
 
         ble_gatt_svc_def& sd = s_GattSvcDefs[s];
         std::memset(&sd, 0, sizeof(sd));
@@ -587,8 +587,8 @@ bool ESPIDFBLE::BuildGattServer(DekiBLEServiceSpec* services, uint8_t count)
 
     // Copy resolved value handles back into caller's specs.
     for (uint8_t s = 0; s < count; ++s) {
-        for (uint8_t c = 0; c < services[s].char_count; ++c) {
-            services[s].chars[c].value_handle = s_GattServices[s].chars[c].val_handle;
+        for (uint8_t c = 0; c < services[s].charCount; ++c) {
+            services[s].chars[c].valueHandle = s_GattServices[s].chars[c].val_handle;
         }
     }
     return true;
