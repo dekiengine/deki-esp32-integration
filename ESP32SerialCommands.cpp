@@ -83,7 +83,7 @@ void ESP32SerialCommands::ProcessCommands()
 
     if (cmd == "STORAGE_MODE")
     {
-        auto* sdCard = SDCardComponent::GetSDCardModule();
+        auto* sdCard = SDCardComponent::GetSDCardPackage();
         if (sdCard && sdCard->SupportsStorageMode())
         {
             if (sdCard->SetStorageMode(true))
@@ -101,12 +101,12 @@ void ESP32SerialCommands::ProcessCommands()
         else
         {
             serial_send("ERROR:STORAGE_MODE_NOT_SUPPORTED");
-            DEKI_LOG_WARNING("ESP32SerialCommands: Storage mode not supported (no SD card module)");
+            DEKI_LOG_WARNING("ESP32SerialCommands: Storage mode not supported (no SD card package)");
         }
     }
     else if (cmd == "EXIT_STORAGE")
     {
-        auto* sdCard = SDCardComponent::GetSDCardModule();
+        auto* sdCard = SDCardComponent::GetSDCardPackage();
         if (sdCard && sdCard->SetStorageMode(false))
         {
             s_InStorageMode = false;

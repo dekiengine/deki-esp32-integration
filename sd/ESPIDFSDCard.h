@@ -1,7 +1,7 @@
 #pragma once
 
 #include "IDekiSDCard.h"  // from deki-sdcard
-#include "ModuleConfig.h"
+#include "PackageConfig.h"
 #include <string>
 #include <memory>
 
@@ -21,7 +21,7 @@ struct sdmmc_card_t;
  * instead of the Arduino SD library. After mounting, files are accessible
  * via standard POSIX calls through ESP-IDF's VFS layer.
  *
- * Configuration pins (from ModuleConfig):
+ * Configuration pins (from PackageConfig):
  * - MOSI: SPI Master Out (data to card)
  * - MISO: SPI Master In (data from card)
  * - CLK: SPI Clock
@@ -40,14 +40,14 @@ public:
     ESPIDFSDCard();
     ~ESPIDFSDCard() override;
 
-    // IDekiModule interface
-    const char* GetModuleId() const override { return "sd_card"; }
-    const char* GetModuleName() const override { return "SD Card (ESP-IDF)"; }
-    void Configure(const ModuleConfig& config) override;
+    // IDekiPackage interface
+    const char* GetPackageId() const override { return "sd_card"; }
+    const char* GetPackageName() const override { return "SD Card (ESP-IDF)"; }
+    void Configure(const PackageConfig& config) override;
     bool Initialize() override;
     void Shutdown() override;
     void Update(float deltaTime) override;
-    ModuleState GetState() const override { return m_State; }
+    PackageState GetState() const override { return m_State; }
     const char* GetLastError() const override { return m_LastError.c_str(); }
 
     // IDekiSDCard interface
@@ -67,7 +67,7 @@ public:
     bool IsStorageMode() const override { return false; }
 
 private:
-    // Configuration from ModuleConfig
+    // Configuration from PackageConfig
     int m_PinMOSI = -1;
     int m_PinMISO = -1;
     int m_PinCLK = -1;
@@ -85,7 +85,7 @@ private:
     std::string m_MountPoint = "/sdcard";
 
     // Runtime state
-    ModuleState m_State = ModuleState::Uninitialized;
+    PackageState m_State = PackageState::Uninitialized;
     SDCardState m_CardState = SDCardState::NotMounted;
     std::string m_LastError;
     bool m_Initialized = false;
@@ -101,8 +101,8 @@ private:
     bool CheckCardDetect() const;
 };
 
-// Module metadata for editor UI generation
+// Package metadata for editor UI generation
 #ifdef DEKI_EDITOR
-struct DekiModuleMeta;
-extern const DekiModuleMeta* GetESPIDFSDCardMeta();
+struct DekiPackageMeta;
+extern const DekiPackageMeta* GetESPIDFSDCardMeta();
 #endif

@@ -1,14 +1,14 @@
 /**
- * @file ESP32HALModule.cpp
- * @brief Module entry point for deki-esp32-hal DLL
+ * @file ESP32HALPackage.cpp
+ * @brief Package entry point for deki-esp32-hal DLL
  *
  * This file exports the standard Deki plugin interface so the editor
  * can load deki-esp32-hal.dll and discover available ESP32 HAL components.
  */
 
-#include "ESP32HALModule.h"
+#include "ESP32HALPackage.h"
 #include "interop/DekiPlugin.h"
-#include "DekiModuleFeatureMeta.h"
+#include "DekiPackageFeatureMeta.h"
 #include "ESP32SerialSetup.h"
 #include "reflection/ComponentRegistry.h"
 #include "reflection/ComponentFactory.h"
@@ -104,7 +104,7 @@ static bool s_ESP32HALRegistered = false;
 extern "C" {
 
 /**
- * @brief Ensure deki-esp32-hal module is loaded and components are registered
+ * @brief Ensure deki-esp32-hal package is loaded and components are registered
  */
 DEKI_ESP32_HAL_API int DekiESP32HAL_EnsureRegistered(void)
 {
@@ -124,13 +124,13 @@ DEKI_ESP32_HAL_API int DekiESP32HAL_EnsureRegistered(void)
 
 DEKI_PLUGIN_API const char* DekiPlugin_GetName(void)
 {
-    return "Deki ESP32 HAL Module";
+    return "Deki ESP32 HAL Package";
 }
 
 DEKI_PLUGIN_API const char* DekiPlugin_GetVersion(void)
 {
-#ifdef DEKI_MODULE_VERSION
-    return DEKI_MODULE_VERSION;
+#ifdef DEKI_PACKAGE_VERSION
+    return DEKI_PACKAGE_VERSION;
 #else
     return "0.0.0-dev";
 #endif
@@ -167,10 +167,10 @@ DEKI_PLUGIN_API void DekiPlugin_RegisterComponents(void)
 }
 
 // =============================================================================
-// Module Feature API
+// Package Feature API
 // =============================================================================
 
-static const DekiModuleFeatureInfo s_Features[] = {
+static const DekiPackageFeatureInfo s_Features[] = {
     {"serial", "Serial Commands", "Editor serial communication", false},
 };
 
@@ -179,7 +179,7 @@ DEKI_PLUGIN_API int DekiPlugin_GetFeatureCount(void)
     return sizeof(s_Features) / sizeof(s_Features[0]);
 }
 
-DEKI_PLUGIN_API const DekiModuleFeatureInfo* DekiPlugin_GetFeature(int index)
+DEKI_PLUGIN_API const DekiPackageFeatureInfo* DekiPlugin_GetFeature(int index)
 {
     if (index < 0 || index >= DekiPlugin_GetFeatureCount())
         return nullptr;
@@ -187,7 +187,7 @@ DEKI_PLUGIN_API const DekiModuleFeatureInfo* DekiPlugin_GetFeature(int index)
 }
 
 // =============================================================================
-// Module-specific feature API (for linked DLL access without name conflicts)
+// Package-specific feature API (for linked DLL access without name conflicts)
 // =============================================================================
 
 DEKI_ESP32_HAL_API const char* DekiESP32HAL_GetName(void)
@@ -200,7 +200,7 @@ DEKI_ESP32_HAL_API int DekiESP32HAL_GetFeatureCount(void)
     return DekiPlugin_GetFeatureCount();
 }
 
-DEKI_ESP32_HAL_API const DekiModuleFeatureInfo* DekiESP32HAL_GetFeature(int index)
+DEKI_ESP32_HAL_API const DekiPackageFeatureInfo* DekiESP32HAL_GetFeature(int index)
 {
     return DekiPlugin_GetFeature(index);
 }

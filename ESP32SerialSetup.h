@@ -3,7 +3,7 @@
 #include <cstdint>
 #include "SetupComponent.h"
 #include "reflection/DekiProperty.h"
-#include "ESP32HALModule.h"
+#include "ESP32HALPackage.h"
 
 /**
  * @brief Component to configure and initialize ESP32 serial command handling

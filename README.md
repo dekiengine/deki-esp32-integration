@@ -2,11 +2,11 @@
 
 ESP32 platform HAL (Hardware Abstraction Layer) for the Deki Engine: serial commands, SD card support via ESP-IDF, memory and filesystem setup.
 
-Part of the [Deki Engine](https://github.com/ATeam-Dekiru/deki-engine) module ecosystem.
+Part of the [Deki Engine](https://github.com/ATeam-Dekiru/deki-engine) package ecosystem.
 
 ## Installation
 
-Install via the Module Manager inside the Deki Editor.
+Install via the Package Manager inside the Deki Editor.
 
 ## Dependencies
 

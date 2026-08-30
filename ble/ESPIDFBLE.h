@@ -1,20 +1,20 @@
 #pragma once
 
 #include "IDekiBLE.h"        // from deki-ble
-#include "ModuleConfig.h"
+#include "PackageConfig.h"
 #include <string>
 
 /**
  * @brief NimBLE implementation of IDekiBLE.
  *
- * Drops into the active-driver slot via DekiBLE::SetCurrent at module load
- * (see ESP32HALModule.cpp). Backed by ESP-IDF's NimBLE host stack (the
+ * Drops into the active-driver slot via DekiBLE::SetCurrent at package load
+ * (see ESP32HALPackage.cpp). Backed by ESP-IDF's NimBLE host stack (the
  * `nimble` component). BLE-only by design; no Bluetooth Classic.
  *
  * Bonding / SMP key persistence are intentionally left at NimBLE defaults
  * (Just Works, no IO capability, no bond persisted). Higher layers that
  * need encryption or authenticated pairing should extend the interface
- * or sit beside this module.
+ * or sit beside this package.
  */
 class ESPIDFBLE : public IDekiBLE
 {
@@ -22,14 +22,14 @@ public:
     ESPIDFBLE() = default;
     ~ESPIDFBLE() override = default;
 
-    // IDekiModule
-    const char* GetModuleId()   const override { return "ble"; }
-    const char* GetModuleName() const override { return "BLE (NimBLE)"; }
-    void        Configure(const ModuleConfig&) override {}
+    // IDekiPackage
+    const char* GetPackageId()   const override { return "ble"; }
+    const char* GetPackageName() const override { return "BLE (NimBLE)"; }
+    void        Configure(const PackageConfig&) override {}
     bool        Initialize() override;
     void        Shutdown() override;
     void        Update(float) override {}
-    ModuleState GetState() const override { return m_State; }
+    PackageState GetState() const override { return m_State; }
     const char* GetLastError() const override { return m_LastError.c_str(); }
 
     // IDekiBLE -- scan
@@ -60,6 +60,6 @@ public:
     void SetNotifyCallback(DekiBLENotifyCb cb, void* user) override;
 
 private:
-    ModuleState m_State = ModuleState::Uninitialized;
+    PackageState m_State = PackageState::Uninitialized;
     std::string m_LastError;
 };

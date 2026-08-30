@@ -1,19 +1,19 @@
 #pragma once
 
 #include "IDekiWiFi.h"        // from deki-wifi
-#include "ModuleConfig.h"
+#include "PackageConfig.h"
 #include <string>
 
 /**
  * @brief ESP-IDF implementation of IDekiWiFi.
  *
- * Drops into the active-driver slot via DekiWiFi::SetCurrent at module load
- * (see DekiESP32HALModule.cpp). Knows nothing about credentials, NVS, or
+ * Drops into the active-driver slot via DekiWiFi::SetCurrent at package load
+ * (see DekiESP32HALPackage.cpp). Knows nothing about credentials, NVS, or
  * provisioning UX — the caller passes ssid/password to Connect explicitly.
  *
- * A small auto-connect helper elsewhere in this module reads NVS-stored
+ * A small auto-connect helper elsewhere in this package reads NVS-stored
  * credentials at boot and calls Connect; that's the temporary placeholder
- * for the future captive-portal provisioning module.
+ * for the future captive-portal provisioning package.
  */
 class ESPIDFWiFi : public IDekiWiFi
 {
@@ -21,14 +21,14 @@ public:
     ESPIDFWiFi() = default;
     ~ESPIDFWiFi() override = default;
 
-    // IDekiModule
-    const char* GetModuleId()   const override { return "wifi"; }
-    const char* GetModuleName() const override { return "WiFi (ESP-IDF)"; }
-    void        Configure(const ModuleConfig&) override {}
+    // IDekiPackage
+    const char* GetPackageId()   const override { return "wifi"; }
+    const char* GetPackageName() const override { return "WiFi (ESP-IDF)"; }
+    void        Configure(const PackageConfig&) override {}
     bool        Initialize() override;
     void        Shutdown() override;
     void        Update(float) override {}
-    ModuleState GetState() const override { return m_State; }
+    PackageState GetState() const override { return m_State; }
     const char* GetLastError() const override { return m_LastError.c_str(); }
 
     // IDekiWiFi
@@ -38,6 +38,6 @@ public:
     int  ScanAPs(DekiAP* out, int maxCount) override;
 
 private:
-    ModuleState m_State     = ModuleState::Uninitialized;
+    PackageState m_State     = PackageState::Uninitialized;
     std::string m_LastError;
 };

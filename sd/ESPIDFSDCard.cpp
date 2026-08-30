@@ -2,7 +2,7 @@
 #include "ESPIDFSDFileSystem.h"
 
 #ifdef DEKI_EDITOR
-#include "DekiModuleMeta.h"
+#include "DekiPackageMeta.h"
 #endif
 
 // ESP-IDF native SD card APIs
@@ -23,11 +23,11 @@ static const char* TAG = "ESPIDFSD";
 #endif
 
 // ============================================================================
-// Module Metadata (for editor UI generation)
+// Package Metadata (for editor UI generation)
 // ============================================================================
 
 #ifdef DEKI_EDITOR
-static const DekiModulePinInfo s_ESPIDFSDCardPins[] = {
+static const DekiPackagePinInfo s_ESPIDFSDCardPins[] = {
     {"MOSI", "SPI Master Out (data to card)", true, -1},
     {"MISO", "SPI Master In (data from card)", true, -1},
     {"CLK", "Clock (shared SPI/SDMMC)", true, -1},
@@ -42,24 +42,24 @@ static const DekiModulePinInfo s_ESPIDFSDCardPins[] = {
 
 static const char* s_ESPIDFSDCardModes[] = {"SPI", "SDMMC_1BIT", nullptr};
 
-static const DekiModuleSettingInfo s_ESPIDFSDCardSettings[] = {
+static const DekiPackageSettingInfo s_ESPIDFSDCardSettings[] = {
     {"mode", "enum", "Interface mode", "SPI", s_ESPIDFSDCardModes, 2},
     {"auto_mount", "bool", "Automatically mount card on initialization", "true", nullptr, 0},
     {"mount_point", "string", "Virtual filesystem mount point", "/sdcard", nullptr, 0},
     {"spi_mhz", "int", "SPI clock frequency in MHz (1-40)", "20", nullptr, 0},
 };
 
-static const DekiModuleMeta s_ESPIDFSDCardMeta = {
-    "esp_idf_sd",       // Module ID
+static const DekiPackageMeta s_ESPIDFSDCardMeta = {
+    "esp_idf_sd",       // Package ID
     "ESP-IDF SD",       // Display name
     "storage",          // Category
     "SD card filesystem using ESP-IDF SPI or SDMMC APIs",
     s_ESPIDFSDCardPins, 10,
     s_ESPIDFSDCardSettings, 4,
-    []() -> IDekiModule* { return new ESPIDFSDCard(); }
+    []() -> IDekiPackage* { return new ESPIDFSDCard(); }
 };
 
-const DekiModuleMeta* GetESPIDFSDCardMeta()
+const DekiPackageMeta* GetESPIDFSDCardMeta()
 {
     return &s_ESPIDFSDCardMeta;
 }
@@ -78,7 +78,7 @@ ESPIDFSDCard::~ESPIDFSDCard()
     Shutdown();
 }
 
-void ESPIDFSDCard::Configure(const ModuleConfig& config)
+void ESPIDFSDCard::Configure(const PackageConfig& config)
 {
     m_PinCLK = config.GetPin("CLK", -1);
     m_PinCD = config.GetPin("CD", -1);
@@ -122,7 +122,7 @@ void ESPIDFSDCard::Configure(const ModuleConfig& config)
 
 bool ESPIDFSDCard::Initialize()
 {
-    m_State = ModuleState::Uninitialized;
+    m_State = PackageState::Uninitialized;
     m_LastError.clear();
 
 #if defined(ESP32)
@@ -134,7 +134,7 @@ bool ESPIDFSDCard::Initialize()
         if (m_PinCLK < 0 || m_PinCMD < 0 || m_PinD0 < 0 || m_PinD1 < 0 || m_PinD2 < 0 || m_PinD3 < 0)
         {
             m_LastError = "SDMMC 4-bit requires CLK, CMD, D0, D1, D2, and D3 pins";
-            m_State = ModuleState::Error;
+            m_State = PackageState::Error;
             return false;
         }
     }
@@ -146,7 +146,7 @@ bool ESPIDFSDCard::Initialize()
         if (m_PinCLK < 0 || m_PinCMD < 0 || m_PinD0 < 0)
         {
             m_LastError = "SDMMC 1-bit requires CLK, CMD, and D0 pins";
-            m_State = ModuleState::Error;
+            m_State = PackageState::Error;
             return false;
         }
     }
@@ -160,7 +160,7 @@ bool ESPIDFSDCard::Initialize()
         if (m_PinCS < 0)
         {
             m_LastError = "CS pin not configured";
-            m_State = ModuleState::Error;
+            m_State = PackageState::Error;
             return false;
         }
 
@@ -211,7 +211,7 @@ bool ESPIDFSDCard::Initialize()
             if (ret != ESP_OK)
             {
                 m_LastError = "SPI bus initialization failed";
-                m_State = ModuleState::Error;
+                m_State = PackageState::Error;
                 ESP_LOGE(TAG, "spi_bus_initialize failed: %s", esp_err_to_name(ret));
                 return false;
             }
@@ -228,7 +228,7 @@ bool ESPIDFSDCard::Initialize()
 #endif
 
     m_Initialized = true;
-    m_State = ModuleState::Initialized;
+    m_State = PackageState::Initialized;
 
     // Create filesystem wrapper
     m_FileSystem = std::make_unique<ESPIDFSDFileSystem>(this);
@@ -238,7 +238,7 @@ bool ESPIDFSDCard::Initialize()
     {
         if (!Mount())
         {
-            // Mount failed, but module is still initialized
+            // Mount failed, but package is still initialized
             // Card might not be inserted yet
         }
     }
@@ -263,7 +263,7 @@ void ESPIDFSDCard::Shutdown()
 
         m_Initialized = false;
     }
-    m_State = ModuleState::Disabled;
+    m_State = PackageState::Disabled;
 }
 
 void ESPIDFSDCard::Update(float deltaTime)

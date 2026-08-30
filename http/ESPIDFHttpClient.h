@@ -6,7 +6,7 @@
  * @brief ESP-IDF implementation of IDekiHttpClient.
  *
  * Registered with DekiHttp::SetCurrent at ESP32 boot (see ESP32BackendInit
- * in ESP32HALModule.cpp). Backed by esp_http_client + esp_crt_bundle_attach
+ * in ESP32HALPackage.cpp). Backed by esp_http_client + esp_crt_bundle_attach
  * for TLS validation against the Mozilla CA bundle.
  *
  * Blocking; called from low-priority FreeRTOS tasks by the providers that

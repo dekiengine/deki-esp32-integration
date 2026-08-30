@@ -1,7 +1,7 @@
 {
   "id": "deki-esp32-hal",
   "displayName": "ESP32 Integration",
-  "buildDefine": "DEKI_MODULE_ESP32_HAL",
+  "buildDefine": "DEKI_PACKAGE_ESP32_HAL",
   "requires": ["deki-wifi", "deki-ble", "deki-http", "deki-i2s", "deki-uart", "deki-i2c", "deki-sdcard"],
   "features": [
     {"id": "memory", "displayName": "Memory", "buildDefine": "DEKI_FEATURE_ESP32_MEMORY_SETUP", "defaultEnabled": true, "componentGuids": ["a7b2c8d4-3e6f-4a1b-9d05-8f2e7c4b6a39"]},

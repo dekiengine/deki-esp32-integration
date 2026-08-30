@@ -24,7 +24,7 @@ void S3PIE_RGB565A8_Blend_Row(const uint8_t* src, uint8_t* dst, int32_t pixelCou
                               uint8_t tintR, uint8_t tintG, uint8_t tintB, uint8_t tintA);
 
 // True if this build will register kernels (compile-time gate). Used by
-// ESP32HALModule.cpp to suppress the registration call on non-S3 builds.
+// ESP32HALPackage.cpp to suppress the registration call on non-S3 builds.
 constexpr bool HasS3PIEKernels()
 {
 #if defined(__XTENSA__) && defined(CONFIG_IDF_TARGET_ESP32S3)

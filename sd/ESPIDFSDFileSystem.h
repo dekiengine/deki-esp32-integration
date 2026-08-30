@@ -22,7 +22,7 @@ class ESPIDFSDFileSystem : public IDekiFileSystem
 public:
     /**
      * @brief Construct filesystem wrapper
-     * @param sdCard Parent SD card module (provides mount point)
+     * @param sdCard Parent SD card package (provides mount point)
      */
     explicit ESPIDFSDFileSystem(ESPIDFSDCard* sdCard);
     ~ESPIDFSDFileSystem() override;

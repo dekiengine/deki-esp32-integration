@@ -1,7 +1,7 @@
 #pragma once
 
 #include "IDekiI2S.h"  // from deki-i2s
-#include "ModuleConfig.h"
+#include "PackageConfig.h"
 #include <string>
 
 #if defined(ESP32)
@@ -14,13 +14,13 @@ public:
     ESPIDFI2S() = default;
     ~ESPIDFI2S() override;
 
-    const char* GetModuleId() const override   { return "i2s"; }
-    const char* GetModuleName() const override { return "I2S (ESP-IDF)"; }
-    void        Configure(const ModuleConfig& config) override;
+    const char* GetPackageId() const override   { return "i2s"; }
+    const char* GetPackageName() const override { return "I2S (ESP-IDF)"; }
+    void        Configure(const PackageConfig& config) override;
     bool        Initialize() override;
     void        Shutdown() override;
     void        Update(float) override {}
-    ModuleState GetState() const override      { return m_State; }
+    PackageState GetState() const override      { return m_State; }
     const char* GetLastError() const override  { return m_LastError.c_str(); }
 
     int  GetPort() const override { return m_Port; }
@@ -38,7 +38,7 @@ private:
     int         m_Channels = 1;
 
     bool        m_Running = false;
-    ModuleState m_State = ModuleState::Uninitialized;
+    PackageState m_State = PackageState::Uninitialized;
     std::string m_LastError;
 
 #if defined(ESP32)

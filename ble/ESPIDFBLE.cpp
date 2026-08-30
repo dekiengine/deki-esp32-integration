@@ -26,7 +26,7 @@
 namespace {
 
 // =============================================================================
-// Module-wide state. NimBLE is a singleton stack, the ESPIDFBLE class is a
+// Package-wide state. NimBLE is a singleton stack, the ESPIDFBLE class is a
 // thin facade on top, so we keep state here in a single anonymous namespace.
 // =============================================================================
 
@@ -378,17 +378,17 @@ bool ESPIDFBLE::Initialize()
 {
     if (!InitStackOnce()) {
         m_LastError = "nimble init failed";
-        m_State = ModuleState::Error;
+        m_State = PackageState::Error;
         return false;
     }
-    m_State = ModuleState::Initialized;
+    m_State = PackageState::Initialized;
     return true;
 }
 
 void ESPIDFBLE::Shutdown()
 {
     if (!s_StackInited) {
-        m_State = ModuleState::Uninitialized;
+        m_State = PackageState::Uninitialized;
         return;
     }
     if (s_Advertising) { ble_gap_adv_stop(); s_Advertising = false; }
@@ -400,7 +400,7 @@ void ESPIDFBLE::Shutdown()
     }
     s_StackInited = false;
     s_HostReady   = false;
-    m_State = ModuleState::Uninitialized;
+    m_State = PackageState::Uninitialized;
 }
 
 // =============================================================================
@@ -787,8 +787,8 @@ void ESPIDFBLE::SetNotifyCallback(DekiBLENotifyCb cb, void* user)
 
 #else  // !ESP32 -- desktop / editor stubs
 
-bool ESPIDFBLE::Initialize() { m_State = ModuleState::Initialized; return true; }
-void ESPIDFBLE::Shutdown()   { m_State = ModuleState::Uninitialized; }
+bool ESPIDFBLE::Initialize() { m_State = PackageState::Initialized; return true; }
+void ESPIDFBLE::Shutdown()   { m_State = PackageState::Uninitialized; }
 
 bool ESPIDFBLE::StartScan(uint16_t, uint16_t, bool, uint32_t)
 {

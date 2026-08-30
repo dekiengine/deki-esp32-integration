@@ -55,7 +55,7 @@ void S3PIE_RGB565_Copy_Row(const uint8_t* src, uint8_t* dst, int32_t pixelCount,
 // ---------------------------------------------------------------------------
 // NOT YET REGISTERED. The per-pixel pipeline (3-byte gather, RGB565 unpack,
 // multiply-add by alpha, repack) needs careful PIE asm with on-hardware bit
-// verification. Until that exists, ESP32HALModule.cpp does not register this
+// verification. Until that exists, ESP32HALPackage.cpp does not register this
 // kernel — the QuadBlit dispatcher then runs its scalar inner loop, same as
 // every other build target.
 //

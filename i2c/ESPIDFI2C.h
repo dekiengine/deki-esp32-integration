@@ -1,7 +1,7 @@
 #pragma once
 
 #include "IDekiI2C.h"  // from deki-i2c
-#include "ModuleConfig.h"
+#include "PackageConfig.h"
 #include <string>
 
 class ESPIDFI2C : public IDekiI2C
@@ -10,13 +10,13 @@ public:
     ESPIDFI2C() = default;
     ~ESPIDFI2C() override = default;
 
-    const char* GetModuleId() const override   { return "i2c"; }
-    const char* GetModuleName() const override { return "I2C (ESP-IDF)"; }
-    void        Configure(const ModuleConfig& config) override;
+    const char* GetPackageId() const override   { return "i2c"; }
+    const char* GetPackageName() const override { return "I2C (ESP-IDF)"; }
+    void        Configure(const PackageConfig& config) override;
     bool        Initialize() override;
     void        Shutdown() override;
     void        Update(float) override {}
-    ModuleState GetState() const override      { return m_State; }
+    PackageState GetState() const override      { return m_State; }
     const char* GetLastError() const override  { return m_LastError.c_str(); }
 
     int  GetPort() const override         { return m_Port; }
@@ -33,6 +33,6 @@ private:
     int         m_Port   = 0;
     uint32_t    m_FreqHz = 400000;
 
-    ModuleState m_State = ModuleState::Uninitialized;
+    PackageState m_State = PackageState::Uninitialized;
     std::string m_LastError;
 };
