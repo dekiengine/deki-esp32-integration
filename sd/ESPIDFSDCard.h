@@ -101,8 +101,3 @@ private:
     bool CheckCardDetect() const;
 };
 
-// Package metadata for editor UI generation
-#ifdef DEKI_EDITOR
-struct DekiPackageMeta;
-extern const DekiPackageMeta* GetESPIDFSDCardMeta();
-#endif

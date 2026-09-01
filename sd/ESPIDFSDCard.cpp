@@ -1,9 +1,6 @@
 #include "ESPIDFSDCard.h"
 #include "ESPIDFSDFileSystem.h"
 
-#ifdef DEKI_EDITOR
-#include "DekiPackageMeta.h"
-#endif
 
 // ESP-IDF native SD card APIs
 #if defined(ESP32)
@@ -26,44 +23,6 @@ static const char* TAG = "ESPIDFSD";
 // Package Metadata (for editor UI generation)
 // ============================================================================
 
-#ifdef DEKI_EDITOR
-static const DekiPackagePinInfo s_ESPIDFSDCardPins[] = {
-    {"MOSI", "SPI Master Out (data to card)", true, -1},
-    {"MISO", "SPI Master In (data from card)", true, -1},
-    {"CLK", "Clock (shared SPI/SDMMC)", true, -1},
-    {"CS", "SPI Chip Select", true, -1},
-    {"CMD", "SDMMC Command line", false, -1},
-    {"D0", "SDMMC Data line 0", false, -1},
-    {"D1", "SDMMC Data line 1 (4-bit)", false, -1},
-    {"D2", "SDMMC Data line 2 (4-bit)", false, -1},
-    {"D3", "SDMMC Data line 3 (4-bit)", false, -1},
-    {"CD", "Card Detect (optional)", false, -1},
-};
-
-static const char* s_ESPIDFSDCardModes[] = {"SPI", "SDMMC_1BIT", nullptr};
-
-static const DekiPackageSettingInfo s_ESPIDFSDCardSettings[] = {
-    {"mode", "enum", "Interface mode", "SPI", s_ESPIDFSDCardModes, 2},
-    {"auto_mount", "bool", "Automatically mount card on initialization", "true", nullptr, 0},
-    {"mount_point", "string", "Virtual filesystem mount point", "/sdcard", nullptr, 0},
-    {"spiMhz", "int", "SPI clock frequency in MHz (1-40)", "20", nullptr, 0},
-};
-
-static const DekiPackageMeta s_ESPIDFSDCardMeta = {
-    "esp_idf_sd",       // Package ID
-    "ESP-IDF SD",       // Display name
-    "storage",          // Category
-    "SD card filesystem using ESP-IDF SPI or SDMMC APIs",
-    s_ESPIDFSDCardPins, 10,
-    s_ESPIDFSDCardSettings, 4,
-    []() -> IDekiPackage* { return new ESPIDFSDCard(); }
-};
-
-const DekiPackageMeta* GetESPIDFSDCardMeta()
-{
-    return &s_ESPIDFSDCardMeta;
-}
-#endif // DEKI_EDITOR
 
 // ============================================================================
 // ESPIDFSDCard Implementation

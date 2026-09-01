@@ -8,7 +8,6 @@
 
 #include "ESP32HALPackage.h"
 #include "interop/DekiPlugin.h"
-#include "DekiPackageFeatureMeta.h"
 #include "ESP32SerialSetup.h"
 #include "reflection/ComponentRegistry.h"
 #include "reflection/ComponentFactory.h"
@@ -136,11 +135,6 @@ DEKI_PLUGIN_API const char* DekiPlugin_GetVersion(void)
 #endif
 }
 
-DEKI_PLUGIN_API const char* DekiPlugin_GetReflectionJson(void)
-{
-    return "{}";
-}
-
 DEKI_PLUGIN_API int DekiPlugin_Init(void)
 {
     return 0;
@@ -167,42 +161,12 @@ DEKI_PLUGIN_API void DekiPlugin_RegisterComponents(void)
 }
 
 // =============================================================================
-// Package Feature API
-// =============================================================================
-
-static const DekiPackageFeatureInfo s_Features[] = {
-    {"serial", "Serial Commands", "Editor serial communication", false},
-};
-
-DEKI_PLUGIN_API int DekiPlugin_GetFeatureCount(void)
-{
-    return sizeof(s_Features) / sizeof(s_Features[0]);
-}
-
-DEKI_PLUGIN_API const DekiPackageFeatureInfo* DekiPlugin_GetFeature(int index)
-{
-    if (index < 0 || index >= DekiPlugin_GetFeatureCount())
-        return nullptr;
-    return &s_Features[index];
-}
-
-// =============================================================================
 // Package-specific feature API (for linked DLL access without name conflicts)
 // =============================================================================
 
 DEKI_ESP32_HAL_API const char* DekiESP32HAL_GetName(void)
 {
     return "ESP32 HAL";
-}
-
-DEKI_ESP32_HAL_API int DekiESP32HAL_GetFeatureCount(void)
-{
-    return DekiPlugin_GetFeatureCount();
-}
-
-DEKI_ESP32_HAL_API const DekiPackageFeatureInfo* DekiESP32HAL_GetFeature(int index)
-{
-    return DekiPlugin_GetFeature(index);
 }
 
 } // extern "C"
