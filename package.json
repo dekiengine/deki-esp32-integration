@@ -10,7 +10,8 @@
     "deki-i2s",
     "deki-uart",
     "deki-i2c",
-    "deki-sdcard"
+    "deki-sdcard",
+    "deki-rendering"
   ],
   "features": [
     {
@@ -49,7 +50,7 @@
     },
     {
       "id": "i2c",
-      "displayName": "I\u00b2C (ESP-IDF)",
+      "displayName": "I²C (ESP-IDF)",
       "buildDefine": "DEKI_FEATURE_ESP32_I2C",
       "defaultEnabled": true,
       "componentGuids": []
@@ -63,7 +64,7 @@
     },
     {
       "id": "i2s",
-      "displayName": "I\u00b2S (ESP-IDF)",
+      "displayName": "I²S (ESP-IDF)",
       "buildDefine": "DEKI_FEATURE_ESP32_I2S",
       "defaultEnabled": true,
       "componentGuids": []
