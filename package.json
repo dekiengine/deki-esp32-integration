@@ -1,7 +1,7 @@
 {
   "id": "deki-esp32-hal",
   "displayName": "ESP32 Integration",
-  "minEngine": "1.1.0",
+  "minEngine": "1.2.0",
   "buildDefine": "DEKI_PACKAGE_ESP32_HAL",
   "requires": [
     "deki-wifi",
