@@ -1,5 +1,5 @@
 {
-  "id": "deki-esp32-hal",
+  "id": "deki-esp32-integration",
   "displayName": "ESP32 Integration",
   "minEngine": "1.2.0",
   "buildDefine": "DEKI_PACKAGE_ESP32_HAL",
