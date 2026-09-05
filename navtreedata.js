@@ -28,7 +28,7 @@ var NAVTREE =
     [ "Components", "index.html#autotoc_md0", null ],
     [ "Feature flags", "index.html#autotoc_md1", null ],
     [ "Component reference", "index.html#autotoc_md2", [
-      [ "ESP32SerialSetup (ESP32 Serial Setup)", "index.html#c-esp32serialsetup", null ]
+      [ "ESP32SerialSetup", "index.html#c-esp32serialsetup", null ]
     ] ]
   ] ]
 ];
