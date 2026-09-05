@@ -12,11 +12,11 @@ public:
 
     const char* GetPackageId() const override   { return "uart"; }
     const char* GetPackageName() const override { return "UART (ESP-IDF)"; }
-    void        Configure(const PackageConfig& config) override;
+    void        Configure(const Deki::PackageConfig& config) override;
     bool        Initialize() override;
     void        Shutdown() override;
     void        Update(float) override {}
-    PackageState GetState() const override      { return m_State; }
+    Deki::PackageState GetState() const override      { return m_State; }
     const char* GetLastError() const override  { return m_LastError.c_str(); }
 
     int Read (uint8_t* dst, size_t maxLen, uint32_t timeoutMs) override;
@@ -29,6 +29,6 @@ private:
     uint32_t    m_Baud  = 9600;
     size_t      m_RxBufSize = 1024;
 
-    PackageState m_State = PackageState::Uninitialized;
+    Deki::PackageState m_State = Deki::PackageState::Uninitialized;
     std::string m_LastError;
 };

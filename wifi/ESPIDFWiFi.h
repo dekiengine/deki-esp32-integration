@@ -21,14 +21,14 @@ public:
     ESPIDFWiFi() = default;
     ~ESPIDFWiFi() override = default;
 
-    // IDekiPackage
+    // Deki::IPackage
     const char* GetPackageId()   const override { return "wifi"; }
     const char* GetPackageName() const override { return "WiFi (ESP-IDF)"; }
-    void        Configure(const PackageConfig&) override {}
+    void        Configure(const Deki::PackageConfig&) override {}
     bool        Initialize() override;
     void        Shutdown() override;
     void        Update(float) override {}
-    PackageState GetState() const override { return m_State; }
+    Deki::PackageState GetState() const override { return m_State; }
     const char* GetLastError() const override { return m_LastError.c_str(); }
 
     // IDekiWiFi
@@ -38,6 +38,6 @@ public:
     int  ScanAPs(DekiAP* out, int maxCount) override;
 
 private:
-    PackageState m_State     = PackageState::Uninitialized;
+    Deki::PackageState m_State     = Deki::PackageState::Uninitialized;
     std::string m_LastError;
 };

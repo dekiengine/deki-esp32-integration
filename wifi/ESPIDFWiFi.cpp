@@ -74,7 +74,7 @@ bool InitStackOnce()
 
 bool ESPIDFWiFi::Initialize()
 {
-    m_State = PackageState::Initialized;
+    m_State = Deki::PackageState::Initialized;
     return true;
 }
 
@@ -87,7 +87,7 @@ void ESPIDFWiFi::Shutdown()
     s_StackInited = false;
     s_Connected   = false;
 #endif
-    m_State = PackageState::Uninitialized;
+    m_State = Deki::PackageState::Uninitialized;
 }
 
 bool ESPIDFWiFi::Connect(const char* ssid, const char* password, uint32_t timeoutMs)

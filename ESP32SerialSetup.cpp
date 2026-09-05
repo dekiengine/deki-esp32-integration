@@ -14,7 +14,7 @@ void ESP32SerialSetup::Setup(SetupCallback onComplete)
 
     ESP32SerialCommands::Initialize(static_cast<unsigned long>(baudRate));
 
-    DekiEngine::GetInstance().RegisterUpdate([](uint32_t) {
+    Deki::Engine::GetInstance().RegisterUpdate([](uint32_t) {
         ESP32SerialCommands::ProcessCommands();
     });
 

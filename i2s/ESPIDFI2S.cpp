@@ -11,7 +11,7 @@ ESPIDFI2S::~ESPIDFI2S()
     Shutdown();
 }
 
-void ESPIDFI2S::Configure(const PackageConfig& config)
+void ESPIDFI2S::Configure(const Deki::PackageConfig& config)
 {
     m_PinBCLK       = config.GetPin("BCLK", -1);
     m_PinLRCLK      = config.GetPin("LRCLK", -1);
@@ -28,7 +28,7 @@ bool ESPIDFI2S::Initialize()
     if (m_PinBCLK < 0 || m_PinLRCLK < 0 || m_PinDOUT < 0)
     {
         m_LastError = "ESPIDFI2S: BCLK/LRCLK/DOUT pins not configured";
-        m_State = PackageState::Error;
+        m_State = Deki::PackageState::Error;
         return false;
     }
 
@@ -36,7 +36,7 @@ bool ESPIDFI2S::Initialize()
     if (i2s_new_channel(&chan_cfg, &m_TxHandle, nullptr) != ESP_OK)
     {
         m_LastError = "ESPIDFI2S: i2s_new_channel failed";
-        m_State = PackageState::Error;
+        m_State = Deki::PackageState::Error;
         return false;
     }
 
@@ -69,15 +69,15 @@ bool ESPIDFI2S::Initialize()
         m_LastError = "ESPIDFI2S: i2s_channel_init_std_mode failed";
         i2s_del_channel(m_TxHandle);
         m_TxHandle = nullptr;
-        m_State = PackageState::Error;
+        m_State = Deki::PackageState::Error;
         return false;
     }
 
-    m_State = PackageState::Initialized;
+    m_State = Deki::PackageState::Initialized;
     return true;
 #else
     m_LastError = "ESPIDFI2S: hardware path only built for ESP32";
-    m_State = PackageState::Error;
+    m_State = Deki::PackageState::Error;
     return false;
 #endif
 }
@@ -93,7 +93,7 @@ void ESPIDFI2S::Shutdown()
     }
 #endif
     m_Running = false;
-    m_State = PackageState::Uninitialized;
+    m_State = Deki::PackageState::Uninitialized;
 }
 
 bool ESPIDFI2S::Start()
@@ -107,7 +107,7 @@ bool ESPIDFI2S::Start()
         return false;
     }
     m_Running = true;
-    m_State = PackageState::Running;
+    m_State = Deki::PackageState::Running;
     return true;
 #else
     return false;
@@ -124,7 +124,7 @@ bool ESPIDFI2S::Stop()
         return false;
     }
     m_Running = false;
-    m_State = PackageState::Initialized;
+    m_State = Deki::PackageState::Initialized;
     return true;
 #else
     return false;

@@ -5,7 +5,7 @@
 #include "driver/uart.h"
 #endif
 
-void ESPIDFUART::Configure(const PackageConfig& config)
+void ESPIDFUART::Configure(const Deki::PackageConfig& config)
 {
     m_PinTX = config.GetPin("TX", -1);
     m_PinRX = config.GetPin("RX", -1);
@@ -20,7 +20,7 @@ bool ESPIDFUART::Initialize()
     if (m_PinRX < 0)
     {
         m_LastError = "ESPIDFUART: RX pin not configured";
-        m_State = PackageState::Error;
+        m_State = Deki::PackageState::Error;
         return false;
     }
 
@@ -37,15 +37,15 @@ bool ESPIDFUART::Initialize()
         uart_driver_install((uart_port_t)m_Port, (int)m_RxBufSize, 0, 0, nullptr, 0) != ESP_OK)
     {
         m_LastError = "ESPIDFUART: uart driver install failed";
-        m_State = PackageState::Error;
+        m_State = Deki::PackageState::Error;
         return false;
     }
 
-    m_State = PackageState::Running;
+    m_State = Deki::PackageState::Running;
     return true;
 #else
     m_LastError = "ESPIDFUART: hardware path only built for ESP32";
-    m_State = PackageState::Error;
+    m_State = Deki::PackageState::Error;
     return false;
 #endif
 }
@@ -55,7 +55,7 @@ void ESPIDFUART::Shutdown()
 #if defined(ESP32)
     uart_driver_delete((uart_port_t)m_Port);
 #endif
-    m_State = PackageState::Uninitialized;
+    m_State = Deki::PackageState::Uninitialized;
 }
 
 int ESPIDFUART::Read(uint8_t* dst, size_t maxLen, uint32_t timeoutMs)

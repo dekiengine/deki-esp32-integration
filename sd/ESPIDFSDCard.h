@@ -40,14 +40,14 @@ public:
     ESPIDFSDCard();
     ~ESPIDFSDCard() override;
 
-    // IDekiPackage interface
+    // Deki::IPackage interface
     const char* GetPackageId() const override { return "sd_card"; }
     const char* GetPackageName() const override { return "SD Card (ESP-IDF)"; }
-    void Configure(const PackageConfig& config) override;
+    void Configure(const Deki::PackageConfig& config) override;
     bool Initialize() override;
     void Shutdown() override;
     void Update(float deltaTime) override;
-    PackageState GetState() const override { return m_State; }
+    Deki::PackageState GetState() const override { return m_State; }
     const char* GetLastError() const override { return m_LastError.c_str(); }
 
     // IDekiSDCard interface
@@ -57,7 +57,7 @@ public:
     bool IsCardInserted() const override;
     uint64_t GetTotalBytes() const override;
     uint64_t GetFreeBytes() const override;
-    IDekiFileSystem* GetFileSystem() override;
+    Deki::IFileSystem* GetFileSystem() override;
     const char* GetMountPoint() const override { return m_MountPoint.c_str(); }
     SDCardMode GetMode() const override { return m_Mode; }
 
@@ -85,7 +85,7 @@ private:
     std::string m_MountPoint = "/sdcard";
 
     // Runtime state
-    PackageState m_State = PackageState::Uninitialized;
+    Deki::PackageState m_State = Deki::PackageState::Uninitialized;
     SDCardState m_CardState = SDCardState::NotMounted;
     std::string m_LastError;
     bool m_Initialized = false;

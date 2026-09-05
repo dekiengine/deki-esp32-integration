@@ -12,11 +12,11 @@ public:
 
     const char* GetPackageId() const override   { return "i2c"; }
     const char* GetPackageName() const override { return "I2C (ESP-IDF)"; }
-    void        Configure(const PackageConfig& config) override;
+    void        Configure(const Deki::PackageConfig& config) override;
     bool        Initialize() override;
     void        Shutdown() override;
     void        Update(float) override {}
-    PackageState GetState() const override      { return m_State; }
+    Deki::PackageState GetState() const override      { return m_State; }
     const char* GetLastError() const override  { return m_LastError.c_str(); }
 
     int  GetPort() const override         { return m_Port; }
@@ -33,6 +33,6 @@ private:
     int         m_Port   = 0;
     uint32_t    m_FreqHz = 400000;
 
-    PackageState m_State = PackageState::Uninitialized;
+    Deki::PackageState m_State = Deki::PackageState::Uninitialized;
     std::string m_LastError;
 };

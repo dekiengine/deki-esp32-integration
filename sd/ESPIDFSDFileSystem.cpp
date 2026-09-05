@@ -102,7 +102,7 @@ bool ESPIDFSDFileSystem::ConvertPath(const char* virtualPath, char* outBuffer, s
     return ConvertVirtualPathTo(virtualPath, outBuffer, bufferSize);
 }
 
-IDekiFileSystem::FileHandle ESPIDFSDFileSystem::OpenFile(const char* path, OpenMode mode)
+Deki::IFileSystem::FileHandle ESPIDFSDFileSystem::OpenFile(const char* path, OpenMode mode)
 {
     char realPath[128];
     if (!ConvertVirtualPathTo(path, realPath, sizeof(realPath)))

@@ -6,7 +6,7 @@
 #include <vector>
 
 /**
- * @brief ESP-IDF implementation of IDekiPower.
+ * @brief ESP-IDF implementation of Deki::IPower.
  *
  * Light sleep only for this iteration. `SupportsMode(Deep)` returns false
  * until a follow-up wires NVS persistence and the reboot-as-wake handling
@@ -23,7 +23,7 @@
  * handlers registered during Initialize(); app callbacks are appended to the
  * same lists and fire alongside the backlight ones.
  */
-class ESPIDFPower : public IDekiPower
+class ESPIDFPower : public Deki::IPower
 {
 public:
     ESPIDFPower()           = default;

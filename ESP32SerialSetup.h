@@ -11,15 +11,15 @@
  * Add this component to your boot scene to enable serial command processing
  * for editor communication (storage mode, status queries, etc.).
  *
- * Registers a per-frame update callback via DekiEngine::RegisterUpdate()
+ * Registers a per-frame update callback via Deki::Engine::RegisterUpdate()
  * to process incoming serial commands.
  *
  * Inherits from SetupComponent to participate in boot sequence.
  */
-class DEKI_ESP32_HAL_API ESP32SerialSetup : public SetupComponent
+class DEKI_ESP32_HAL_API ESP32SerialSetup : public Deki::SetupComponent
 {
 public:
-    DEKI_COMPONENT(ESP32SerialSetup, SetupComponent, "ESP32 HAL", "c9d4eaf6-5081-4c3d-bf27-a04f9e6d8c51", "DEKI_FEATURE_ESP32_SERIAL_SETUP")
+    DEKI_COMPONENT(ESP32SerialSetup, Deki::SetupComponent, "ESP32 HAL", "c9d4eaf6-5081-4c3d-bf27-a04f9e6d8c51", "DEKI_FEATURE_ESP32_SERIAL_SETUP")
     DEKI_DESCRIPTION("Answers the editor's commands over the ESP32's serial port.")
 
     DEKI_EXPORT

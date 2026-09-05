@@ -378,17 +378,17 @@ bool ESPIDFBLE::Initialize()
 {
     if (!InitStackOnce()) {
         m_LastError = "nimble init failed";
-        m_State = PackageState::Error;
+        m_State = Deki::PackageState::Error;
         return false;
     }
-    m_State = PackageState::Initialized;
+    m_State = Deki::PackageState::Initialized;
     return true;
 }
 
 void ESPIDFBLE::Shutdown()
 {
     if (!s_StackInited) {
-        m_State = PackageState::Uninitialized;
+        m_State = Deki::PackageState::Uninitialized;
         return;
     }
     if (s_Advertising) { ble_gap_adv_stop(); s_Advertising = false; }
@@ -400,7 +400,7 @@ void ESPIDFBLE::Shutdown()
     }
     s_StackInited = false;
     s_HostReady   = false;
-    m_State = PackageState::Uninitialized;
+    m_State = Deki::PackageState::Uninitialized;
 }
 
 // =============================================================================
@@ -787,8 +787,8 @@ void ESPIDFBLE::SetNotifyCallback(DekiBLENotifyCb cb, void* user)
 
 #else  // !ESP32 -- desktop / editor stubs
 
-bool ESPIDFBLE::Initialize() { m_State = PackageState::Initialized; return true; }
-void ESPIDFBLE::Shutdown()   { m_State = PackageState::Uninitialized; }
+bool ESPIDFBLE::Initialize() { m_State = Deki::PackageState::Initialized; return true; }
+void ESPIDFBLE::Shutdown()   { m_State = Deki::PackageState::Uninitialized; }
 
 bool ESPIDFBLE::StartScan(uint16_t, uint16_t, bool, uint32_t)
 {

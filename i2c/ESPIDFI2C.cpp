@@ -5,7 +5,7 @@
 #include "driver/i2c.h"
 #endif
 
-void ESPIDFI2C::Configure(const PackageConfig& config)
+void ESPIDFI2C::Configure(const Deki::PackageConfig& config)
 {
     m_PinSDA = config.GetPin("SDA", -1);
     m_PinSCL = config.GetPin("SCL", -1);
@@ -19,7 +19,7 @@ bool ESPIDFI2C::Initialize()
     if (m_PinSDA < 0 || m_PinSCL < 0)
     {
         m_LastError = "ESPIDFI2C: SDA/SCL pins not configured";
-        m_State = PackageState::Error;
+        m_State = Deki::PackageState::Error;
         return false;
     }
 
@@ -35,15 +35,15 @@ bool ESPIDFI2C::Initialize()
         i2c_driver_install((i2c_port_t)m_Port, conf.mode, 0, 0, 0) != ESP_OK)
     {
         m_LastError = "ESPIDFI2C: i2c driver install failed";
-        m_State = PackageState::Error;
+        m_State = Deki::PackageState::Error;
         return false;
     }
 
-    m_State = PackageState::Initialized;
+    m_State = Deki::PackageState::Initialized;
     return true;
 #else
     m_LastError = "ESPIDFI2C: hardware path only built for ESP32";
-    m_State = PackageState::Error;
+    m_State = Deki::PackageState::Error;
     return false;
 #endif
 }
@@ -53,7 +53,7 @@ void ESPIDFI2C::Shutdown()
 #if defined(ESP32)
     i2c_driver_delete((i2c_port_t)m_Port);
 #endif
-    m_State = PackageState::Uninitialized;
+    m_State = Deki::PackageState::Uninitialized;
 }
 
 bool ESPIDFI2C::Probe(uint8_t addr)

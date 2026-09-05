@@ -37,7 +37,7 @@ ESPIDFSDCard::~ESPIDFSDCard()
     Shutdown();
 }
 
-void ESPIDFSDCard::Configure(const PackageConfig& config)
+void ESPIDFSDCard::Configure(const Deki::PackageConfig& config)
 {
     m_PinCLK = config.GetPin("CLK", -1);
     m_PinCD = config.GetPin("CD", -1);
@@ -81,7 +81,7 @@ void ESPIDFSDCard::Configure(const PackageConfig& config)
 
 bool ESPIDFSDCard::Initialize()
 {
-    m_State = PackageState::Uninitialized;
+    m_State = Deki::PackageState::Uninitialized;
     m_LastError.clear();
 
 #if defined(ESP32)
@@ -93,7 +93,7 @@ bool ESPIDFSDCard::Initialize()
         if (m_PinCLK < 0 || m_PinCMD < 0 || m_PinD0 < 0 || m_PinD1 < 0 || m_PinD2 < 0 || m_PinD3 < 0)
         {
             m_LastError = "SDMMC 4-bit requires CLK, CMD, D0, D1, D2, and D3 pins";
-            m_State = PackageState::Error;
+            m_State = Deki::PackageState::Error;
             return false;
         }
     }
@@ -105,7 +105,7 @@ bool ESPIDFSDCard::Initialize()
         if (m_PinCLK < 0 || m_PinCMD < 0 || m_PinD0 < 0)
         {
             m_LastError = "SDMMC 1-bit requires CLK, CMD, and D0 pins";
-            m_State = PackageState::Error;
+            m_State = Deki::PackageState::Error;
             return false;
         }
     }
@@ -119,7 +119,7 @@ bool ESPIDFSDCard::Initialize()
         if (m_PinCS < 0)
         {
             m_LastError = "CS pin not configured";
-            m_State = PackageState::Error;
+            m_State = Deki::PackageState::Error;
             return false;
         }
 
@@ -170,7 +170,7 @@ bool ESPIDFSDCard::Initialize()
             if (ret != ESP_OK)
             {
                 m_LastError = "SPI bus initialization failed";
-                m_State = PackageState::Error;
+                m_State = Deki::PackageState::Error;
                 ESP_LOGE(TAG, "spi_bus_initialize failed: %s", esp_err_to_name(ret));
                 return false;
             }
@@ -187,7 +187,7 @@ bool ESPIDFSDCard::Initialize()
 #endif
 
     m_Initialized = true;
-    m_State = PackageState::Initialized;
+    m_State = Deki::PackageState::Initialized;
 
     // Create filesystem wrapper
     m_FileSystem = std::make_unique<ESPIDFSDFileSystem>(this);
@@ -222,7 +222,7 @@ void ESPIDFSDCard::Shutdown()
 
         m_Initialized = false;
     }
-    m_State = PackageState::Disabled;
+    m_State = Deki::PackageState::Disabled;
 }
 
 void ESPIDFSDCard::Update(float deltaTime)
@@ -404,7 +404,7 @@ uint64_t ESPIDFSDCard::GetFreeBytes() const
     return 0;
 }
 
-IDekiFileSystem* ESPIDFSDCard::GetFileSystem()
+Deki::IFileSystem* ESPIDFSDCard::GetFileSystem()
 {
     if (m_CardState != SDCardState::Mounted)
         return nullptr;

@@ -7,7 +7,7 @@
 class ESPIDFSDCard;
 
 /**
- * @brief ESP-IDF native SD card implementation of IDekiFileSystem
+ * @brief ESP-IDF native SD card implementation of Deki::IFileSystem
  *
  * Uses POSIX file operations on the ESP-IDF VFS-mounted SD card.
  * After esp_vfs_fat_sdspi_mount(), the SD card is accessible via
@@ -17,7 +17,7 @@ class ESPIDFSDCard;
  * - "S:/saves/game.sav" -> "/sdcard/saves/game.sav" (VFS mount point)
  * - "D:/saves/game.sav" -> "/sdcard/saves/game.sav" (legacy prefix)
  */
-class ESPIDFSDFileSystem : public IDekiFileSystem
+class ESPIDFSDFileSystem : public Deki::IFileSystem
 {
 public:
     /**
@@ -27,7 +27,7 @@ public:
     explicit ESPIDFSDFileSystem(ESPIDFSDCard* sdCard);
     ~ESPIDFSDFileSystem() override;
 
-    // IDekiFileSystem interface
+    // Deki::IFileSystem interface
     bool Initialize() override;
     void Shutdown() override;
     FileHandle OpenFile(const char* path, OpenMode mode) override;

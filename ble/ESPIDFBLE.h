@@ -22,14 +22,14 @@ public:
     ESPIDFBLE() = default;
     ~ESPIDFBLE() override = default;
 
-    // IDekiPackage
+    // Deki::IPackage
     const char* GetPackageId()   const override { return "ble"; }
     const char* GetPackageName() const override { return "BLE (NimBLE)"; }
-    void        Configure(const PackageConfig&) override {}
+    void        Configure(const Deki::PackageConfig&) override {}
     bool        Initialize() override;
     void        Shutdown() override;
     void        Update(float) override {}
-    PackageState GetState() const override { return m_State; }
+    Deki::PackageState GetState() const override { return m_State; }
     const char* GetLastError() const override { return m_LastError.c_str(); }
 
     // IDekiBLE -- scan
@@ -60,6 +60,6 @@ public:
     void SetNotifyCallback(DekiBLENotifyCb cb, void* user) override;
 
 private:
-    PackageState m_State = PackageState::Uninitialized;
+    Deki::PackageState m_State = Deki::PackageState::Uninitialized;
     std::string m_LastError;
 };

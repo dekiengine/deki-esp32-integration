@@ -42,9 +42,9 @@ namespace
 {
 struct ESP32BackendInit {
     ESP32BackendInit() {
-        DekiMemory::SetBackend(new ESP32MemoryProvider());
-        DekiFileSystem::SetFileSystem(new ESP32FileSystem());
-        DekiTime::SetTimeProvider(std::make_unique<ESP32TimeProvider>());
+        Deki::Memory::SetBackend(new Deki::ESP32MemoryProvider());
+        Deki::FileSystem::SetFileSystem(new Deki::ESP32FileSystem());
+        Deki::Time::SetTimeProvider(std::make_unique<Deki::ESP32TimeProvider>());
         DekiSDCard::SetFactory([]() -> IDekiSDCard* { return new ESPIDFSDCard(); });
         DekiI2C::SetFactory([]() -> IDekiI2C* { return new ESPIDFI2C(); });
         DekiUART::SetFactory([]() -> IDekiUART* { return new ESPIDFUART(); });
@@ -68,10 +68,10 @@ struct ESP32BackendInit {
         DekiHttp::SetCurrent(&s_Http);
 
         // Power: light-sleep driver. Idle timeout / wake GPIO are configured
-        // by the app at runtime via DekiPower::GetCurrent()->Set*.
+        // by the app at runtime via Deki::Power::GetCurrent()->Set*.
         static ESPIDFPower s_Power;
         s_Power.Initialize();
-        DekiPower::SetCurrent(&s_Power);
+        Deki::Power::SetCurrent(&s_Power);
 
 #if defined(CONFIG_IDF_TARGET_ESP32S3)
         // S3 PIE SIMD blit kernels. Only kernels with verified implementations
@@ -95,7 +95,7 @@ extern "C" void app_main(void) { DekiMain(); }
 // Auto-generated registration helpers
 extern void DekiESP32HAL_RegisterComponents();
 extern int DekiESP32HAL_GetAutoComponentCount();
-extern const DekiComponentMeta* DekiESP32HAL_GetAutoComponentMeta(int index);
+extern const Deki::ComponentMeta* DekiESP32HAL_GetAutoComponentMeta(int index);
 
 // Track if already registered to avoid duplicates
 static bool s_ESP32HALRegistered = false;
@@ -150,7 +150,7 @@ DEKI_PLUGIN_API int DekiPlugin_GetComponentCount(void)
     return DekiESP32HAL_GetAutoComponentCount();
 }
 
-DEKI_PLUGIN_API const DekiComponentMeta* DekiPlugin_GetComponentMeta(int index)
+DEKI_PLUGIN_API const Deki::ComponentMeta* DekiPlugin_GetComponentMeta(int index)
 {
     return DekiESP32HAL_GetAutoComponentMeta(index);
 }
