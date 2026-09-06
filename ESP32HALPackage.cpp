@@ -86,7 +86,7 @@ static ESP32BackendInit s_esp32_init;
 }
 
 #include <deki/Main.h>
-extern "C" void app_main(void) { DekiMain(); }
+extern "C" void app_main(void) { Deki::Main(); }
 
 #endif // ESP32
 
