@@ -16,11 +16,11 @@
  *
  * Inherits from SetupComponent to participate in boot sequence.
  */
+DEKI_CATEGORY("ESP32 HAL")
+DEKI_DESCRIPTION("Answers the editor's commands over the ESP32's serial port.")
 class DEKI_ESP32_HAL_API ESP32SerialSetup : public Deki::SetupComponent
 {
 public:
-    DEKI_COMPONENT(ESP32SerialSetup, Deki::SetupComponent, "ESP32 HAL", "c9d4eaf6-5081-4c3d-bf27-a04f9e6d8c51", "DEKI_FEATURE_ESP32_SERIAL_SETUP")
-    DEKI_DESCRIPTION("Answers the editor's commands over the ESP32's serial port.")
 
     DEKI_EXPORT
     DEKI_TOOLTIP("Serial baud rate")
@@ -32,4 +32,3 @@ public:
 };
 
 // Generated property metadata
-#include "generated/ESP32SerialSetup.gen.h"

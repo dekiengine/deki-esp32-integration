@@ -1,7 +1,7 @@
 {
   "id": "deki-esp32-integration",
   "displayName": "ESP32 Integration",
-  "minEngine": "0.10.0",
+  "minEngine": "0.11.0",
   "buildDefine": "DEKI_PACKAGE_ESP32_HAL",
   "requires": [
     "deki-wifi",
@@ -19,7 +19,7 @@
       "displayName": "Memory",
       "buildDefine": "DEKI_FEATURE_ESP32_MEMORY_SETUP",
       "defaultEnabled": true,
-      "componentGuids": [
+      "componentTypes": [
         "a7b2c8d4-3e6f-4a1b-9d05-8f2e7c4b6a39"
       ]
     },
@@ -28,7 +28,7 @@
       "displayName": "File System",
       "buildDefine": "DEKI_FEATURE_ESP32_FILE_SYSTEM_SETUP",
       "defaultEnabled": true,
-      "componentGuids": [
+      "componentTypes": [
         "b8c3d9e5-4f70-4b2c-ae16-9f3e8d5c7b40"
       ]
     },
@@ -37,8 +37,8 @@
       "displayName": "Serial Commands",
       "buildDefine": "DEKI_FEATURE_ESP32_SERIAL_SETUP",
       "defaultEnabled": true,
-      "componentGuids": [
-        "c9d4eaf6-5081-4c3d-bf27-a04f9e6d8c51"
+      "componentTypes": [
+        "ESP32SerialSetup"
       ]
     },
     {
@@ -46,56 +46,56 @@
       "displayName": "SD Card (ESP-IDF)",
       "buildDefine": "DEKI_FEATURE_ESP32_SD",
       "defaultEnabled": true,
-      "componentGuids": []
+      "componentTypes": []
     },
     {
       "id": "i2c",
       "displayName": "I²C (ESP-IDF)",
       "buildDefine": "DEKI_FEATURE_ESP32_I2C",
       "defaultEnabled": true,
-      "componentGuids": []
+      "componentTypes": []
     },
     {
       "id": "uart",
       "displayName": "UART (ESP-IDF)",
       "buildDefine": "DEKI_FEATURE_ESP32_UART",
       "defaultEnabled": true,
-      "componentGuids": []
+      "componentTypes": []
     },
     {
       "id": "i2s",
       "displayName": "I²S (ESP-IDF)",
       "buildDefine": "DEKI_FEATURE_ESP32_I2S",
       "defaultEnabled": true,
-      "componentGuids": []
+      "componentTypes": []
     },
     {
       "id": "blit_simd",
       "displayName": "S3 SIMD Blit Kernels",
       "buildDefine": "DEKI_FEATURE_ESP32_BLIT_SIMD",
       "defaultEnabled": true,
-      "componentGuids": []
+      "componentTypes": []
     },
     {
       "id": "wifi",
       "displayName": "WiFi STA + scan (ESP-IDF)",
       "buildDefine": "DEKI_FEATURE_ESP32_WIFI",
       "defaultEnabled": true,
-      "componentGuids": []
+      "componentTypes": []
     },
     {
       "id": "ble",
       "displayName": "BLE (NimBLE)",
       "buildDefine": "DEKI_FEATURE_ESP32_BLE",
       "defaultEnabled": true,
-      "componentGuids": []
+      "componentTypes": []
     },
     {
       "id": "http",
       "displayName": "HTTPS client (ESP-IDF)",
       "buildDefine": "DEKI_FEATURE_ESP32_HTTP",
       "defaultEnabled": true,
-      "componentGuids": []
+      "componentTypes": []
     }
   ],
   "dependencies": {
