@@ -19,18 +19,14 @@
       "displayName": "Memory",
       "buildDefine": "DEKI_FEATURE_ESP32_MEMORY_SETUP",
       "defaultEnabled": true,
-      "componentTypes": [
-        "a7b2c8d4-3e6f-4a1b-9d05-8f2e7c4b6a39"
-      ]
+      "componentTypes": []
     },
     {
       "id": "filesystem",
       "displayName": "File System",
       "buildDefine": "DEKI_FEATURE_ESP32_FILE_SYSTEM_SETUP",
       "defaultEnabled": true,
-      "componentTypes": [
-        "b8c3d9e5-4f70-4b2c-ae16-9f3e8d5c7b40"
-      ]
+      "componentTypes": []
     },
     {
       "id": "serial",
