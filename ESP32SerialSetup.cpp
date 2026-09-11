@@ -4,7 +4,7 @@
 
 #if defined(ESP32)
 
-#include "platforms/esp32/ESP32SerialCommands.h"
+#include "ESP32SerialCommands.h"
 #include "esp_log.h"
 static const char* TAG = "ESP32Serial";
 

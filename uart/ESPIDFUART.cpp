@@ -25,7 +25,7 @@ bool ESPIDFUART::Initialize()
     }
 
     uart_config_t cfg = {};
-    cfg.baudRate  = (int)m_Baud;
+    cfg.baud_rate  = (int)m_Baud;
     cfg.data_bits  = UART_DATA_8_BITS;
     cfg.parity     = UART_PARITY_DISABLE;
     cfg.stop_bits  = UART_STOP_BITS_1;

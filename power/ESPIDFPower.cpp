@@ -14,7 +14,7 @@ namespace
 {
 void SetBacklight(bool on)
 {
-    if (auto* d = Deki::Engine::Instance().GetDisplay()) {
+    if (auto* d = Deki::Engine::GetInstance().GetDisplay()) {
         d->SetBacklight(on);
     }
 }

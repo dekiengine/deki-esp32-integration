@@ -4,7 +4,11 @@
 #include <cstring>
 #include <cstdlib>
 
-#if defined(ESP32)
+// Bluetooth is a sdkconfig choice, not a platform one: a board that leaves
+// CONFIG_BT_ENABLED off has no NimBLE headers to include, and a package
+// shipping a BLE backend must not stop such a firmware from compiling. The
+// stub branch below already answers every call safely, so use it.
+#if defined(ESP32) && defined(CONFIG_BT_ENABLED)
 
 #include "nimble/nimble_port.h"
 #include "nimble/nimble_port_freertos.h"
@@ -785,7 +789,7 @@ void ESPIDFBLE::SetNotifyCallback(DekiBLENotifyCb cb, void* user)
     s_NotifyUser = user;
 }
 
-#else  // !ESP32 -- desktop / editor stubs
+#else  // no NimBLE here -- desktop, editor, or Bluetooth disabled
 
 bool ESPIDFBLE::Initialize() { m_State = Deki::PackageState::Initialized; return true; }
 void ESPIDFBLE::Shutdown()   { m_State = Deki::PackageState::Uninitialized; }
@@ -828,4 +832,4 @@ bool ESPIDFBLE::WriteRemote(DekiBLEConnHandle, DekiBLECharHandle, const void*, s
 bool ESPIDFBLE::Subscribe(DekiBLEConnHandle, DekiBLECharHandle, bool) { return false; }
 void ESPIDFBLE::SetNotifyCallback(DekiBLENotifyCb, void*) {}
 
-#endif  // ESP32
+#endif  // ESP32 && CONFIG_BT_ENABLED
