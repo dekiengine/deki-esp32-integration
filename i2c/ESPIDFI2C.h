@@ -3,6 +3,7 @@
 #include "IDekiI2C.h"  // from deki-i2c
 #include <deki/PackageConfig.h>
 #include <string>
+#include <vector>
 
 class ESPIDFI2C : public IDekiI2C
 {
@@ -32,6 +33,22 @@ private:
     int         m_PinSCL = -1;
     int         m_Port   = 0;
     uint32_t    m_FreqHz = 400000;
+
+#if defined(ESP32)
+    // The new I2C driver hands out a handle per device rather than taking an
+    // address per transaction, so addresses are mapped back to handles here.
+    // Typed void* in the header to keep driver/i2c_master.h out of it, which
+    // the desktop build has no business including.
+    struct Device
+    {
+        uint8_t addr;
+        void*   handle;
+    };
+    void* m_Bus = nullptr;
+    std::vector<Device> m_Devices;
+
+    void* DeviceFor(uint8_t addr);
+#endif
 
     Deki::PackageState m_State = Deki::PackageState::Uninitialized;
     std::string m_LastError;
