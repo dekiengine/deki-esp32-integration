@@ -139,7 +139,7 @@ DEKI_ESP32_HAL_API int DekiESP32HAL_EnsureRegistered(void)
 
 DEKI_PLUGIN_API const char* DekiPlugin_GetName(void)
 {
-    return "DekiRendering::Deki ESP32 HAL Package";
+    return "Deki ESP32 HAL Package";
 }
 
 DEKI_PLUGIN_API const char* DekiPlugin_GetVersion(void)
