@@ -62,16 +62,17 @@ void ESPIDFSDCard::Configure(const Deki::PackageConfig& config)
         m_PinD1 = config.GetPin("D1", -1);
         m_PinD2 = config.GetPin("D2", -1);
         m_PinD3 = config.GetPin("D3", -1);
-        int sdmmcMhz = config.GetInt("sdmmcMhz", 20);
-        m_SdmmcFrequency = static_cast<uint32_t>(sdmmcMhz) * 1000000;
+        // Hertz, as the field name now says. This was megahertz multiplied out
+        // here, which is how this package ended up in MHz while deki-i2c next
+        // door was already in Hz.
+        m_SdmmcFrequency = static_cast<uint32_t>(config.GetInt("sdmmcHz", 20000000));
     }
     else if (modeStr == "SDMMC_1BIT")
     {
         m_Mode = DekiSdCard::SDCardMode::SDMMC_1BIT;
         m_PinCMD = config.GetPin("CMD", -1);
         m_PinD0 = config.GetPin("D0", -1);
-        int sdmmcMhz = config.GetInt("sdmmcMhz", 20);
-        m_SdmmcFrequency = static_cast<uint32_t>(sdmmcMhz) * 1000000;
+        m_SdmmcFrequency = static_cast<uint32_t>(config.GetInt("sdmmcHz", 20000000));
     }
     else
     {
@@ -80,9 +81,7 @@ void ESPIDFSDCard::Configure(const Deki::PackageConfig& config)
         m_PinMISO = config.GetPin("MISO", -1);
         m_PinCS = config.GetPin("CS", -1);
 
-        // SPI frequency in MHz (convert to Hz)
-        int spiMhz = config.GetInt("spiMhz", 20);
-        m_SpiFrequency = static_cast<uint32_t>(spiMhz) * 1000000;
+        m_SpiFrequency = static_cast<uint32_t>(config.GetInt("spiHz", 20000000));
     }
 }
 
