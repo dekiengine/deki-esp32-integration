@@ -4,10 +4,13 @@
 #include <deki/PackageConfig.h>
 #include <string>
 
+namespace DekiEsp32
+{
+
 /**
- * @brief ESP-IDF implementation of IDekiWiFi.
+ * @brief ESP-IDF implementation of DekiWifi::IDekiWiFi.
  *
- * Drops into the active-driver slot via DekiWiFi::SetCurrent at package load
+ * Drops into the active-driver slot via DekiWifi::DekiWiFi::SetCurrent at package load
  * (see DekiESP32HALPackage.cpp). Knows nothing about credentials, NVS, or
  * provisioning UX — the caller passes ssid/password to Connect explicitly.
  *
@@ -15,7 +18,7 @@
  * credentials at boot and calls Connect; that's the temporary placeholder
  * for the future captive-portal provisioning package.
  */
-class ESPIDFWiFi : public IDekiWiFi
+class ESPIDFWiFi : public DekiWifi::IDekiWiFi
 {
 public:
     ESPIDFWiFi() = default;
@@ -31,13 +34,15 @@ public:
     Deki::PackageState GetState() const override { return m_State; }
     const char* GetLastError() const override { return m_LastError.c_str(); }
 
-    // IDekiWiFi
+    // DekiWifi::IDekiWiFi
     bool Connect(const char* ssid, const char* password, uint32_t timeoutMs) override;
     void Disconnect() override;
     bool IsConnected() const override;
-    int  ScanAPs(DekiAP* out, int maxCount) override;
+    int  ScanAPs(DekiWifi::DekiAP* out, int maxCount) override;
 
 private:
     Deki::PackageState m_State     = Deki::PackageState::Uninitialized;
     std::string m_LastError;
 };
+
+}  // namespace DekiEsp32

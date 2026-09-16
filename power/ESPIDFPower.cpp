@@ -1,14 +1,20 @@
 #include "ESPIDFPower.h"
 
 #if defined(ESP32)
-
 #include <deki/Engine.h>
 #include <deki/LogSystem.h>
 #include <deki/providers/IDisplay.h>
-
 #include <esp_sleep.h>
 #include <esp_timer.h>
 #include <driver/gpio.h>
+#endif
+
+namespace DekiEsp32
+{
+
+#if defined(ESP32)
+
+
 
 namespace
 {
@@ -142,3 +148,5 @@ void ESPIDFPower::FireScreenOn(const SleepInfo&)       {}
 void ESPIDFPower::FireBeforeSleep(const SleepInfo&)    {}
 
 #endif  // ESP32
+
+}  // namespace DekiEsp32

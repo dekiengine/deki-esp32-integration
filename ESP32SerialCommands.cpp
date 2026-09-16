@@ -7,6 +7,12 @@
 #include "driver/uart.h"
 #include <cstring>
 #include <string>
+#endif
+
+namespace DekiEsp32
+{
+
+#ifdef ESP32
 
 #define SERIAL_UART_NUM UART_NUM_0
 #define SERIAL_BUF_SIZE 256
@@ -83,7 +89,7 @@ void ESP32SerialCommands::ProcessCommands()
 
     if (cmd == "STORAGE_MODE")
     {
-        auto* sdCard = SDCardComponent::GetSDCardPackage();
+        auto* sdCard = DekiSdCard::SDCardComponent::GetSDCardPackage();
         if (sdCard && sdCard->SupportsStorageMode())
         {
             if (sdCard->SetStorageMode(true))
@@ -106,7 +112,7 @@ void ESP32SerialCommands::ProcessCommands()
     }
     else if (cmd == "EXIT_STORAGE")
     {
-        auto* sdCard = SDCardComponent::GetSDCardPackage();
+        auto* sdCard = DekiSdCard::SDCardComponent::GetSDCardPackage();
         if (sdCard && sdCard->SetStorageMode(false))
         {
             s_InStorageMode = false;
@@ -147,3 +153,5 @@ bool ESP32SerialCommands::IsInStorageMode()
 {
     return s_InStorageMode;
 }
+
+}  // namespace DekiEsp32

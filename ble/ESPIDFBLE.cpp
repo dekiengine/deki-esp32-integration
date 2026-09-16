@@ -4,12 +4,7 @@
 #include <cstring>
 #include <cstdlib>
 
-// Bluetooth is a sdkconfig choice, not a platform one: a board that leaves
-// CONFIG_BT_ENABLED off has no NimBLE headers to include, and a package
-// shipping a BLE backend must not stop such a firmware from compiling. The
-// stub branch below already answers every call safely, so use it.
 #if defined(ESP32) && defined(CONFIG_BT_ENABLED)
-
 #include "nimble/nimble_port.h"
 #include "nimble/nimble_port_freertos.h"
 #include "host/ble_hs.h"
@@ -24,8 +19,19 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/event_groups.h"
-
 #include <vector>
+#endif
+
+namespace DekiEsp32
+{
+
+// Bluetooth is a sdkconfig choice, not a platform one: a board that leaves
+// CONFIG_BT_ENABLED off has no NimBLE headers to include, and a package
+// shipping a BLE backend must not stop such a firmware from compiling. The
+// stub branch below already answers every call safely, so use it.
+#if defined(ESP32) && defined(CONFIG_BT_ENABLED)
+
+
 
 namespace {
 
@@ -39,7 +45,7 @@ bool                 s_HostReady        = false;
 uint8_t              s_OwnAddrType      = 0;
 
 // Scan
-DekiBLEScanCb        s_ScanCb           = nullptr;
+DekiBle::DekiBLEScanCb        s_ScanCb           = nullptr;
 void*                s_ScanUser         = nullptr;
 bool                 s_ScanActive       = false;
 
@@ -51,7 +57,7 @@ uint8_t              s_AdvRawLen        = 0;
 // GATT server: persisted service table (NimBLE references this after registration).
 // Each translated service has a flat char array terminated by a zero entry.
 struct GattCharRecord {
-    DekiBLEUUID       deki_uuid;
+    DekiBle::DekiBLEUUID       deki_uuid;
     ble_uuid_any_t    nimble_uuid;
     uint16_t          val_handle;     // populated by NimBLE via ble_gatts_add_svcs callback
     uint8_t           props;
@@ -60,7 +66,7 @@ struct GattCharRecord {
 };
 
 struct GattServiceRecord {
-    DekiBLEUUID       deki_uuid;
+    DekiBle::DekiBLEUUID       deki_uuid;
     ble_uuid_any_t    nimble_uuid;
     std::vector<GattCharRecord> chars;
     std::vector<ble_gatt_chr_def>   chr_defs;  // terminated entry appended
@@ -70,18 +76,18 @@ std::vector<GattServiceRecord>  s_GattServices;
 std::vector<ble_gatt_svc_def>   s_GattSvcDefs;   // flat array passed to NimBLE; terminated
 
 // GATT server callbacks
-DekiBLECharWriteCb   s_CharWriteCb      = nullptr;
+DekiBle::DekiBLECharWriteCb   s_CharWriteCb      = nullptr;
 void*                s_CharWriteUser    = nullptr;
-DekiBLECharReadCb    s_CharReadCb       = nullptr;
+DekiBle::DekiBLECharReadCb    s_CharReadCb       = nullptr;
 void*                s_CharReadUser     = nullptr;
-DekiBLEConnCb        s_ConnCb           = nullptr;
+DekiBle::DekiBLEConnCb        s_ConnCb           = nullptr;
 void*                s_ConnUser         = nullptr;
 
 // GATT client async wait state
 SemaphoreHandle_t    s_ClientSem        = nullptr;
 struct ClientOpState {
     int               status;
-    DekiBLEConnHandle conn_handle;
+    DekiBle::DekiBLEConnHandle conn_handle;
     uint16_t          attr_handle_first;
     uint8_t           attr_handle_count;
     uint8_t*          read_buf;
@@ -90,14 +96,14 @@ struct ClientOpState {
 } s_ClientOp;
 
 // GATT notify dispatch
-DekiBLENotifyCb      s_NotifyCb         = nullptr;
+DekiBle::DekiBLENotifyCb      s_NotifyCb         = nullptr;
 void*                s_NotifyUser       = nullptr;
 
 // =============================================================================
 // Helpers
 // =============================================================================
 
-void ToNimbleUuid(const DekiBLEUUID& in, ble_uuid_any_t& out)
+void ToNimbleUuid(const DekiBle::DekiBLEUUID& in, ble_uuid_any_t& out)
 {
     if (in.is16bit) {
         out.u.type = BLE_UUID_TYPE_16;
@@ -109,7 +115,7 @@ void ToNimbleUuid(const DekiBLEUUID& in, ble_uuid_any_t& out)
     }
 }
 
-void FromNimbleUuid(const ble_uuid_t* in, DekiBLEUUID& out)
+void FromNimbleUuid(const ble_uuid_t* in, DekiBle::DekiBLEUUID& out)
 {
     if (!in) { out = {}; return; }
     if (in->type == BLE_UUID_TYPE_16) {
@@ -132,24 +138,24 @@ void FromNimbleUuid(const ble_uuid_t* in, DekiBLEUUID& out)
     }
 }
 
-DekiBLEAddrType FromNimbleAddrType(uint8_t t)
+DekiBle::DekiBLEAddrType FromNimbleAddrType(uint8_t t)
 {
     switch (t) {
-        case BLE_ADDR_PUBLIC:        return DekiBLEAddrType::Public;
-        case BLE_ADDR_RANDOM:        return DekiBLEAddrType::RandomStatic;
-        case BLE_ADDR_PUBLIC_ID:     return DekiBLEAddrType::Public;
-        case BLE_ADDR_RANDOM_ID:     return DekiBLEAddrType::RandomPrivateResolvable;
+        case BLE_ADDR_PUBLIC:        return DekiBle::DekiBLEAddrType::Public;
+        case BLE_ADDR_RANDOM:        return DekiBle::DekiBLEAddrType::RandomStatic;
+        case BLE_ADDR_PUBLIC_ID:     return DekiBle::DekiBLEAddrType::Public;
+        case BLE_ADDR_RANDOM_ID:     return DekiBle::DekiBLEAddrType::RandomPrivateResolvable;
     }
-    return DekiBLEAddrType::Public;
+    return DekiBle::DekiBLEAddrType::Public;
 }
 
-uint8_t ToNimbleAddrType(DekiBLEAddrType t)
+uint8_t ToNimbleAddrType(DekiBle::DekiBLEAddrType t)
 {
     switch (t) {
-        case DekiBLEAddrType::Public:                     return BLE_ADDR_PUBLIC;
-        case DekiBLEAddrType::RandomStatic:               return BLE_ADDR_RANDOM;
-        case DekiBLEAddrType::RandomPrivateResolvable:    return BLE_ADDR_RANDOM_ID;
-        case DekiBLEAddrType::RandomPrivateNonResolvable: return BLE_ADDR_RANDOM;
+        case DekiBle::DekiBLEAddrType::Public:                     return BLE_ADDR_PUBLIC;
+        case DekiBle::DekiBLEAddrType::RandomStatic:               return BLE_ADDR_RANDOM;
+        case DekiBle::DekiBLEAddrType::RandomPrivateResolvable:    return BLE_ADDR_RANDOM_ID;
+        case DekiBle::DekiBLEAddrType::RandomPrivateNonResolvable: return BLE_ADDR_RANDOM;
     }
     return BLE_ADDR_PUBLIC;
 }
@@ -188,7 +194,7 @@ void DispatchScanResult(const struct ble_gap_disc_desc& disc)
 {
     if (!s_ScanCb) return;
 
-    DekiBLEDevice dev = {};
+    DekiBle::DekiBLEDevice dev = {};
     std::memcpy(dev.addr.bytes, disc.addr.val, 6);
     dev.addr.type = FromNimbleAddrType(disc.addr.type);
     dev.rssi = disc.rssi;
@@ -235,7 +241,7 @@ void DispatchScanResult(const struct ble_gap_disc_desc& disc)
 void DispatchConnEvent(uint16_t conn_handle, const ble_addr_t* peer, bool connected)
 {
     if (!s_ConnCb) return;
-    DekiBLEAddress addr = {};
+    DekiBle::DekiBLEAddress addr = {};
     if (peer) {
         std::memcpy(addr.bytes, peer->val, 6);
         addr.type = FromNimbleAddrType(peer->type);
@@ -375,7 +381,7 @@ bool InitStackOnce()
 }  // namespace
 
 // =============================================================================
-// IDekiBLE -- lifecycle
+// DekiBle::IDekiBLE -- lifecycle
 // =============================================================================
 
 bool ESPIDFBLE::Initialize()
@@ -408,7 +414,7 @@ void ESPIDFBLE::Shutdown()
 }
 
 // =============================================================================
-// IDekiBLE -- scan
+// DekiBle::IDekiBLE -- scan
 // =============================================================================
 
 bool ESPIDFBLE::StartScan(uint16_t intervalMs, uint16_t windowMs, bool active, uint32_t durationMs)
@@ -442,17 +448,17 @@ void ESPIDFBLE::StopScan()
     }
 }
 
-void ESPIDFBLE::SetScanCallback(DekiBLEScanCb cb, void* user)
+void ESPIDFBLE::SetScanCallback(DekiBle::DekiBLEScanCb cb, void* user)
 {
     s_ScanCb   = cb;
     s_ScanUser = user;
 }
 
 // =============================================================================
-// IDekiBLE -- advertise
+// DekiBle::IDekiBLE -- advertise
 // =============================================================================
 
-bool ESPIDFBLE::StartAdvertising(const DekiBLEAdvData& data)
+bool ESPIDFBLE::StartAdvertising(const DekiBle::DekiBLEAdvData& data)
 {
     if (!InitStackOnce()) return false;
     if (s_Advertising) ble_gap_adv_stop();
@@ -533,10 +539,10 @@ bool ESPIDFBLE::IsAdvertising() const
 }
 
 // =============================================================================
-// IDekiBLE -- GATT server
+// DekiBle::IDekiBLE -- GATT server
 // =============================================================================
 
-bool ESPIDFBLE::BuildGattServer(DekiBLEServiceSpec* services, uint8_t count)
+bool ESPIDFBLE::BuildGattServer(DekiBle::DekiBLEServiceSpec* services, uint8_t count)
 {
     if (!InitStackOnce()) return false;
     if (!services || count == 0) return false;
@@ -598,7 +604,7 @@ bool ESPIDFBLE::BuildGattServer(DekiBLEServiceSpec* services, uint8_t count)
     return true;
 }
 
-bool ESPIDFBLE::NotifyValue(DekiBLEConnHandle conn, DekiBLECharHandle handle,
+bool ESPIDFBLE::NotifyValue(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECharHandle handle,
                             const void* data, size_t len)
 {
     if (!s_StackInited) return false;
@@ -608,29 +614,29 @@ bool ESPIDFBLE::NotifyValue(DekiBLEConnHandle conn, DekiBLECharHandle handle,
     return rc == 0;
 }
 
-void ESPIDFBLE::SetCharWriteCallback(DekiBLECharWriteCb cb, void* user)
+void ESPIDFBLE::SetCharWriteCallback(DekiBle::DekiBLECharWriteCb cb, void* user)
 {
     s_CharWriteCb   = cb;
     s_CharWriteUser = user;
 }
 
-void ESPIDFBLE::SetCharReadCallback(DekiBLECharReadCb cb, void* user)
+void ESPIDFBLE::SetCharReadCallback(DekiBle::DekiBLECharReadCb cb, void* user)
 {
     s_CharReadCb   = cb;
     s_CharReadUser = user;
 }
 
-void ESPIDFBLE::SetConnectionCallback(DekiBLEConnCb cb, void* user)
+void ESPIDFBLE::SetConnectionCallback(DekiBle::DekiBLEConnCb cb, void* user)
 {
     s_ConnCb   = cb;
     s_ConnUser = user;
 }
 
 // =============================================================================
-// IDekiBLE -- GATT client
+// DekiBle::IDekiBLE -- GATT client
 // =============================================================================
 
-bool ESPIDFBLE::Connect(const DekiBLEAddress& addr, uint32_t timeoutMs)
+bool ESPIDFBLE::Connect(const DekiBle::DekiBLEAddress& addr, uint32_t timeoutMs)
 {
     if (!InitStackOnce()) return false;
 
@@ -654,7 +660,7 @@ bool ESPIDFBLE::Connect(const DekiBLEAddress& addr, uint32_t timeoutMs)
     return s_ClientOp.status == 0;
 }
 
-void ESPIDFBLE::DisconnectClient(DekiBLEConnHandle conn)
+void ESPIDFBLE::DisconnectClient(DekiBle::DekiBLEConnHandle conn)
 {
     if (!s_StackInited) return;
     ble_gap_terminate(conn, BLE_ERR_REM_USER_CONN_TERM);
@@ -704,8 +710,8 @@ int WriteCb(uint16_t conn_handle, const struct ble_gatt_error* error,
 
 }  // namespace
 
-bool ESPIDFBLE::DiscoverService(DekiBLEConnHandle conn, const DekiBLEUUID& service,
-                                DekiBLECharHandle* outFirstHandle, uint8_t* outCount)
+bool ESPIDFBLE::DiscoverService(DekiBle::DekiBLEConnHandle conn, const DekiBle::DekiBLEUUID& service,
+                                DekiBle::DekiBLECharHandle* outFirstHandle, uint8_t* outCount)
 {
     if (!s_StackInited) return false;
     ble_uuid_any_t any;
@@ -732,7 +738,7 @@ bool ESPIDFBLE::DiscoverService(DekiBLEConnHandle conn, const DekiBLEUUID& servi
     return s_ClientOp.attr_handle_count > 0;
 }
 
-bool ESPIDFBLE::ReadRemote(DekiBLEConnHandle conn, DekiBLECharHandle handle,
+bool ESPIDFBLE::ReadRemote(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECharHandle handle,
                            uint8_t* out, size_t* len)
 {
     if (!s_StackInited || !out || !len) return false;
@@ -752,7 +758,7 @@ bool ESPIDFBLE::ReadRemote(DekiBLEConnHandle conn, DekiBLECharHandle handle,
     return true;
 }
 
-bool ESPIDFBLE::WriteRemote(DekiBLEConnHandle conn, DekiBLECharHandle handle,
+bool ESPIDFBLE::WriteRemote(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECharHandle handle,
                             const void* data, size_t len, bool with_response)
 {
     if (!s_StackInited) return false;
@@ -773,7 +779,7 @@ bool ESPIDFBLE::WriteRemote(DekiBLEConnHandle conn, DekiBLECharHandle handle,
     return s_ClientOp.status == 0;
 }
 
-bool ESPIDFBLE::Subscribe(DekiBLEConnHandle conn, DekiBLECharHandle handle, bool enable)
+bool ESPIDFBLE::Subscribe(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECharHandle handle, bool enable)
 {
     if (!s_StackInited) return false;
     // CCCD is the descriptor immediately after the characteristic value handle.
@@ -783,7 +789,7 @@ bool ESPIDFBLE::Subscribe(DekiBLEConnHandle conn, DekiBLECharHandle handle, bool
     return rc == 0;
 }
 
-void ESPIDFBLE::SetNotifyCallback(DekiBLENotifyCb cb, void* user)
+void ESPIDFBLE::SetNotifyCallback(DekiBle::DekiBLENotifyCb cb, void* user)
 {
     s_NotifyCb   = cb;
     s_NotifyUser = user;
@@ -800,9 +806,9 @@ bool ESPIDFBLE::StartScan(uint16_t, uint16_t, bool, uint32_t)
     return false;
 }
 void ESPIDFBLE::StopScan() {}
-void ESPIDFBLE::SetScanCallback(DekiBLEScanCb, void*) {}
+void ESPIDFBLE::SetScanCallback(DekiBle::DekiBLEScanCb, void*) {}
 
-bool ESPIDFBLE::StartAdvertising(const DekiBLEAdvData&)
+bool ESPIDFBLE::StartAdvertising(const DekiBle::DekiBLEAdvData&)
 {
     m_LastError = "BLE advertising not supported on this platform";
     return false;
@@ -810,26 +816,28 @@ bool ESPIDFBLE::StartAdvertising(const DekiBLEAdvData&)
 void ESPIDFBLE::StopAdvertising() {}
 bool ESPIDFBLE::IsAdvertising() const { return false; }
 
-bool ESPIDFBLE::BuildGattServer(DekiBLEServiceSpec*, uint8_t)
+bool ESPIDFBLE::BuildGattServer(DekiBle::DekiBLEServiceSpec*, uint8_t)
 {
     m_LastError = "BLE GATT server not supported on this platform";
     return false;
 }
-bool ESPIDFBLE::NotifyValue(DekiBLEConnHandle, DekiBLECharHandle, const void*, size_t) { return false; }
-void ESPIDFBLE::SetCharWriteCallback(DekiBLECharWriteCb, void*) {}
-void ESPIDFBLE::SetCharReadCallback (DekiBLECharReadCb,  void*) {}
-void ESPIDFBLE::SetConnectionCallback(DekiBLEConnCb, void*) {}
+bool ESPIDFBLE::NotifyValue(DekiBle::DekiBLEConnHandle, DekiBle::DekiBLECharHandle, const void*, size_t) { return false; }
+void ESPIDFBLE::SetCharWriteCallback(DekiBle::DekiBLECharWriteCb, void*) {}
+void ESPIDFBLE::SetCharReadCallback (DekiBle::DekiBLECharReadCb,  void*) {}
+void ESPIDFBLE::SetConnectionCallback(DekiBle::DekiBLEConnCb, void*) {}
 
-bool ESPIDFBLE::Connect(const DekiBLEAddress&, uint32_t)
+bool ESPIDFBLE::Connect(const DekiBle::DekiBLEAddress&, uint32_t)
 {
     m_LastError = "BLE Connect not supported on this platform";
     return false;
 }
-void ESPIDFBLE::DisconnectClient(DekiBLEConnHandle) {}
-bool ESPIDFBLE::DiscoverService(DekiBLEConnHandle, const DekiBLEUUID&, DekiBLECharHandle*, uint8_t*) { return false; }
-bool ESPIDFBLE::ReadRemote(DekiBLEConnHandle, DekiBLECharHandle, uint8_t*, size_t*) { return false; }
-bool ESPIDFBLE::WriteRemote(DekiBLEConnHandle, DekiBLECharHandle, const void*, size_t, bool) { return false; }
-bool ESPIDFBLE::Subscribe(DekiBLEConnHandle, DekiBLECharHandle, bool) { return false; }
-void ESPIDFBLE::SetNotifyCallback(DekiBLENotifyCb, void*) {}
+void ESPIDFBLE::DisconnectClient(DekiBle::DekiBLEConnHandle) {}
+bool ESPIDFBLE::DiscoverService(DekiBle::DekiBLEConnHandle, const DekiBle::DekiBLEUUID&, DekiBle::DekiBLECharHandle*, uint8_t*) { return false; }
+bool ESPIDFBLE::ReadRemote(DekiBle::DekiBLEConnHandle, DekiBle::DekiBLECharHandle, uint8_t*, size_t*) { return false; }
+bool ESPIDFBLE::WriteRemote(DekiBle::DekiBLEConnHandle, DekiBle::DekiBLECharHandle, const void*, size_t, bool) { return false; }
+bool ESPIDFBLE::Subscribe(DekiBle::DekiBLEConnHandle, DekiBle::DekiBLECharHandle, bool) { return false; }
+void ESPIDFBLE::SetNotifyCallback(DekiBle::DekiBLENotifyCb, void*) {}
 
 #endif  // ESP32 && CONFIG_BT_ENABLED
+
+}  // namespace DekiEsp32

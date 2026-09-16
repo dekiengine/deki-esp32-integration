@@ -8,7 +8,11 @@
 #include "driver/i2s_std.h"
 #endif
 
-class ESPIDFI2S : public IDekiI2S
+namespace DekiEsp32
+{
+
+
+class ESPIDFI2S : public DekiI2s::IDekiI2S
 {
 public:
     ESPIDFI2S() = default;
@@ -45,3 +49,5 @@ private:
     i2s_chan_handle_t m_TxHandle = nullptr;
 #endif
 };
+
+}  // namespace DekiEsp32

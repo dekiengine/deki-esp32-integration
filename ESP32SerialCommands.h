@@ -1,5 +1,8 @@
 #pragma once
 
+namespace DekiEsp32
+{
+
 /**
  * @brief Serial command handler for ESP32 platforms
  *
@@ -34,3 +37,5 @@ class ESP32SerialCommands
     static bool s_Initialized;
     static bool s_InStorageMode;
 };
+
+}  // namespace DekiEsp32

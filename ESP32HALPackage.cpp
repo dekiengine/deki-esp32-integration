@@ -12,7 +12,6 @@
 #include <deki/reflection/ComponentRegistry.h>
 #include <deki/reflection/ComponentFactory.h>
 
-// Direct backend registration for ESP32 hardware
 #if defined(ESP32)
 #include <deki/platforms/esp32/ESP32MemoryProvider.h>
 #include <deki/platforms/esp32/ESP32FileSystem.h>
@@ -37,6 +36,21 @@
 #include "DekiHttp.h"           // from deki-http
 #include "power/ESPIDFPower.h"
 #include <deki/providers/Power.h>
+#endif
+
+#if defined(ESP32)
+#include <deki/Main.h>
+#endif
+
+extern void DekiESP32HAL_RegisterComponents();
+extern int DekiESP32HAL_GetAutoComponentCount();
+extern const Deki::ComponentMeta* DekiESP32HAL_GetAutoComponentMeta(int index);
+
+namespace DekiEsp32
+{
+
+// Direct backend registration for ESP32 hardware
+#if defined(ESP32)
 
 namespace
 {
@@ -45,21 +59,21 @@ struct ESP32BackendInit {
         Deki::Memory::SetBackend(new Deki::ESP32MemoryProvider());
         Deki::FileSystem::SetFileSystem(new Deki::ESP32FileSystem());
         Deki::Time::SetTimeProvider(std::make_unique<Deki::ESP32TimeProvider>());
-        DekiSDCard::SetFactory([]() -> IDekiSDCard* { return new ESPIDFSDCard(); });
-        DekiI2C::SetFactory([]() -> IDekiI2C* { return new ESPIDFI2C(); });
-        DekiUART::SetFactory([]() -> IDekiUART* { return new ESPIDFUART(); });
-        DekiI2S::SetFactory([]() -> IDekiI2S* { return new ESPIDFI2S(); });
+        DekiSdCard::DekiSDCard::SetFactory([]() -> DekiSdCard::IDekiSDCard* { return new ESPIDFSDCard(); });
+        DekiI2c::DekiI2C::SetFactory([]() -> DekiI2c::IDekiI2C* { return new ESPIDFI2C(); });
+        DekiUart::DekiUART::SetFactory([]() -> DekiUart::IDekiUART* { return new ESPIDFUART(); });
+        DekiI2s::DekiI2S::SetFactory([]() -> DekiI2s::IDekiI2S* { return new ESPIDFI2S(); });
 
         // WiFi: single-active. The driver instance is intentionally leaked at
         // process exit, matching the rest of this init block.
         static ESPIDFWiFi s_WiFi;
         s_WiFi.Initialize();
-        DekiWiFi::SetCurrent(&s_WiFi);
+        DekiWifi::DekiWiFi::SetCurrent(&s_WiFi);
 
         // BLE: single-active, NimBLE-backed. Same leak rationale as WiFi.
         static ESPIDFBLE s_BLE;
         s_BLE.Initialize();
-        DekiBLE::SetCurrent(&s_BLE);
+        DekiBle::DekiBLE::SetCurrent(&s_BLE);
 
         // HTTP: register ESP-IDF backed client with the abstract facade from
         // deki-http. Consumers (location/weather providers) reach the active
@@ -85,17 +99,19 @@ struct ESP32BackendInit {
 static ESP32BackendInit s_esp32_init;
 }
 
-#include <deki/Main.h>
+
+// The exports below are C symbols at global scope; the package's own
+// registration helpers and statics live in its namespace.
+using namespace DekiEsp32;
+
 extern "C" void app_main(void) { Deki::Main(); }
 
 #endif // ESP32
+}  // namespace DekiEsp32
 
 #ifdef DEKI_EDITOR
 
 // Auto-generated registration helpers
-extern void DekiESP32HAL_RegisterComponents();
-extern int DekiESP32HAL_GetAutoComponentCount();
-extern const Deki::ComponentMeta* DekiESP32HAL_GetAutoComponentMeta(int index);
 
 // Track if already registered to avoid duplicates
 static bool s_ESP32HALRegistered = false;
@@ -108,13 +124,13 @@ extern "C" {
 DEKI_ESP32_HAL_API int DekiESP32HAL_EnsureRegistered(void)
 {
     if (s_ESP32HALRegistered)
-        return DekiESP32HAL_GetAutoComponentCount();
+        return ::DekiESP32HAL_GetAutoComponentCount();
     s_ESP32HALRegistered = true;
 
     // Auto-generated: registers all ESP32 HAL components with ComponentRegistry + ComponentFactory
-    DekiESP32HAL_RegisterComponents();
+    ::DekiESP32HAL_RegisterComponents();
 
-    return DekiESP32HAL_GetAutoComponentCount();
+    return ::DekiESP32HAL_GetAutoComponentCount();
 }
 
 // =============================================================================
@@ -123,7 +139,7 @@ DEKI_ESP32_HAL_API int DekiESP32HAL_EnsureRegistered(void)
 
 DEKI_PLUGIN_API const char* DekiPlugin_GetName(void)
 {
-    return "Deki ESP32 HAL Package";
+    return "DekiRendering::Deki ESP32 HAL Package";
 }
 
 DEKI_PLUGIN_API const char* DekiPlugin_GetVersion(void)
@@ -147,12 +163,12 @@ DEKI_PLUGIN_API void DekiPlugin_Shutdown(void)
 
 DEKI_PLUGIN_API int DekiPlugin_GetComponentCount(void)
 {
-    return DekiESP32HAL_GetAutoComponentCount();
+    return ::DekiESP32HAL_GetAutoComponentCount();
 }
 
 DEKI_PLUGIN_API const Deki::ComponentMeta* DekiPlugin_GetComponentMeta(int index)
 {
-    return DekiESP32HAL_GetAutoComponentMeta(index);
+    return ::DekiESP32HAL_GetAutoComponentMeta(index);
 }
 
 DEKI_PLUGIN_API void DekiPlugin_RegisterComponents(void)
@@ -177,3 +193,4 @@ DEKI_ESP32_HAL_API const char* DekiESP32HAL_GetName(void)
 // or explicit calls from the application
 
 #endif // DEKI_EDITOR
+

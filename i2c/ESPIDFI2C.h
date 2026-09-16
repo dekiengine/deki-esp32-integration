@@ -5,7 +5,10 @@
 #include <string>
 #include <vector>
 
-class ESPIDFI2C : public IDekiI2C
+namespace DekiEsp32
+{
+
+class ESPIDFI2C : public DekiI2c::IDekiI2C
 {
 public:
     ESPIDFI2C() = default;
@@ -53,3 +56,5 @@ private:
     Deki::PackageState m_State = Deki::PackageState::Uninitialized;
     std::string m_LastError;
 };
+
+}  // namespace DekiEsp32

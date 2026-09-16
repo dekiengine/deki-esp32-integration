@@ -6,6 +6,12 @@
 
 #if defined(ESP32)
 #include "esp_log.h"
+#endif
+
+namespace DekiEsp32
+{
+
+#if defined(ESP32)
 
 static const char* TAG = "ESPIDFSDFS";
 #endif
@@ -216,3 +222,5 @@ bool ESPIDFSDFileSystem::FileExists(const char* path)
     struct stat st;
     return stat(realPath, &st) == 0;
 }
+
+}  // namespace DekiEsp32

@@ -11,6 +11,10 @@
 #include "freertos/event_groups.h"
 #endif
 
+namespace DekiEsp32
+{
+
+
 namespace {
 
 #if defined(ESP32)
@@ -153,7 +157,7 @@ bool ESPIDFWiFi::IsConnected() const
 #endif
 }
 
-int ESPIDFWiFi::ScanAPs(DekiAP* out, int maxCount)
+int ESPIDFWiFi::ScanAPs(DekiWifi::DekiAP* out, int maxCount)
 {
 #if defined(ESP32)
     if (!out || maxCount <= 0) return -1;
@@ -181,7 +185,7 @@ int ESPIDFWiFi::ScanAPs(DekiAP* out, int maxCount)
 
     int written = 0;
     for (int i = 0; i < ap_count && written < maxCount; ++i) {
-        DekiAP& a = out[written++];
+        DekiWifi::DekiAP& a = out[written++];
         std::memcpy(a.bssid, records[i].bssid, 6);
         std::strncpy(a.ssid, reinterpret_cast<const char*>(records[i].ssid), sizeof(a.ssid) - 1);
         a.rssi    = records[i].rssi;
@@ -193,3 +197,5 @@ int ESPIDFWiFi::ScanAPs(DekiAP* out, int maxCount)
     return -1;
 #endif
 }
+
+}  // namespace DekiEsp32

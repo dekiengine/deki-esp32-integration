@@ -6,6 +6,10 @@
 #include "freertos/FreeRTOS.h"
 #endif
 
+namespace DekiEsp32
+{
+
+
 ESPIDFI2S::~ESPIDFI2S()
 {
     Shutdown();
@@ -143,3 +147,5 @@ int ESPIDFI2S::Write(const void* data, size_t bytes, uint32_t timeoutMs)
     (void)data; (void)bytes; (void)timeoutMs; return 0;
 #endif
 }
+
+}  // namespace DekiEsp32

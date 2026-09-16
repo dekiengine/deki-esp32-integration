@@ -7,6 +7,10 @@
 #include "esp_err.h"
 #endif
 
+namespace DekiEsp32
+{
+
+
 namespace {
 
 #if defined(ESP32)
@@ -22,13 +26,13 @@ esp_err_t HttpEventCb(esp_http_client_event_t* evt)
     return ESP_OK;
 }
 
-IDekiHttpClient::Response Perform(const std::string& url,
+DekiHttp::IDekiHttpClient::Response Perform(const std::string& url,
                                   esp_http_client_method_t method,
-                                  const IDekiHttpClient::HeaderList& headers,
+                                  const DekiHttp::IDekiHttpClient::HeaderList& headers,
                                   const std::string* jsonBody,
                                   uint32_t timeoutMs)
 {
-    IDekiHttpClient::Response out;
+    DekiHttp::IDekiHttpClient::Response out;
     std::string body;
 
     esp_http_client_config_t cfg = {};
@@ -73,7 +77,7 @@ IDekiHttpClient::Response Perform(const std::string& url,
 std::string ESPIDFHttpClient::FetchUrl(const std::string& url)
 {
 #if defined(ESP32)
-    Response r = Perform(url, HTTP_METHOD_GET, {}, nullptr, 15000);
+    DekiHttp::IDekiHttpClient::Response r = Perform(url, HTTP_METHOD_GET, {}, nullptr, 15000);
     return (r.status >= 200 && r.status < 300) ? std::move(r.body) : std::string();
 #else
     (void)url;
@@ -81,8 +85,8 @@ std::string ESPIDFHttpClient::FetchUrl(const std::string& url)
 #endif
 }
 
-IDekiHttpClient::Response ESPIDFHttpClient::Get(const std::string& url,
-                                                const HeaderList&  headers,
+DekiHttp::IDekiHttpClient::Response ESPIDFHttpClient::Get(const std::string& url,
+                                                const DekiHttp::IDekiHttpClient::HeaderList&  headers,
                                                 uint32_t           timeoutMs)
 {
 #if defined(ESP32)
@@ -93,9 +97,9 @@ IDekiHttpClient::Response ESPIDFHttpClient::Get(const std::string& url,
 #endif
 }
 
-IDekiHttpClient::Response ESPIDFHttpClient::PostJson(const std::string& url,
+DekiHttp::IDekiHttpClient::Response ESPIDFHttpClient::PostJson(const std::string& url,
                                                      const std::string& body,
-                                                     const HeaderList&  headers,
+                                                     const DekiHttp::IDekiHttpClient::HeaderList&  headers,
                                                      uint32_t           timeoutMs)
 {
 #if defined(ESP32)
@@ -105,3 +109,5 @@ IDekiHttpClient::Response ESPIDFHttpClient::PostJson(const std::string& url,
     return {};
 #endif
 }
+
+}  // namespace DekiEsp32

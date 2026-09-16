@@ -5,6 +5,9 @@
 #include <cstdint>
 #include <vector>
 
+namespace DekiEsp32
+{
+
 /**
  * @brief ESP-IDF implementation of Deki::IPower.
  *
@@ -66,3 +69,5 @@ private:
 
     bool m_BootScreenOnFired = false;
 };
+
+}  // namespace DekiEsp32

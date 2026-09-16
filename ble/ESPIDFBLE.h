@@ -4,10 +4,13 @@
 #include <deki/PackageConfig.h>
 #include <string>
 
+namespace DekiEsp32
+{
+
 /**
- * @brief NimBLE implementation of IDekiBLE.
+ * @brief NimBLE implementation of DekiBle::IDekiBLE.
  *
- * Drops into the active-driver slot via DekiBLE::SetCurrent at package load
+ * Drops into the active-driver slot via DekiBle::DekiBLE::SetCurrent at package load
  * (see ESP32HALPackage.cpp). Backed by ESP-IDF's NimBLE host stack (the
  * `nimble` component). BLE-only by design; no Bluetooth Classic.
  *
@@ -16,7 +19,7 @@
  * need encryption or authenticated pairing should extend the interface
  * or sit beside this package.
  */
-class ESPIDFBLE : public IDekiBLE
+class ESPIDFBLE : public DekiBle::IDekiBLE
 {
 public:
     ESPIDFBLE() = default;
@@ -32,34 +35,36 @@ public:
     Deki::PackageState GetState() const override { return m_State; }
     const char* GetLastError() const override { return m_LastError.c_str(); }
 
-    // IDekiBLE -- scan
+    // DekiBle::IDekiBLE -- scan
     bool StartScan(uint16_t intervalMs, uint16_t windowMs, bool active, uint32_t durationMs) override;
     void StopScan() override;
-    void SetScanCallback(DekiBLEScanCb cb, void* user) override;
+    void SetScanCallback(DekiBle::DekiBLEScanCb cb, void* user) override;
 
-    // IDekiBLE -- advertise
-    bool StartAdvertising(const DekiBLEAdvData& data) override;
+    // DekiBle::IDekiBLE -- advertise
+    bool StartAdvertising(const DekiBle::DekiBLEAdvData& data) override;
     void StopAdvertising() override;
     bool IsAdvertising() const override;
 
-    // IDekiBLE -- GATT server
-    bool BuildGattServer(DekiBLEServiceSpec* services, uint8_t count) override;
-    bool NotifyValue(DekiBLEConnHandle conn, DekiBLECharHandle handle, const void* data, size_t len) override;
-    void SetCharWriteCallback(DekiBLECharWriteCb cb, void* user) override;
-    void SetCharReadCallback (DekiBLECharReadCb  cb, void* user) override;
-    void SetConnectionCallback(DekiBLEConnCb cb, void* user) override;
+    // DekiBle::IDekiBLE -- GATT server
+    bool BuildGattServer(DekiBle::DekiBLEServiceSpec* services, uint8_t count) override;
+    bool NotifyValue(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECharHandle handle, const void* data, size_t len) override;
+    void SetCharWriteCallback(DekiBle::DekiBLECharWriteCb cb, void* user) override;
+    void SetCharReadCallback (DekiBle::DekiBLECharReadCb  cb, void* user) override;
+    void SetConnectionCallback(DekiBle::DekiBLEConnCb cb, void* user) override;
 
-    // IDekiBLE -- GATT client
-    bool Connect(const DekiBLEAddress& addr, uint32_t timeoutMs) override;
-    void DisconnectClient(DekiBLEConnHandle conn) override;
-    bool DiscoverService(DekiBLEConnHandle conn, const DekiBLEUUID& service,
-                         DekiBLECharHandle* outFirstHandle, uint8_t* outCount) override;
-    bool ReadRemote(DekiBLEConnHandle conn, DekiBLECharHandle handle, uint8_t* out, size_t* len) override;
-    bool WriteRemote(DekiBLEConnHandle conn, DekiBLECharHandle handle, const void* data, size_t len, bool with_response) override;
-    bool Subscribe(DekiBLEConnHandle conn, DekiBLECharHandle handle, bool enable) override;
-    void SetNotifyCallback(DekiBLENotifyCb cb, void* user) override;
+    // DekiBle::IDekiBLE -- GATT client
+    bool Connect(const DekiBle::DekiBLEAddress& addr, uint32_t timeoutMs) override;
+    void DisconnectClient(DekiBle::DekiBLEConnHandle conn) override;
+    bool DiscoverService(DekiBle::DekiBLEConnHandle conn, const DekiBle::DekiBLEUUID& service,
+                         DekiBle::DekiBLECharHandle* outFirstHandle, uint8_t* outCount) override;
+    bool ReadRemote(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECharHandle handle, uint8_t* out, size_t* len) override;
+    bool WriteRemote(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECharHandle handle, const void* data, size_t len, bool with_response) override;
+    bool Subscribe(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECharHandle handle, bool enable) override;
+    void SetNotifyCallback(DekiBle::DekiBLENotifyCb cb, void* user) override;
 
 private:
     Deki::PackageState m_State = Deki::PackageState::Uninitialized;
     std::string m_LastError;
 };
+
+}  // namespace DekiEsp32

@@ -5,17 +5,23 @@
 #include <string>
 #include <memory>
 
+#if defined(ESP32)
+#include "sd_protocol_types.h"
+#endif
+
+namespace DekiEsp32
+{
+
 // Forward declarations
 class ESPIDFSDFileSystem;
 
 #if defined(ESP32)
-#include "sd_protocol_types.h"
 #else
 struct sdmmc_card_t;
 #endif
 
 /**
- * @brief ESP-IDF native SPI SD card implementation of IDekiSDCard
+ * @brief ESP-IDF native SPI SD card implementation of DekiSdCard::IDekiSDCard
  *
  * Uses ESP-IDF's native SPI SD host driver and VFS FAT filesystem
  * instead of the Arduino SD library. After mounting, files are accessible
@@ -34,7 +40,7 @@ struct sdmmc_card_t;
  * - mount_point: Filesystem mount point (default "/sdcard")
  * - spiMhz: SPI clock frequency in MHz (1-40)
  */
-class ESPIDFSDCard : public IDekiSDCard
+class ESPIDFSDCard : public DekiSdCard::IDekiSDCard
 {
 public:
     ESPIDFSDCard();
@@ -50,16 +56,16 @@ public:
     Deki::PackageState GetState() const override { return m_State; }
     const char* GetLastError() const override { return m_LastError.c_str(); }
 
-    // IDekiSDCard interface
+    // DekiSdCard::IDekiSDCard interface
     bool Mount() override;
     void Unmount() override;
-    SDCardState GetCardState() const override { return m_CardState; }
+    DekiSdCard::SDCardState GetCardState() const override { return m_CardState; }
     bool IsCardInserted() const override;
     uint64_t GetTotalBytes() const override;
     uint64_t GetFreeBytes() const override;
     Deki::IFileSystem* GetFileSystem() override;
     const char* GetMountPoint() const override { return m_MountPoint.c_str(); }
-    SDCardMode GetMode() const override { return m_Mode; }
+    DekiSdCard::SDCardMode GetMode() const override { return m_Mode; }
 
     // Storage mode (USB MSC) - not supported on pure ESP-IDF
     bool SupportsStorageMode() const override { return false; }
@@ -79,14 +85,14 @@ private:
     int m_PinD2 = -1;  // SDMMC D2 pin (4-bit only)
     int m_PinD3 = -1;  // SDMMC D3 pin (4-bit only)
     bool m_AutoMount = true;
-    SDCardMode m_Mode = SDCardMode::SPI;
+    DekiSdCard::SDCardMode m_Mode = DekiSdCard::SDCardMode::SPI;
     uint32_t m_SpiFrequency = 20000000;  // SPI frequency in Hz (default 20 MHz)
     uint32_t m_SdmmcFrequency = 20000000; // SDMMC frequency in Hz (default 20 MHz)
     std::string m_MountPoint = "/sdcard";
 
     // Runtime state
     Deki::PackageState m_State = Deki::PackageState::Uninitialized;
-    SDCardState m_CardState = SDCardState::NotMounted;
+    DekiSdCard::SDCardState m_CardState = DekiSdCard::SDCardState::NotMounted;
     std::string m_LastError;
     bool m_Initialized = false;
 
@@ -100,4 +106,6 @@ private:
     // Helper to check card detect pin
     bool CheckCardDetect() const;
 };
+
+}  // namespace DekiEsp32
 

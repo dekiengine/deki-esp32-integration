@@ -4,7 +4,10 @@
 #include <deki/PackageConfig.h>
 #include <string>
 
-class ESPIDFUART : public IDekiUART
+namespace DekiEsp32
+{
+
+class ESPIDFUART : public DekiUart::IDekiUART
 {
 public:
     ESPIDFUART() = default;
@@ -32,3 +35,5 @@ private:
     Deki::PackageState m_State = Deki::PackageState::Uninitialized;
     std::string m_LastError;
 };
+
+}  // namespace DekiEsp32

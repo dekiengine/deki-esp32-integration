@@ -3,9 +3,15 @@
 #include <deki/Engine.h>
 
 #if defined(ESP32)
-
 #include "ESP32SerialCommands.h"
 #include "esp_log.h"
+#endif
+
+namespace DekiEsp32
+{
+
+#if defined(ESP32)
+
 static const char* TAG = "ESP32Serial";
 
 void ESP32SerialSetup::Setup(SetupCallback onComplete)
@@ -31,3 +37,5 @@ void ESP32SerialSetup::Setup(SetupCallback onComplete)
 }
 
 #endif
+
+}  // namespace DekiEsp32

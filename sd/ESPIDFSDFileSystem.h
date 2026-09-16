@@ -3,6 +3,9 @@
 #include <deki/providers/IFileSystem.h>
 #include <string>
 
+namespace DekiEsp32
+{
+
 // Forward declaration
 class ESPIDFSDCard;
 
@@ -50,3 +53,5 @@ private:
     // Stack-buffer version — avoids heap allocation
     bool ConvertVirtualPathTo(const char* virtualPath, char* outBuffer, size_t bufSize);
 };
+
+}  // namespace DekiEsp32

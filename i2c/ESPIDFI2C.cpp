@@ -14,9 +14,13 @@
 // The shape differs: the old driver addressed a port and carried the target
 // address in each transaction, the new one hands out a handle per device. So
 // a small cache below turns an address back into a handle, which keeps
-// IDekiI2C's address-per-call interface intact.
+// DekiI2c::IDekiI2C's address-per-call interface intact.
 #include "driver/i2c_master.h"
 #endif
+
+namespace DekiEsp32
+{
+
 
 void ESPIDFI2C::Configure(const Deki::PackageConfig& config)
 {
@@ -153,3 +157,5 @@ bool ESPIDFI2C::Write(uint8_t addr, uint8_t reg, const uint8_t* src, size_t len)
     (void)addr; (void)reg; (void)src; (void)len; return false;
 #endif
 }
+
+}  // namespace DekiEsp32

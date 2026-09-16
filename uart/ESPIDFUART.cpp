@@ -5,6 +5,10 @@
 #include "driver/uart.h"
 #endif
 
+namespace DekiEsp32
+{
+
+
 void ESPIDFUART::Configure(const Deki::PackageConfig& config)
 {
     m_PinTX = config.GetPin("TX", -1);
@@ -77,3 +81,5 @@ int ESPIDFUART::Write(const uint8_t* src, size_t len)
     (void)src; (void)len; return 0;
 #endif
 }
+
+}  // namespace DekiEsp32
