@@ -13,7 +13,7 @@
 
 #include <cstring>
 
-namespace DekiESP32::Blit
+namespace DekiEsp32::Blit
 {
 
 // ---------------------------------------------------------------------------
@@ -71,6 +71,6 @@ void S3PIE_RGB565A8_Blend_Row(const uint8_t* /*src*/, uint8_t* /*dst*/,
     // This function is not registered with QuadBlit, so it is never called.
 }
 
-} // namespace DekiESP32::Blit
+} // namespace DekiEsp32::Blit
 
 #endif // __XTENSA__ && CONFIG_IDF_TARGET_ESP32S3

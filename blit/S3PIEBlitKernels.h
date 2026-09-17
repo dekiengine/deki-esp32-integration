@@ -7,7 +7,7 @@
 // only compiled when targeting the ESP32-S3; on every other build target the
 // .cpp file expands to nothing and these symbols are not referenced.
 
-namespace DekiESP32::Blit
+namespace DekiEsp32::Blit
 {
 
 // RGB565 1:1 row copy. src/dst point at RGB565 pixels (2 bytes/pixel),
@@ -34,4 +34,4 @@ constexpr bool HasS3PIEKernels()
 #endif
 }
 
-} // namespace DekiESP32::Blit
+} // namespace DekiEsp32::Blit

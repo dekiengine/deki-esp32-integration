@@ -92,7 +92,7 @@ struct ESP32BackendInit {
         // are registered; the dispatcher in QuadBlit runs its scalar inner
         // loop for unregistered ops. See blit/S3PIEBlitKernels.cpp.
         QuadBlit::RegisterKernel(QuadBlit::KernelOp::RGB565_Copy_Row,
-                                 &DekiESP32::Blit::S3PIE_RGB565_Copy_Row);
+                                 &DekiEsp32::Blit::S3PIE_RGB565_Copy_Row);
 #endif
     }
 };

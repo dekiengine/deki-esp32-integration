@@ -28,6 +28,14 @@ Install via the Package Manager inside the Deki Editor.
 
 | Dependency | Type |
 |---|---|
+| `deki-wifi` | Deki package |
+| `deki-ble` | Deki package |
+| `deki-http` | Deki package |
+| `deki-i2s` | Deki package |
+| `deki-uart` | Deki package |
+| `deki-i2c` | Deki package |
+| `deki-sdcard` | Deki package |
+| `deki-rendering` | Deki package |
 | `fatfs` | ESP-IDF component (Apache 2.0) |
 | `sdmmc` | ESP-IDF component (Apache 2.0) |
 | `driver` | ESP-IDF component (Apache 2.0) |
