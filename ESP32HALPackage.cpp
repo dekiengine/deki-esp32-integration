@@ -13,9 +13,9 @@
 #include <deki/reflection/ComponentFactory.h>
 
 #if defined(ESP32)
-#include <deki/platforms/esp32/ESP32MemoryProvider.h>
-#include <deki/platforms/esp32/ESP32FileSystem.h>
-#include <deki/platforms/esp32/ESP32TimeProvider.h>
+#include "ESP32MemoryProvider.h"
+#include "ESP32FileSystem.h"
+#include "ESP32TimeProvider.h"
 #include <deki/providers/Memory.h>
 #include <deki/providers/FileSystem.h>
 #include <deki/Time.h>

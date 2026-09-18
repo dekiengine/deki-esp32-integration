@@ -9,7 +9,8 @@
  * - ESP32FileSystemSetup (configures LittleFS file system)
  * - ESP32SerialSetup (configures serial command handler for editor communication)
  *
- * Backend implementations stay in platforms/esp32/ (ESP-IDF APIs).
+ * Backend implementations live in this package (ESP-IDF APIs); they used
+ * to sit in the engine, which had no business shipping them.
  * This package provides SetupComponent wrappers for boot.scene-driven initialization.
  */
 
