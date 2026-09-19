@@ -8,6 +8,10 @@
 namespace DekiEditor
 {
 
+/// The platform's "displayBus" option is an identifier: A-Z, 0-9 and '_'. It
+/// reaches a shell line, so both users of it check. Defined in ESPIDFBuilder.cpp.
+bool IsValidDisplayBus(const std::string& bus);
+
 struct PlatformConfig;
 
 /// Context passed to ExecuteIDF from the builder's state
