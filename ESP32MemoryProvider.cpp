@@ -4,12 +4,6 @@
 // ESP-IDF heap capabilities API
 #include "esp_heap_caps.h"
 #include "esp_system.h"
-#include "esp_idf_version.h"
-
-// ESP-IDF 5.0+ provides esp_dma_malloc for proper DMA + cache alignment
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
-#include "esp_dma_utils.h"
-#endif
 #endif
 
 namespace Deki
@@ -32,21 +26,16 @@ void ESP32MemoryProvider::Shutdown()
 }
 
 // PSRAM on the ESP32-S3 is cached, so a buffer a DMA engine will also read has
-// to sit on a cache line or the two disagree. esp_dma_malloc gives both the DMA
-// capability and that alignment; heap_caps_malloc with MALLOC_CAP_DMA gives
-// only the capability, which is why it is the second choice rather than the
-// first.
+// to sit on a cache line or the two disagree. MALLOC_CAP_CACHE_ALIGNED asks
+// the heap for exactly that alongside the DMA capability, in one call.
+//
+// This used to be esp_dma_malloc(ESP_DMA_MALLOC_FLAG_PSRAM) with a plain
+// heap_caps_malloc(SPIRAM | DMA) behind it - a fallback that was NOT cache
+// aligned, whatever its comment said. ESP-IDF 6 removed esp_dma_malloc and
+// names this capability as its replacement.
 void* ESP32MemoryProvider::AllocateExternalBytes(size_t size)
 {
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
-    void* ptr = nullptr;
-    esp_err_t result = esp_dma_malloc(size, ESP_DMA_MALLOC_FLAG_PSRAM, &ptr, NULL);
-    if (result == ESP_OK && ptr)
-        return ptr;
-    // esp_dma_malloc could not place it; the line below still aligns to a
-    // cache line boundary, which is the part that matters for correctness.
-#endif
-    return heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_DMA);
+    return heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_DMA | MALLOC_CAP_CACHE_ALIGNED);
 }
 
 bool ESP32MemoryProvider::Serves(Memory::Region region) const

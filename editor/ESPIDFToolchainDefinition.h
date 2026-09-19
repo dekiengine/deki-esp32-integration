@@ -64,9 +64,9 @@ inline constexpr const char* kESPIDFToolchainDefinition = R"json(
         "assetPattern": ".zip"
       },
       "fallback": {
-        "version": "v5.3.2",
-        "url": "https://github.com/espressif/esp-idf/releases/download/v5.3.2/esp-idf-v5.3.2.zip",
-        "sha256": "cc016c8be9c4f9b0d295e82fa88c369a05c8af68f1bcb7813c7b89eccd46a9e4"
+        "version": "v6.1",
+        "url": "https://github.com/espressif/esp-idf/releases/download/v6.1/esp-idf-v6.1.zip",
+        "sha256": "cdeea7db47b90064ef185b2a1f1b33d17bcb13469a9f8cc20e06c4c4cdb4cc16"
       },
       "detection": {
         "windows": "{installPath}/export.bat",

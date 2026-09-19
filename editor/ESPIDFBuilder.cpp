@@ -101,7 +101,12 @@ ESPIDFBuilder::ESPIDFBuilder()
     BuilderDefinition def;
     std::string error;
     if (ParseBuilderDefinition(kESPIDFToolchainDefinition, def, error))
+    {
         m_ToolchainMgr.Initialize(def);
+        for (const auto& comp : def.components)
+            if (comp.id == "esp-idf")
+                m_Toolchain.SetRequiredVersion(comp.fallback.version);
+    }
     else
         DEKI_LOG_ERROR("ESP-IDF backend: its own toolchain definition does not parse (%s); "
                        "no toolchain component can be installed or detected",
@@ -521,10 +526,7 @@ bool ESPIDFBuilder::GenerateBuildFiles(const std::string& projectPath,
 
     // Always regenerate idf_component.yml to include package dependencies
     {
-        std::ofstream file(mainPath / "idf_component.yml");
-        if (!file.is_open())
-            return false;
-
+        std::ostringstream file;
         file << "# Deki Game - Component Dependencies\n";
         file << "dependencies:\n";
         file << "  joltwallet/littlefs:\n";
@@ -536,6 +538,31 @@ bool ESPIDFBuilder::GenerateBuildFiles(const std::string& projectPath,
                 file << "    git: " << dep.gitUrl << "\n";
             if (!dep.version.empty())
                 file << "    version: \"" << dep.version << "\"\n";
+        }
+
+        const fs::path manifest = mainPath / "idf_component.yml";
+        std::string previous;
+        {
+            std::ifstream in(manifest, std::ios::binary);
+            previous.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+        }
+
+        if (previous != file.str())
+        {
+            std::ofstream out(manifest, std::ios::binary | std::ios::trunc);
+            if (!out.is_open())
+                return false;
+            out << file.str();
+
+            // A changed manifest invalidates the component manager's lock. It
+            // does not notice on its own: a git dependency stays at the commit
+            // the lock recorded even when the manifest asks for another
+            // version, so bumping LovyanGFX from 1.2.19 to 1.2.29 went on
+            // building 1.2.19. The lock is generated output in this build
+            // directory, not anything the user wrote. An unchanged manifest
+            // keeps it, so an ordinary rebuild re-resolves nothing.
+            std::error_code ec;
+            fs::remove(buildersPath / "dependencies.lock", ec);
         }
     }
 
@@ -748,6 +775,15 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
         file << "    list(APPEND _DEKI_FW_GEN_SRCS ${_g})\n";
         file << "endforeach()\n";
         file << "target_sources(${COMPONENT_LIB} PRIVATE ${_DEKI_FW_GEN_SRCS})\n";
+        // Generate before compiling what is generated. Without this edge ninja
+        // is free to compile the previous build's .gen.cpp first, and did: a
+        // changed generator never ran, because the stale tables it would have
+        // replaced failed to compile before it got the chance. The package DLL
+        // build has carried the same edge all along (BuildFileGenerator).
+        file << "foreach(_TAG" << tags << ")\n";
+        file << "    string(MAKE_C_IDENTIFIER \"${_TAG}\" _RC_TAGID)\n";
+        file << "    add_dependencies(${COMPONENT_LIB} ${DEKI_RC_TARGETS_${_RC_TAGID}})\n";
+        file << "endforeach()\n";
         file << "foreach(_OUTDIR" << outdirs << ")\n";
         file << "    get_filename_component(_REFL_DIR \"${_OUTDIR}\" DIRECTORY)\n";
         file << "    target_include_directories(${COMPONENT_LIB} PRIVATE \"${_REFL_DIR}\")\n";

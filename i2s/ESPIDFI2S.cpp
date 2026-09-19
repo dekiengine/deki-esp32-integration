@@ -36,7 +36,7 @@ bool ESPIDFI2S::Initialize()
         return false;
     }
 
-    i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG((i2s_port_t)m_Port, I2S_ROLE_MASTER);
+    i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(m_Port, I2S_ROLE_MASTER);  // an int since ESP-IDF 6; i2s_port_t is gone
     if (i2s_new_channel(&chan_cfg, &m_TxHandle, nullptr) != ESP_OK)
     {
         m_LastError = "ESPIDFI2S: i2s_new_channel failed";

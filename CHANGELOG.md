@@ -8,6 +8,37 @@ breaking change bumps the minor across the editor, the engine and every
 package together, so a package with no changes of its own is still released
 alongside one that has them.
 
+## Unreleased
+
+### Changed
+- **Built against ESP-IDF 6.1** (was 5.3.2). The pinned SDK is v6.1, and the
+  build now refuses an installed ESP-IDF of any other version with a message
+  saying which is installed and which is needed, rather than quietly building
+  against headers this package was not written for. Update it from the Build
+  panel or with `--install-toolchain esp-idf`.
+- The build backend, its toolchain definition and the ESP-IDF component
+  installer now ship in this package (`editor/`) instead of the editor. The
+  toolchain definition travels inside the backend.
+- "Flash" is this backend's deploy step (builder ABI 2): targets are the
+  serial ports. The Build panel's chip/flash/PSRAM rows come from here.
+- A board's chip, flash size, clock, display driver and bus, and component
+  list are this backend's settings (`frameworkOptions`); existing platform
+  files load unchanged. PSRAM size is the platform's `externalMemorySize`.
+- Depends on the individual `esp_driver_*` components it uses instead of the
+  deprecated `driver` umbrella, and no longer on `json`, which nothing here
+  used and which ESP-IDF 6 removed.
+- DMA-capable external memory is `heap_caps_malloc(SPIRAM | DMA | CACHE_ALIGNED)`,
+  ESP-IDF 6's replacement for the removed `esp_dma_malloc`. The old fallback
+  (plain `SPIRAM | DMA`) was not cache aligned.
+
+### Fixed
+- Bumping a dependency's version in a package (LovyanGFX, say) had no effect:
+  ESP-IDF's component lock kept the old commit. A changed component manifest
+  now invalidates the lock.
+- The generated reflection tables could be compiled before they were
+  regenerated, so a change to the generator never took effect.
+- `displayBus` is validated by this backend before it reaches a shell line.
+
 ## 0.16.0
 
 ### Changed

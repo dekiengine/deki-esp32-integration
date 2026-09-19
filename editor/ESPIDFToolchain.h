@@ -39,9 +39,19 @@ public:
     std::string GetToolchainsDir() const;
     std::string GetDekiEditorDir() const;
 
-    // Toolchain status
+    // Toolchain status. Installed means the SDK is there AND is the version
+    // this backend pins; anything else builds against headers it was not
+    // written for, so it is reported, not used.
     bool IsInstalled() const;
     std::string GetStatus() const;
+
+    /// The version the toolchain definition pins ("v6.1"), from ESPIDFBuilder.
+    void SetRequiredVersion(const std::string& version) { m_RequiredVersion = version; }
+
+    /// The installed SDK's own version, from tools/cmake/version.cmake - the
+    /// SDK's own record, so it is right for installs made before the editor
+    /// kept one. Empty when there is no SDK.
+    std::string InstalledVersion() const;
 
     // Read engine version from deki.json
     std::string ReadEngineVersion(const std::string& projectPath) const;
@@ -53,6 +63,9 @@ public:
 
     // Build preparation — delete obj to refresh timestamp
     void PrepareForBuild(BuildOutputCallback outputCallback, const std::string& buildDir);
+
+private:
+    std::string m_RequiredVersion;
 };
 
 }  // namespace DekiEditor

@@ -98,13 +98,18 @@
     "espidf": [
       "fatfs",
       "sdmmc",
-      "driver",
+      "esp_driver_gpio",
+      "esp_driver_uart",
+      "esp_driver_i2c",
+      "esp_driver_i2s",
+      "esp_driver_spi",
+      "esp_driver_sdmmc",
+      "esp_driver_sdspi",
       "esp_wifi",
       "esp_http_client",
       "esp-tls",
       "mbedtls",
       "nvs_flash",
-      "json",
       "bt"
     ]
   }

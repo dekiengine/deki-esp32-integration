@@ -91,6 +91,51 @@ std::string ESPIDFToolchain::GetIDFPath() const
     return idfDir;
 }
 
+namespace
+{
+// "v6.1", "6.1", "6.1.0" all name the same release.
+std::string CanonicalIdfVersion(std::string v)
+{
+    if (!v.empty() && (v[0] == 'v' || v[0] == 'V'))
+        v.erase(0, 1);
+    int dots = 0;
+    for (char c : v)
+        dots += (c == '.');
+    while (dots++ < 2)
+        v += ".0";
+    return v;
+}
+}  // namespace
+
+std::string ESPIDFToolchain::InstalledVersion() const
+{
+    std::ifstream f(fs::path(GetIDFPath()) / "tools" / "cmake" / "version.cmake");
+    if (!f.is_open())
+        return {};
+
+    std::string major, minor, patch, line;
+    while (std::getline(f, line))
+    {
+        auto grab = [&line](const char* key, std::string& out)
+        {
+            const std::string k = std::string("set(") + key + " ";
+            const size_t at = line.find(k);
+            if (at == std::string::npos)
+                return;
+            const size_t start = at + k.size();
+            const size_t end = line.find(')', start);
+            if (end != std::string::npos)
+                out = line.substr(start, end - start);
+        };
+        grab("IDF_VERSION_MAJOR", major);
+        grab("IDF_VERSION_MINOR", minor);
+        grab("IDF_VERSION_PATCH", patch);
+    }
+    if (major.empty() || minor.empty())
+        return {};
+    return major + "." + minor + "." + (patch.empty() ? "0" : patch);
+}
+
 bool ESPIDFToolchain::IsInstalled() const
 {
     std::string idfPath = GetIDFPath();
@@ -101,13 +146,25 @@ bool ESPIDFToolchain::IsInstalled() const
     std::string exportScript = idfPath + "/export.sh";
 #endif
 
-    return fs::exists(exportScript);
+    if (!fs::exists(exportScript))
+        return false;
+    // No pin known means the definition failed to load, which the builder has
+    // already reported; judging the version against nothing would only hide it.
+    if (m_RequiredVersion.empty())
+        return true;
+    return InstalledVersion() == CanonicalIdfVersion(m_RequiredVersion);
 }
 
 std::string ESPIDFToolchain::GetStatus() const
 {
     if (IsInstalled())
-        return "ESP-IDF installed at " + GetIDFPath();
+        return "ESP-IDF " + InstalledVersion() + " installed at " + GetIDFPath();
+
+    const std::string have = InstalledVersion();
+    if (!have.empty() && !m_RequiredVersion.empty())
+        return "ESP-IDF " + have + " is installed, but this package is built against " +
+               CanonicalIdfVersion(m_RequiredVersion) +
+               "; update the ESP-IDF SDK component (Build panel, or --install-toolchain esp-idf)";
     return "ESP-IDF not installed";
 }
 
@@ -145,7 +202,14 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
     std::string logEnabled = ctx.enableLogging ? "1" : "";
     std::string internalLogEnabled = ctx.enableInternalLogging ? "1" : "";
 
-    std::string envSettings = "set \"DEKI_ENGINE_PATH=" + enginePath + "\" && ";
+    // Forward slashes: the generated CMake reads this as $ENV{DEKI_ENGINE_PATH}
+    // inside idf_component_register(SRCS ...), and ESP-IDF 6 re-parses those
+    // arguments as CMake code, where the "\U" of "C:\Users" is an invalid
+    // escape. 5.3 happened to pass the string through untouched. Forward
+    // slashes are what CMake means by a path on every platform.
+    std::string enginePathForCMake = enginePath;
+    std::replace(enginePathForCMake.begin(), enginePathForCMake.end(), '\\', '/');
+    std::string envSettings = "set \"DEKI_ENGINE_PATH=" + enginePathForCMake + "\" && ";
 
     // Anything that must happen before export.bat runs. cmd expands %PATH%
     // when it parses the whole line rather than when each piece runs, so
