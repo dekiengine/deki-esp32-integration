@@ -11,6 +11,9 @@ public:
     ESPIDFInstaller();
     ~ESPIDFInstaller();
 
+    // Also what project files say for a component from Espressif's registry
+    // ("source": "espidf"), and always have. Do not rename it.
+    std::string GetId() const override { return "espidf"; }
     std::string GetPlatformName() const override { return "ESP-IDF"; }
 
     bool IsApplicable(const std::string& projectPath) const override;

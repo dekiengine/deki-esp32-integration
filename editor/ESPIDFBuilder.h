@@ -24,14 +24,18 @@ public:
     // Core operations — use RunOnBuildThread()
     void Build(const std::string& projectPath, BuildOutputCallback outputCallback = nullptr,
                BuildProgressCallback progressCallback = nullptr) override;
-    void Flash(const std::string& projectPath, const std::string& port,
-               BuildOutputCallback outputCallback = nullptr,
-               BuildProgressCallback progressCallback = nullptr) override;
     void Clean(const std::string& projectPath, BuildOutputCallback outputCallback = nullptr,
                BuildProgressCallback progressCallback = nullptr) override;
-    void SetTarget(const std::string& projectPath, const std::string& target,
-                   BuildOutputCallback outputCallback = nullptr,
-                   BuildProgressCallback progressCallback = nullptr) override;
+
+    // Deploy = write the image over a serial port. The target id is the port;
+    // empty lets idf.py find one.
+    bool SupportsDeploy() const override { return true; }
+    const char* GetDeployLabel() const override { return "Flash"; }
+    std::vector<DeployTarget> EnumerateDeployTargets() const override;
+    void Deploy(const std::string& projectPath, const std::string& port,
+                BuildOutputCallback outputCallback = nullptr,
+                BuildProgressCallback progressCallback = nullptr) override;
+    std::vector<std::pair<std::string, std::string>> DescribePlatform(const PlatformConfig& config) const override;
 
     // Toolchain — ESP-IDF specific
     bool IsToolchainInstalled() const override;
@@ -52,9 +56,13 @@ public:
         return "Build for ESP32, ESP32-S3 and other Espressif chips";
     }
 
+    // The generated project packs this directory into the data partition.
+    std::string GetBootPayloadDirectory(const std::string& projectPath) const override
+    {
+        return GetBuildDirectory(projectPath) + "/spiffs_data";
+    }
     std::string GetFrameworkId() const override { return "espidf"; }
     std::vector<std::string> ValidatePlatform(const PlatformConfig& config) const override;
-    std::vector<std::string> GetSupportedTargets() const override;
     std::string GetBuildDirectory(const std::string& projectPath) const override;
 
     // Platform editor UI
@@ -76,8 +84,6 @@ private:
                  BuildOutputCallback outputCallback, BuildProgressCallback progressCallback);
     void DoClean(const std::string& projectPath, BuildOutputCallback outputCallback,
                  BuildProgressCallback progressCallback);
-    void DoSetTarget(const std::string& projectPath, const std::string& target,
-                     BuildOutputCallback outputCallback, BuildProgressCallback progressCallback);
 
     // Build file generation helpers
     bool GenerateRootCMakeLists(const std::string& espIdfPath, const PlatformConfig& config);

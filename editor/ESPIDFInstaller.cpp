@@ -511,7 +511,7 @@ void ESPIDFInstaller::EnsureCoreDependencies(const std::string& projectPath)
             newDep.name = coreDep.name;
             newDep.version = coreDep.version;
             newDep.gitUrl = coreDep.gitUrl;
-            newDep.source = coreDep.isGitHub ? PackageSourceType::GitHub : PackageSourceType::ESPIDFRegistry;
+            newDep.source = coreDep.isGitHub ? PackageSourceType::GitHub : PackageSourceType::FrameworkRegistry;
             dependencies.push_back(newDep);
             modified = true;
         }
@@ -594,7 +594,7 @@ void ESPIDFInstaller::MergePackageDeps(const std::string& projectPath)
                 dep.name = extractField("name");
                 dep.version = extractField("version");
                 dep.gitUrl = extractField("git");
-                dep.source = dep.gitUrl.empty() ? PackageSourceType::ESPIDFRegistry : PackageSourceType::GitHub;
+                dep.source = dep.gitUrl.empty() ? PackageSourceType::FrameworkRegistry : PackageSourceType::GitHub;
 
                 if (!dep.name.empty() && !dep.version.empty())
                 {

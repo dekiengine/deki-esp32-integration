@@ -1,3 +1,21 @@
+#pragma once
+
+// The ESP-IDF toolchain definition: what the SDK's pieces are, where each is
+// downloaded from, the digest each download is pinned to, and how an installed
+// copy is recognised.
+//
+// Carried in the backend rather than read from a file. This package's editor
+// DLL is built into the project's runtime directory, nowhere near these
+// sources, and the editor no longer ships a copy beside its executable - that
+// copy was the last thing making the editor carry one framework's recipe.
+//
+// It is JSON so it reads as the data it is; ToolchainComponentManager parses it
+// through DekiEditor::ParseBuilderDefinition.
+
+namespace DekiEditor
+{
+
+inline constexpr const char* kESPIDFToolchainDefinition = R"json(
 {
   "id": "espidf",
   "name": "ESP-IDF",
@@ -107,3 +125,6 @@
     }
   ]
 }
+)json";
+
+}  // namespace DekiEditor

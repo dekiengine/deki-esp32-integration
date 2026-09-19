@@ -12,6 +12,9 @@
 #include <deki-editor/EditorSettings.h>
 #include <deki-editor/build/PlatformConfig.h>
 #include "ESPIDFInstaller.h"
+#include "ESPIDFToolchainDefinition.h"
+#include <deki-editor/SerialPorts.h>
+#include <deki/LogSystem.h>
 #include "imgui.h"
 #include <filesystem>
 #include <sstream>
@@ -71,12 +74,18 @@ std::vector<std::string> ESPIDFBuilder::ValidatePlatform(const PlatformConfig& c
 
 ESPIDFBuilder::ESPIDFBuilder()
 {
-    // Load builder definition from JSON recipe
-    std::string exePath = EditorPaths::GetExecutableDir();
-    std::string jsonPath = exePath + "/resources/builders/espidf.json";
+    // The definition travels inside this backend; see ESPIDFToolchainDefinition.h.
+    // It used to be read from beside the editor's executable, and a miss was
+    // silent: the builder came up with no toolchain components at all and the
+    // Build panel simply showed nothing to install.
     BuilderDefinition def;
-    if (LoadBuilderDefinition(jsonPath, def))
+    std::string error;
+    if (ParseBuilderDefinition(kESPIDFToolchainDefinition, def, error))
         m_ToolchainMgr.Initialize(def);
+    else
+        DEKI_LOG_ERROR("ESP-IDF backend: its own toolchain definition does not parse (%s); "
+                       "no toolchain component can be installed or detected",
+                       error.c_str());
 }
 
 ESPIDFBuilder::~ESPIDFBuilder()
@@ -114,9 +123,24 @@ ESPIDFExecContext ESPIDFBuilder::MakeExecContext()
 // Identity
 // ============================================================================
 
-std::vector<std::string> ESPIDFBuilder::GetSupportedTargets() const
+std::vector<DeployTarget> ESPIDFBuilder::EnumerateDeployTargets() const
 {
-    return SupportedIdfTargets();
+    std::vector<DeployTarget> targets;
+    for (const std::string& port : EnumerateSerialPorts())
+        targets.push_back({ port, port });
+    return targets;
+}
+
+std::vector<std::pair<std::string, std::string>> ESPIDFBuilder::DescribePlatform(const PlatformConfig& config) const
+{
+    std::vector<std::pair<std::string, std::string>> rows;
+    if (!config.mcuChip.empty())
+        rows.emplace_back("Chip", config.mcuChip);
+    if (config.flashSize > 0)
+        rows.emplace_back("Flash", std::to_string(config.flashSize / (1024 * 1024)) + " MB");
+    if (config.psramSize > 0)
+        rows.emplace_back("PSRAM", std::to_string(config.psramSize / (1024 * 1024)) + " MB");
+    return rows;
 }
 
 std::string ESPIDFBuilder::GetBuildDirectory(const std::string& projectPath) const
@@ -172,8 +196,8 @@ void ESPIDFBuilder::Build(const std::string& projectPath, BuildOutputCallback ou
                      { DoBuild(projectPath, outputCallback, progressCallback); });
 }
 
-void ESPIDFBuilder::Flash(const std::string& projectPath, const std::string& port,
-                          BuildOutputCallback outputCallback, BuildProgressCallback progressCallback)
+void ESPIDFBuilder::Deploy(const std::string& projectPath, const std::string& port,
+                           BuildOutputCallback outputCallback, BuildProgressCallback progressCallback)
 {
     RunOnBuildThread([this, projectPath, port, outputCallback, progressCallback]()
                      { DoFlash(projectPath, port, outputCallback, progressCallback); });
@@ -186,12 +210,6 @@ void ESPIDFBuilder::Clean(const std::string& projectPath, BuildOutputCallback ou
                      { DoClean(projectPath, outputCallback, progressCallback); });
 }
 
-void ESPIDFBuilder::SetTarget(const std::string& projectPath, const std::string& target,
-                              BuildOutputCallback outputCallback, BuildProgressCallback progressCallback)
-{
-    RunOnBuildThread([this, projectPath, target, outputCallback, progressCallback]()
-                     { DoSetTarget(projectPath, target, outputCallback, progressCallback); });
-}
 
 // ============================================================================
 // Internal worker functions
@@ -312,7 +330,7 @@ void ESPIDFBuilder::DoBuild(const std::string& projectPath, BuildOutputCallback 
 void ESPIDFBuilder::DoFlash(const std::string& projectPath, const std::string& port,
                             BuildOutputCallback outputCallback, BuildProgressCallback progressCallback)
 {
-    SetProgress(BuildState::Flashing, "Flashing firmware...", 0.0f);
+    SetProgress(BuildState::Deploying, "Flashing firmware...", 0.0f);
     if (progressCallback) progressCallback(GetProgress());
 
     if (!IsToolchainInstalled())
@@ -386,50 +404,6 @@ void ESPIDFBuilder::DoClean(const std::string& projectPath, BuildOutputCallback 
     {
         SetError("Clean failed with exit code " + std::to_string(exitCode));
         if (outputCallback) outputCallback("Clean failed!", true);
-    }
-
-    if (progressCallback) progressCallback(GetProgress());
-}
-
-void ESPIDFBuilder::DoSetTarget(const std::string& projectPath, const std::string& target,
-                                BuildOutputCallback outputCallback, BuildProgressCallback progressCallback)
-{
-    SetProgress(BuildState::Building, "Setting target...", 0.0f);
-    if (progressCallback) progressCallback(GetProgress());
-
-    if (!IsToolchainInstalled())
-    {
-        SetError("ESP-IDF is not installed. Please download and install it first.");
-        if (progressCallback) progressCallback(GetProgress());
-        return;
-    }
-
-    std::string buildDir = GetBuildDirectory(projectPath);
-    std::string enginePath = GetEnginePath(projectPath);
-    // The target comes from the platform JSON; only a chip idf.py knows is
-    // allowed into the command line.
-    {
-        const std::vector<std::string> supported = GetSupportedTargets();
-        if (std::find(supported.begin(), supported.end(), target) == supported.end())
-        {
-            if (outputCallback) outputCallback("Refusing set-target: '" + target + "' is not a supported ESP-IDF target", true);
-            return;
-        }
-    }
-    std::string command = "idf.py set-target " + target;
-    if (outputCallback) outputCallback("Setting target to " + target + "...", false);
-
-    int exitCode = m_Toolchain.ExecuteIDF(command, buildDir, enginePath, outputCallback, MakeExecContext());
-
-    if (exitCode == 0)
-    {
-        SetProgress(BuildState::Completed, "Target set!", 1.0f);
-        if (outputCallback) outputCallback("Target set to " + target, false);
-    }
-    else
-    {
-        SetError("Set target failed with exit code " + std::to_string(exitCode));
-        if (outputCallback) outputCallback("Set target failed!", true);
     }
 
     if (progressCallback) progressCallback(GetProgress());
@@ -556,7 +530,7 @@ bool ESPIDFBuilder::GenerateBuildFiles(const std::string& projectPath,
                 d.name = dep.name;
                 d.version = dep.version;
                 d.gitUrl = dep.gitUrl;
-                d.source = dep.gitUrl.empty() ? PackageSourceType::ESPIDFRegistry
+                d.source = dep.gitUrl.empty() ? PackageSourceType::FrameworkRegistry
                                               : PackageSourceType::Custom;
                 overrideDeps.push_back(d);
             }
@@ -656,10 +630,12 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
     for (const auto& pkg : allPackages)
     {
         if (activeIds.count(pkg.id) == 0) continue;
-        for (const auto& dep : pkg.espidfDeps)
+        const auto mine = pkg.frameworkDeps.find(GetFrameworkId());
+        if (mine == pkg.frameworkDeps.end()) continue;
+        for (const auto& dep : mine->second)
         {
-            if (idfRequires.find(dep) == std::string::npos)
-                idfRequires += " " + dep;
+            if (idfRequires.find(dep.name) == std::string::npos)
+                idfRequires += " " + dep.name;
         }
     }
 
@@ -1164,7 +1140,7 @@ private:
 
 std::unique_ptr<IPlatformEditorUI> ESPIDFBuilder::CreateEditorUI(const PlatformConfig& config) const
 {
-    return std::make_unique<ESPIDFEditorUI>(config, GetSupportedTargets());
+    return std::make_unique<ESPIDFEditorUI>(config, SupportedIdfTargets());
 }
 
 }  // namespace DekiEditor
@@ -1188,7 +1164,8 @@ extern "C" {
 DEKI_BUILDER_API const DekiBuilderAbi* DekiBuilder_GetAbi(void)
 {
     static const DekiBuilderAbi abi =
-        DekiBuilder_ThisAbi((uint32_t)sizeof(DekiEditor::PlatformConfig));
+        DekiBuilder_ThisAbi((uint32_t)sizeof(DekiEditor::PlatformConfig),
+                            (uint32_t)sizeof(DekiEditor::CMakeGen::PackageEntry));
     return &abi;
 }
 
