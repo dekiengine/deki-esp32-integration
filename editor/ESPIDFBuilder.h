@@ -1,5 +1,7 @@
 #pragma once
 
+#include <deki-editor/IconsTabler.h>
+
 #include <deki-editor/build/FirmwareBuilderBase.h>
 #include "ESPIDFToolchain.h"
 #include <thread>
@@ -41,6 +43,15 @@ public:
 
     // Identity
     const char* GetName() const override { return "ESP-IDF"; }
+    // Shown in the platform editor's framework picker. The editor used to
+    // hold these strings for the backends it shipped; a backend describes
+    // itself now, so one it has never heard of is not anonymous.
+    const char* GetIcon() const override { return ICON_TI_CPU; }
+    const char* GetDescription() const override
+    {
+        return "Build for ESP32, ESP32-S3 and other Espressif chips";
+    }
+
     std::string GetFrameworkId() const override { return "espidf"; }
     std::vector<std::string> ValidatePlatform(const PlatformConfig& config) const override;
     std::vector<std::string> GetSupportedTargets() const override;
