@@ -38,6 +38,15 @@
       ]
     },
     {
+      "id": "pins",
+      "displayName": "Boot Pins",
+      "buildDefine": "DEKI_FEATURE_ESP32_PIN_SETUP",
+      "defaultEnabled": true,
+      "componentTypes": [
+        "ESP32PinSetup"
+      ]
+    },
+    {
       "id": "sd",
       "displayName": "SD Card (ESP-IDF)",
       "buildDefine": "DEKI_FEATURE_ESP32_SD",

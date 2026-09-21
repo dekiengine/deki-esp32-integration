@@ -10,6 +10,13 @@ alongside one that has them.
 
 ## Unreleased
 
+### Added
+- **`ESP32PinSetup`**: a setup component that drives one GPIO high or low at
+  boot, with an optional wait afterwards. For what a board gates behind a pin:
+  the power rail feeding its display and touch controller, or the chip select
+  of another device on the display's SPI bus. List it in the boot scene's
+  `setupComponents` ahead of the step that needs it.
+
 ### Changed
 - **Built against ESP-IDF 6.1** (was 5.3.2). The pinned SDK is v6.1, and the
   build now refuses an installed ESP-IDF of any other version with a message
@@ -43,8 +50,8 @@ alongside one that has them.
 
 ### Changed
 - **Moved into the `DekiEsp32` namespace.** Every component was declared at global
-  scope, which made its identity a bare class name — the name a scene file
-  stores and the name the registry keys on — so two packages defining one name
+  scope, which made its identity a bare class name - the name a scene file
+  stores and the name the registry keys on - so two packages defining one name
   collided there with nothing to tell them apart. Each component carries
   `DEKI_FORMER_NAME` with the name it was saved under before, so existing
   scenes load unchanged and are written back qualified on the next save.
