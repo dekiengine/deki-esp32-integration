@@ -30,6 +30,7 @@ public:
     bool Probe(uint8_t addr) override;
     bool Read (uint8_t addr, uint8_t reg, uint8_t* dst, size_t len) override;
     bool Write(uint8_t addr, uint8_t reg, const uint8_t* src, size_t len) override;
+    bool ReadRaw(uint8_t addr, uint8_t* dst, size_t len) override;
 
 private:
     int         m_PinSDA = -1;

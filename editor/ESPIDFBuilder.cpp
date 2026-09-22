@@ -666,6 +666,8 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
 
     // What this build leaves out (services/FeatureResolver).
     const StripPlan strip = ComputeStripPlan(projectPath, config.id);
+    for (const auto& w : strip.warnings)
+        DEKI_LOG_WARNING("%s", w.c_str());
 
     // Build REQUIRES list from platform config + active package ESP-IDF deps.
     // Not named `requires`: that is a keyword since C++20, and the firmware

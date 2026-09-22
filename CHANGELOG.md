@@ -11,13 +11,13 @@ alongside one that has them.
 ## Unreleased
 
 ### Added
-- **`ESP32PinSetup`**: a setup component that drives one GPIO high or low at
-  boot, with an optional wait afterwards. For what a board gates behind a pin:
-  the power rail feeding its display and touch controller, or the chip select
-  of another device on the display's SPI bus. List it in the boot scene's
-  `setupComponents` ahead of the step that needs it.
-
-### Changed
+- **`ESPIDFGPIO`**, the ESP-IDF pins behind deki-gpio: drive, read, and count
+  a pin's edges from an interrupt handler. Registered at start-up like the
+  other buses. Requires `deki-gpio`. The boot step that drives a pin, briefly
+  here as `ESP32PinSetup`, is deki-gpio's `GpioPinSetup` and works on any
+  platform; scenes naming the old one load as the new one.
+- `ESPIDFI2C::ReadRaw`: the ESP-IDF side of deki-i2c's register-less read
+  (`i2c_master_receive`), which an I2C keyboard needs.
 - **Built against ESP-IDF 6.1** (was 5.3.2). The pinned SDK is v6.1, and the
   build now refuses an installed ESP-IDF of any other version with a message
   saying which is installed and which is needed, rather than quietly building
@@ -39,6 +39,12 @@ alongside one that has them.
   (plain `SPIRAM | DMA`) was not cache aligned.
 
 ### Fixed
+- **The SD card can share the display's SPI bus.** `spi_bus_initialize`
+  answering that SPI2 is already up used to fail the card; the card now joins
+  that bus as one more device, and the pin pre-conditioning (which bit-bangs
+  the pins as GPIO) and the bus release on shutdown happen only for a bus the
+  card set up itself. The LilyGO T-Deck wires its card, display and radio to
+  one bus.
 - Bumping a dependency's version in a package (LovyanGFX, say) had no effect:
   ESP-IDF's component lock kept the old commit. A changed component manifest
   now invalidates the lock.

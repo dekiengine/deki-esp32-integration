@@ -99,6 +99,7 @@ private:
     // ESP-IDF specific handles
     sdmmc_card_t* m_Card = nullptr;
     int m_SpiHostSlot = -1;
+    bool m_OwnsSpiBus = false;  // false when joining a bus another device set up
 
     // Filesystem wrapper
     std::unique_ptr<ESPIDFSDFileSystem> m_FileSystem;

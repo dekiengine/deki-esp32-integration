@@ -131,6 +131,45 @@ bool ESPIDFSDCard::Initialize()
 
         if (m_PinMOSI >= 0 && m_PinMISO >= 0 && m_PinCLK >= 0)
         {
+            spi_bus_config_t bus_cfg = {};
+            bus_cfg.mosi_io_num = m_PinMOSI;
+            bus_cfg.miso_io_num = m_PinMISO;
+            bus_cfg.sclk_io_num = m_PinCLK;
+            bus_cfg.quadwp_io_num = -1;
+            bus_cfg.quadhd_io_num = -1;
+            bus_cfg.max_transfer_sz = 4000;
+
+            // The bus may already be up: on a handheld the card shares the
+            // display's SPI bus, and the display driver set it up first. The
+            // card is then one more device on it, and the driver arbitrates
+            // between them. Only a bus this owns is pre-conditioned below
+            // (that bit-bangs the pins as GPIO, which would knock the display
+            // off them) and freed on shutdown.
+            esp_err_t ret = spi_bus_initialize(SPI2_HOST, &bus_cfg, SDSPI_DEFAULT_DMA);
+            if (ret == ESP_ERR_INVALID_STATE)
+            {
+                ESP_LOGI(TAG, "SPI2 is already up (shared with another device); joining it");
+                m_SpiHostSlot = SPI2_HOST;
+                m_OwnsSpiBus = false;
+            }
+            else if (ret != ESP_OK)
+            {
+                m_LastError = "SPI bus initialization failed";
+                m_State = Deki::PackageState::Error;
+                ESP_LOGE(TAG, "spi_bus_initialize failed: %s", esp_err_to_name(ret));
+                return false;
+            }
+            else
+            {
+                // Ours. Give it back for a moment: the pre-conditioning needs
+                // the pins as plain GPIO.
+                spi_bus_free(SPI2_HOST);
+                m_OwnsSpiBus = true;
+            }
+        }
+
+        if (m_PinMOSI >= 0 && m_PinMISO >= 0 && m_PinCLK >= 0 && m_OwnsSpiBus)
+        {
             // SD card SPI pre-conditioning: bit-bang 80+ clock pulses with CS HIGH.
             // Required by SD Physical Layer Spec to reset the card's SPI state machine.
             // If the card was mid-transaction when the MCU reset (or from a previous
@@ -221,8 +260,10 @@ void ESPIDFSDCard::Shutdown()
 #if defined(ESP32)
         if (m_Mode == DekiSdCard::SDCardMode::SPI && m_SpiHostSlot >= 0)
         {
-            spi_bus_free(static_cast<spi_host_device_t>(m_SpiHostSlot));
+            if (m_OwnsSpiBus)
+                spi_bus_free(static_cast<spi_host_device_t>(m_SpiHostSlot));
             m_SpiHostSlot = -1;
+            m_OwnsSpiBus = false;
         }
 #endif
 

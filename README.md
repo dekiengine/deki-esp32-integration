@@ -17,13 +17,10 @@ obj->AddComponent<SomeComponent>();
 
 Scenes saved before 0.16.0 used bare names and still load; saving writes the current one.
 
-## Boot pins
+## Pins
 
-`ESP32PinSetup` drives one GPIO high or low during boot, with an optional wait
-afterwards. Boards gate things behind a pin: the rail feeding the display, or
-the chip select of another device on the display's SPI bus. Add one per pin to
-the platform's boot scene and list it in `setupComponents` ahead of the step
-that needs it.
+The ESP-IDF side of `deki-gpio`: drive, read and count a pin's edges by
+interrupt. The boot step that drives a pin, `GpioPinSetup`, is in `deki-gpio`.
 
 ## Install
 

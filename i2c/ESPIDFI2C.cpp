@@ -137,6 +137,19 @@ bool ESPIDFI2C::Read(uint8_t addr, uint8_t reg, uint8_t* dst, size_t len)
 #endif
 }
 
+bool ESPIDFI2C::ReadRaw(uint8_t addr, uint8_t* dst, size_t len)
+{
+#if defined(ESP32)
+    if (!dst || len == 0 || !m_Bus) return false;
+    auto dev = (i2c_master_dev_handle_t)DeviceFor(addr);
+    if (!dev) return false;
+
+    return i2c_master_receive(dev, dst, len, 50) == ESP_OK;
+#else
+    (void)addr; (void)dst; (void)len; return false;
+#endif
+}
+
 bool ESPIDFI2C::Write(uint8_t addr, uint8_t reg, const uint8_t* src, size_t len)
 {
 #if defined(ESP32)

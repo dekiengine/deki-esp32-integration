@@ -23,6 +23,8 @@
 #include "DekiSDCard.h"  // from deki-sdcard
 #include "i2c/ESPIDFI2C.h"
 #include "DekiI2C.h"  // from deki-i2c
+#include "gpio/ESPIDFGPIO.h"
+#include "DekiGPIO.h"  // from deki-gpio
 #include "uart/ESPIDFUART.h"
 #include "DekiUART.h"  // from deki-uart
 #include "i2s/ESPIDFI2S.h"
@@ -63,6 +65,11 @@ struct ESP32BackendInit {
         DekiI2c::DekiI2C::SetFactory([]() -> DekiI2c::IDekiI2C* { return new ESPIDFI2C(); });
         DekiUart::DekiUART::SetFactory([]() -> DekiUart::IDekiUART* { return new ESPIDFUART(); });
         DekiI2s::DekiI2S::SetFactory([]() -> DekiI2s::IDekiI2S* { return new ESPIDFI2S(); });
+
+        // Pins: one for the whole chip, like WiFi below.
+        static ESPIDFGPIO s_Gpio;
+        s_Gpio.Initialize();
+        DekiGpio::DekiGPIO::SetCurrent(&s_Gpio);
 
         // WiFi: single-active. The driver instance is intentionally leaked at
         // process exit, matching the rest of this init block.

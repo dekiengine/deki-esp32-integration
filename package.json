@@ -10,6 +10,7 @@
     "deki-i2s",
     "deki-uart",
     "deki-i2c",
+    "deki-gpio",
     "deki-sdcard",
     "deki-rendering"
   ],
@@ -38,18 +39,16 @@
       ]
     },
     {
-      "id": "pins",
-      "displayName": "Boot Pins",
-      "buildDefine": "DEKI_FEATURE_ESP32_PIN_SETUP",
-      "defaultEnabled": true,
-      "componentTypes": [
-        "ESP32PinSetup"
-      ]
-    },
-    {
       "id": "sd",
       "displayName": "SD Card (ESP-IDF)",
       "buildDefine": "DEKI_FEATURE_ESP32_SD",
+      "defaultEnabled": true,
+      "componentTypes": []
+    },
+    {
+      "id": "gpio",
+      "displayName": "GPIO (ESP-IDF)",
+      "buildDefine": "DEKI_FEATURE_ESP32_GPIO",
       "defaultEnabled": true,
       "componentTypes": []
     },
