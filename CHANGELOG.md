@@ -10,6 +10,10 @@ alongside one that has them.
 
 ## Unreleased
 
+### Changed
+- ESP-IDF builds no longer define `DEKI_SCREEN_WIDTH`/`HEIGHT`: the engine takes
+  the framebuffer size from the display.
+
 ### Added
 - **`ESPIDFGPIO`**, the ESP-IDF pins behind deki-gpio: drive, read, and count
   a pin's edges from an interrupt handler. Registered at start-up like the

@@ -277,10 +277,6 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
 
     if (ctx.hasPlatformConfig && ctx.platformConfig)
     {
-        if (ctx.platformConfig->screenWidth > 0)
-            envSettings += "set \"DEKI_SCREEN_WIDTH=" + std::to_string(ctx.platformConfig->screenWidth) + "\" && ";
-        if (ctx.platformConfig->screenHeight > 0)
-            envSettings += "set \"DEKI_SCREEN_HEIGHT=" + std::to_string(ctx.platformConfig->screenHeight) + "\" && ";
         bool usePsram = ctx.platformConfig->externalMemorySize > 0;
         envSettings += "set \"DEKI_USE_PSRAM=" + std::string(usePsram ? "1" : "") + "\" && ";
         // Checked at the point of use as well as in ValidatePlatform: this is
@@ -288,12 +284,6 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
         const std::string displayBus = ctx.platformConfig->Option("displayBus");
         if (IsValidDisplayBus(displayBus))
             envSettings += "set \"DEKI_DISPLAY_BUS=" + displayBus + "\" && ";
-
-        if (outputCallback)
-        {
-            outputCallback("[Platform Config] DEKI_SCREEN_WIDTH=" + std::to_string(ctx.platformConfig->screenWidth), false);
-            outputCallback("[Platform Config] DEKI_SCREEN_HEIGHT=" + std::to_string(ctx.platformConfig->screenHeight), false);
-        }
     }
     else
     {
@@ -480,10 +470,6 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
 
     if (ctx.hasPlatformConfig && ctx.platformConfig)
     {
-        if (ctx.platformConfig->screenWidth > 0)
-            envExports += "export DEKI_SCREEN_WIDTH=\"" + std::to_string(ctx.platformConfig->screenWidth) + "\" && ";
-        if (ctx.platformConfig->screenHeight > 0)
-            envExports += "export DEKI_SCREEN_HEIGHT=\"" + std::to_string(ctx.platformConfig->screenHeight) + "\" && ";
         bool usePsram = ctx.platformConfig->externalMemorySize > 0;
         envExports += "export DEKI_USE_PSRAM=\"" + std::string(usePsram ? "1" : "") + "\" && ";
         const std::string displayBus = ctx.platformConfig->Option("displayBus");
