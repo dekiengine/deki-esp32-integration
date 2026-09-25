@@ -20,8 +20,8 @@ private:
 
     /**
      * @brief Convert virtual path to VFS path
-     * @param virtualPath Virtual path (e.g., "F:/dproject.bin")
-     * @return VFS path (e.g., "/littlefs/dproject.bin")
+     * @param virtualPath Virtual path (e.g., "F:/project_data.bin")
+     * @return VFS path (e.g., "/littlefs/project_data.bin")
      */
     std::string ConvertPathInternal(const char* virtualPath);
 

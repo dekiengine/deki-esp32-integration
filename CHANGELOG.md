@@ -39,6 +39,10 @@ alongside one that has them.
   (plain `SPIRAM | DMA`) was not cache aligned.
 
 ### Changed
+- The default partition table's data partition (LittleFS, `F:/`) takes the
+  rest of the flash instead of 960 KB: about 13 MB on a 16 MB board. A build
+  that keeps its assets in internal storage puts them there, and the build
+  stops with a message if they do not fit.
 - ESP-IDF builds no longer define `DEKI_SCREEN_WIDTH`/`HEIGHT`: the engine takes
   the framebuffer size from the display.
 

@@ -440,6 +440,34 @@ void ESPIDFBuilder::DoClean(const std::string& projectPath, BuildOutputCallback 
 // Build file generation
 // ============================================================================
 
+// The flash size the generated sdkconfig selects: 16, 8 or 4 MB.
+static uint32_t ConfiguredFlashBytes(const PlatformConfig& config)
+{
+    const uint32_t mb = config.OptionU32("flashSize") / (1024 * 1024);
+    return (mb >= 16 ? 16u : mb >= 8 ? 8u : 4u) * 1024u * 1024u;
+}
+
+// The default table's data partition (LittleFS, F:/) starts after the app and
+// runs to the end of the flash.
+static constexpr uint32_t kDataPartitionOffset = 0x310000;
+
+// Roughly what a folder takes in LittleFS: whole 4 KB blocks per file, a
+// block of metadata each, and the two superblocks.
+static uint64_t LittleFsFootprint(const fs::path& dir)
+{
+    constexpr uint64_t kBlock = 4096;
+    uint64_t total = 2 * kBlock;
+    std::error_code ec;
+    for (fs::recursive_directory_iterator it(dir, ec), end; !ec && it != end; it.increment(ec))
+    {
+        if (!it->is_regular_file(ec))
+            continue;
+        const uint64_t size = it->file_size(ec);
+        total += (size + kBlock - 1) / kBlock * kBlock + kBlock;
+    }
+    return total;
+}
+
 bool ESPIDFBuilder::GenerateBuildFiles(const std::string& projectPath,
                                        const PlatformConfig& config,
                                        const std::vector<std::string>& packageDefines)
@@ -497,6 +525,22 @@ bool ESPIDFBuilder::GenerateBuildFiles(const std::string& projectPath,
 
     if (!GeneratePartitionsCsv(boardPath.string(), config))
         return false;
+
+    // What goes into the data partition has to fit it: the boot payload, and
+    // on internal storage every asset. A board's own partitionTable is its
+    // own business; mklittlefs still refuses what does not fit.
+    if (config.Option("partitionTable").empty())
+    {
+        const uint64_t need = LittleFsFootprint(GetBootPayloadDirectory(projectPath));
+        const uint64_t have = ConfiguredFlashBytes(config) - kDataPartitionOffset;
+        if (need > have)
+        {
+            DEKI_LOG_ERROR("The game needs about %.1f MB of internal storage and '%s' has %.1f MB. "
+                           "Keep its assets on external storage, or use a board with more flash.",
+                           need / (1024.0 * 1024.0), config.id.c_str(), have / (1024.0 * 1024.0));
+            return false;
+        }
+    }
 
     // Load dependency version pins from deki-packages.json
     std::map<std::string, std::string> depOverrides;
@@ -853,7 +897,7 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
     // LittleFS data partition — create image from spiffs_data/ and flash with firmware
     file << "\n";
     file << "# =============================================================================\n";
-    file << "# LittleFS Data Partition (boot.scene, dproject.bin)\n";
+    file << "# LittleFS Data Partition (boot.scene, project_data.bin, assets/)\n";
     file << "# =============================================================================\n";
     file << "set(SPIFFS_DATA_DIR \"${CMAKE_CURRENT_SOURCE_DIR}/../spiffs_data\")\n";
     file << "if(EXISTS ${SPIFFS_DATA_DIR})\n";
@@ -984,13 +1028,17 @@ bool ESPIDFBuilder::GeneratePartitionsCsv(const std::string& boardPath, const Pl
     }
     else
     {
-        // Default partition table
+        // Default partition table. The data partition (F:/: the boot payload,
+        // and the assets when they are kept inside) takes the rest of the
+        // flash, so a 16 MB board has about 13 MB for them.
+        const uint32_t dataSize = ConfiguredFlashBytes(config) - kDataPartitionOffset;
         file << "# Deki Game Partition Table\n";
         file << "# Name,   Type, SubType, Offset,   Size,     Flags\n";
         file << "nvs,      data, nvs,     0x9000,   0x5000,\n";
         file << "otadata,  data, ota,     0xe000,   0x2000,\n";
         file << "app0,     app,  ota_0,   0x10000,  0x300000,\n";
-        file << "spiffs,   data, spiffs,  0x310000, 0xF0000,\n";
+        file << "spiffs,   data, spiffs,  0x" << std::hex << kDataPartitionOffset << ", 0x" << dataSize << std::dec
+             << ",\n";
     }
 
     return CMakeGen::WriteIfChanged(filePath, file.str());
