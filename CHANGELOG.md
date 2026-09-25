@@ -10,10 +10,6 @@ alongside one that has them.
 
 ## Unreleased
 
-### Changed
-- ESP-IDF builds no longer define `DEKI_SCREEN_WIDTH`/`HEIGHT`: the engine takes
-  the framebuffer size from the display.
-
 ### Added
 - **`ESPIDFGPIO`**, the ESP-IDF pins behind deki-gpio: drive, read, and count
   a pin's edges from an interrupt handler. Registered at start-up like the
@@ -41,6 +37,10 @@ alongside one that has them.
 - DMA-capable external memory is `heap_caps_malloc(SPIRAM | DMA | CACHE_ALIGNED)`,
   ESP-IDF 6's replacement for the removed `esp_dma_malloc`. The old fallback
   (plain `SPIRAM | DMA`) was not cache aligned.
+
+### Changed
+- ESP-IDF builds no longer define `DEKI_SCREEN_WIDTH`/`HEIGHT`: the engine takes
+  the framebuffer size from the display.
 
 ### Fixed
 - **The SD card can share the display's SPI bus.** `spi_bus_initialize`
