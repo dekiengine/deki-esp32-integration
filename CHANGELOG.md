@@ -11,6 +11,10 @@ alongside one that has them.
 ## Unreleased
 
 ### Added
+- `ESP32QemuDisplaySetup` (feature `qemu_display`): the screen Espressif's
+  QEMU gives an ESP32-S3 machine, so a firmware build runs its renderer under
+  QEMU and a frame can be captured with `screendump`. RGB565 or ARGB8888. See
+  the README.
 - **`ESPIDFGPIO`**, the ESP-IDF pins behind deki-gpio: drive, read, and count
   a pin's edges from an interrupt handler. Registered at start-up like the
   other buses. Requires `deki-gpio`. The boot step that drives a pin, briefly

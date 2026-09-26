@@ -95,6 +95,15 @@
       "componentTypes": []
     },
     {
+      "id": "qemu_display",
+      "displayName": "QEMU Display",
+      "buildDefine": "DEKI_FEATURE_ESP32_QEMU_DISPLAY",
+      "defaultEnabled": true,
+      "componentTypes": [
+        "ESP32QemuDisplaySetup"
+      ]
+    },
+    {
       "id": "http",
       "displayName": "HTTPS client (ESP-IDF)",
       "buildDefine": "DEKI_FEATURE_ESP32_HTTP",

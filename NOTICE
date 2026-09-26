@@ -8,3 +8,9 @@ ESP-IDF (https://github.com/espressif/esp-idf)
   Copyright (c) Espressif Systems
   Components used: fatfs, sdmmc, driver
   Full license: https://github.com/espressif/esp-idf/blob/master/LICENSE
+
+esp_lcd_qemu_rgb (https://github.com/espressif/idf-extra-components)
+  License: Apache License 2.0
+  Copyright (c) 2023 Espressif Systems (Shanghai) CO LTD
+  The register layout of QEMU's virtual RGB panel, which ESP32QemuDisplay
+  drives with its own code; no source of the component is included.
