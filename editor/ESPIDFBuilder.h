@@ -28,14 +28,23 @@ public:
                BuildProgressCallback progressCallback = nullptr) override;
 
     // Deploy = write the image over a serial port. The target id is the port;
-    // empty lets idf.py find one.
+    // empty lets idf.py find one. A simulated build is run in QEMU instead.
     bool SupportsDeploy() const override { return true; }
-    const char* GetDeployLabel() const override { return "Flash"; }
+    const char* GetDeployLabel() const override { return m_BuildOptions.simulate ? "Run" : "Flash"; }
     std::vector<DeployTarget> EnumerateDeployTargets() const override;
     void Deploy(const std::string& projectPath, const std::string& port,
                 BuildOutputCallback outputCallback = nullptr,
                 BuildProgressCallback progressCallback = nullptr) override;
     std::vector<std::pair<std::string, std::string>> DescribePlatform(const PlatformConfig& config) const override;
+
+    // Simulation: the board's firmware in Espressif's QEMU (ESP32 and
+    // ESP32-S3, which QEMU gives a screen), built into <id>_qemu with the
+    // QEMU screen added to the boot scene and an SPI card moved to the SD
+    // host, and run in a QEMU window with a card image.
+    bool SupportsSimulation() const override;
+    const char* GetSimulatorName() const override { return "QEMU"; }
+    bool MakeSimulationBootScene(std::string& scene, const PlatformConfig& config, std::vector<std::string>& notes,
+                                 std::string& error) const override;
 
     // Toolchain — ESP-IDF specific
     bool IsToolchainInstalled() const override;
@@ -80,6 +89,8 @@ private:
     // Internal worker functions
     void DoBuild(const std::string& projectPath, BuildOutputCallback outputCallback,
                  BuildProgressCallback progressCallback);
+    void DoRunQemu(const std::string& projectPath, BuildOutputCallback outputCallback,
+                   BuildProgressCallback progressCallback);
     void DoFlash(const std::string& projectPath, const std::string& port,
                  BuildOutputCallback outputCallback, BuildProgressCallback progressCallback);
     void DoClean(const std::string& projectPath, BuildOutputCallback outputCallback,

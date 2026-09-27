@@ -24,12 +24,33 @@ interrupt. The boot step that drives a pin, `GpioPinSetup`, is in `deki-gpio`.
 
 ## Running under QEMU
 
-Espressif's QEMU gives an ESP32-S3 machine a screen no real chip has. Put
-`ESP32QemuDisplaySetup` (width, height, RGB565 or ARGB8888) in a QEMU
-platform's boot scene in place of a board's display, and a firmware build
-renders into it: QEMU shows it in a window, or saves it with the monitor's
-`screendump <file>.ppm` when it runs with `-display none`. On a real chip the
-setup fails, saying there is no QEMU panel.
+Tick **Simulate in QEMU** in the Build panel (or pass `--simulate` with
+`--build-firmware` and `--deploy`) to build a board's firmware for QEMU and
+run it there. The board's `boot.scene`, its build and its firmware are not
+changed; the simulated build goes to `generated/build/<board>_qemu`, from its
+own copy of the boot scene:
+
+- Every board step is kept, and `ESP32QemuDisplaySetup` is added after them,
+  so the game draws to QEMU's screen at the board's size.
+- An SD card wired for SPI is moved to QEMU's SD host (SDMMC 1-bit, CMD on
+  the MOSI pin, D0 on the MISO pin). QEMU has no SPI controller for it.
+- The flash is read in DIO at 40 MHz, PSRAM is quad (QEMU crashes with an
+  octal PSRAM build), and the console is on UART0.
+
+Deploy becomes **Run**: QEMU opens a window with the screen and the board's
+flash size and PSRAM, and the board's serial output shows in the build
+output. It runs until the window is closed or the run is cancelled. Each Run
+gets a fresh SD card: it holds the game's assets when the target keeps them
+on the card, and is empty otherwise.
+
+QEMU has no I2C or SPI devices, so a touch panel or an I2C keyboard is not
+found, as on a board without one.
+
+`ESP32QemuDisplaySetup` (width, height, RGB565 or ARGB8888) drives the screen
+Espressif's QEMU gives an ESP32-S3 machine and no real chip has. A platform
+made only for QEMU can put it in its own boot scene. The monitor's
+`screendump <file>.ppm` saves the screen when QEMU runs with `-display none`.
+On a real chip the setup fails, saying there is no QEMU panel.
 
 Use the QEMU that ESP-IDF 6.1 recommends (`esp_develop_9.2.2_20260417`); the
 older 9.0.0 build does not find the PSRAM. For PSRAM, launch it yourself with

@@ -15,6 +15,14 @@ alongside one that has them.
   QEMU gives an ESP32-S3 machine, so a firmware build runs its renderer under
   QEMU and a frame can be captured with `screendump`. RGB565 or ARGB8888. See
   the README.
+- **Simulate in QEMU** for ESP32 and ESP32-S3 boards: the build keeps the
+  board's boot steps, adds the QEMU screen in its own copy of the boot scene,
+  moves an SPI SD card to QEMU's SD host, and builds into
+  `generated/build/<board>_qemu` (DIO flash, quad PSRAM, UART0 console).
+  Deploy is **Run**: QEMU runs with the board's flash size and PSRAM and a
+  fresh SD card (the assets, for a target that keeps them on the card), its
+  serial output in the build output, until its window is closed. The board's
+  boot scene and firmware are not changed. See the README.
 - **`ESPIDFGPIO`**, the ESP-IDF pins behind deki-gpio: drive, read, and count
   a pin's edges from an interrupt handler. Registered at start-up like the
   other buses. Requires `deki-gpio`. The boot step that drives a pin, briefly
@@ -51,6 +59,9 @@ alongside one that has them.
   the framebuffer size from the display.
 
 ### Fixed
+- A changed platform setting (PSRAM, CPU frequency, the board's sdkconfig
+  lines) did not reach a board already built: the stale `sdkconfig` removed
+  was the old shared `generated/build/esp-idf` one, not the board's own.
 - **The SD card can share the display's SPI bus.** `spi_bus_initialize`
   answering that SPI2 is already up used to fail the card; the card now joins
   that bus as one more device, and the pin pre-conditioning (which bit-bangs

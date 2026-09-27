@@ -1,6 +1,7 @@
 #include "ESPIDFBuilder.h"
 #include <deki-editor/build/BuilderWidgets.h>
 #include <deki-editor/FeatureResolver.h>
+#include <deki-editor/build/SimulationBootScene.h>
 #include <deki-editor/SafeNames.h>
 #include <algorithm>
 #include <deki-editor/Paths.h>
@@ -21,6 +22,7 @@
 #include <fstream>
 #include <algorithm>
 #include <cstring>
+#include <functional>
 #include <map>
 #include <nlohmann/json.hpp>
 
@@ -151,6 +153,8 @@ ESPIDFExecContext ESPIDFBuilder::MakeExecContext()
 std::vector<DeployTarget> ESPIDFBuilder::EnumerateDeployTargets() const
 {
     std::vector<DeployTarget> targets;
+    if (m_BuildOptions.simulate)
+        return targets;  // runs on this machine, in QEMU
     for (const std::string& port : EnumerateSerialPorts())
         targets.push_back({ port, port });
     return targets;
@@ -170,8 +174,96 @@ std::vector<std::pair<std::string, std::string>> ESPIDFBuilder::DescribePlatform
     return rows;
 }
 
+// QEMU gives these chips a screen (the ESP32QemuDisplaySetup panel).
+static bool QemuHasScreen(const std::string& idfTarget)
+{
+    return idfTarget == "esp32s3" || idfTarget == "esp32";
+}
+
+bool ESPIDFBuilder::SupportsSimulation() const
+{
+    if (!m_HasPlatformConfig)
+        return false;
+    const std::string chip = !m_PlatformConfig.Option("idfTarget").empty() ? m_PlatformConfig.Option("idfTarget")
+                                                                           : m_PlatformConfig.Option("mcuChip");
+    return QemuHasScreen(chip);
+}
+
+// Every component of `type` in the scene's object tree.
+static void ForEachComponent(nlohmann::json& objects, const char* type,
+                             const std::function<void(nlohmann::json& object, nlohmann::json& component)>& fn)
+{
+    if (!objects.is_array())
+        return;
+    for (nlohmann::json& object : objects)
+    {
+        if (object.contains("components") && object["components"].is_array())
+            for (nlohmann::json& component : object["components"])
+                if (component.value("type", std::string()) == type)
+                    fn(object, component);
+        if (object.contains("children"))
+            ForEachComponent(object["children"], type, fn);
+    }
+}
+
+bool ESPIDFBuilder::MakeSimulationBootScene(std::string& scene, const PlatformConfig& config,
+                                            std::vector<std::string>& notes, std::string& error) const
+{
+    nlohmann::json json;  // null: the platform has no boot scene of its own
+    if (!scene.empty())
+    {
+        json = nlohmann::json::parse(scene, nullptr, /*allow_exceptions*/ false);
+        if (json.is_discarded())
+        {
+            error = "the boot scene is not valid JSON";
+            return false;
+        }
+    }
+
+    // The QEMU screen at the board's own size, after the board's steps, so it
+    // is the display the game renders to. It has two formats; a board whose
+    // screen has another gets the nearer one.
+    const bool wide = config.colorFormat == "ARGB8888" || config.colorFormat == "RGB888";
+    const char* format = wide ? "ARGB8888" : "RGB565";
+    nlohmann::json steps = nlohmann::json::array();
+    steps.push_back({ { "name", "QEMU Display" },
+                      { "type", "DekiEsp32::ESP32QemuDisplaySetup" },
+                      { "properties",
+                        { { "width", config.screenWidth }, { "height", config.screenHeight }, { "format", format } } } });
+    if (!AddSimulationSteps(json, steps, error))
+        return false;
+    notes.push_back("QEMU Display (" + std::to_string(config.screenWidth) + "x" +
+                    std::to_string(config.screenHeight) + " " + format + ") added after the board's steps");
+
+    // QEMU has no SPI controller for a card, but it has the SD host. A card
+    // wired for SPI is moved to the SD host in 1-bit mode, the SD pinout of
+    // the same wires: CMD on the MOSI pin, D0 on the MISO pin, the clock kept.
+    ForEachComponent(json["objects"], "DekiSdCard::SDCardComponent",
+                     [&notes](nlohmann::json& object, nlohmann::json& component)
+                     {
+                         nlohmann::json& props = component["properties"];
+                         if (props.value("mode", std::string("SPI")) != "SPI")
+                             return;
+                         const int cmd = props.value("mosiPin", 23);
+                         const int d0 = props.value("misoPin", 19);
+                         props["mode"] = "SDMMC_1BIT";
+                         props["cmdPin"] = cmd;
+                         props["d0Pin"] = d0;
+                         notes.push_back(object.value("name", std::string("SD card")) +
+                                         ": on QEMU's SD host (SDMMC 1-bit, CMD " + std::to_string(cmd) + ", D0 " +
+                                         std::to_string(d0) + "); QEMU has no SPI for it");
+                     });
+
+    scene = json.dump(2);
+    return true;
+}
+
 std::string ESPIDFBuilder::GetBuildDirectory(const std::string& projectPath) const
 {
+    // A simulated build beside the board's, never in it. Still one level under
+    // generated/build: the generated CMake finds the project three levels up.
+    if (m_HasPlatformConfig && !m_PlatformConfig.id.empty() && m_BuildOptions.simulate)
+        return (ProjectPaths::Build(projectPath) / (m_PlatformConfig.id + "_qemu")).string();
     if (m_HasPlatformConfig && !m_PlatformConfig.id.empty())
         return (ProjectPaths::Build(projectPath) / m_PlatformConfig.id).string();
     return (ProjectPaths::Build(projectPath) / "esp-idf").string();
@@ -226,6 +318,12 @@ void ESPIDFBuilder::Build(const std::string& projectPath, BuildOutputCallback ou
 void ESPIDFBuilder::Deploy(const std::string& projectPath, const std::string& port,
                            BuildOutputCallback outputCallback, BuildProgressCallback progressCallback)
 {
+    if (m_BuildOptions.simulate)
+    {
+        RunOnBuildThread([this, projectPath, outputCallback, progressCallback]()
+                         { DoRunQemu(projectPath, outputCallback, progressCallback); });
+        return;
+    }
     RunOnBuildThread([this, projectPath, port, outputCallback, progressCallback]()
                      { DoFlash(projectPath, port, outputCallback, progressCallback); });
 }
@@ -351,6 +449,249 @@ void ESPIDFBuilder::DoBuild(const std::string& projectPath, BuildOutputCallback 
         if (outputCallback) outputCallback("Build failed!", true);
     }
 
+    if (progressCallback) progressCallback(GetProgress());
+}
+
+// Makes QEMU's flash and efuse images for the build and runs QEMU with a
+// window, passing its serial output on, until the window is closed (Cancel
+// stops it too: the editor's job ends QEMU with the script). Python because
+// it runs in the ESP-IDF environment, where esptool and QEMU are on the path,
+// and it keeps Windows and Linux alike. The
+// efuse image comes from ESP-IDF's own QEMU support, so it matches the ESP-IDF
+// installed. PSRAM: QEMU takes 2..16 MB here (idf.py qemu's 32 MB leaves no
+// room to map the flash). The SD card is made fresh from the build's
+// simulation/sd_card: FAT16, written here because ESP-IDF's fatfsgen sizes
+// its FAT as if every sector were a cluster and stops at 16 MB.
+static const char* kRunQemuScript = R"PY(import os, shutil, struct, subprocess, sys, time
+chip, flash_size, psram_mb, card_dir = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4]
+
+# The simulated SD card: a FAT16 image of card_dir (long names, 512-byte
+# sectors), a power of two in size as QEMU wants, 64 MB to 2 GB.
+def make_card(card_dir, out_path):
+    SS = 512
+    entries_of = {}
+    content = 0
+    for root, dirs, files in os.walk(card_dir):
+        dirs.sort()
+        entries_of[root] = sorted(dirs) + sorted(files)
+        content += sum(os.path.getsize(os.path.join(root, f)) for f in files)
+    size = 64 << 20
+    while size < 2 * content + (8 << 20):
+        size *= 2
+    if size > 2 << 30:
+        sys.exit("The simulated SD card holds up to 1 GB; these assets are %d MB" % (content >> 20))
+    total = size // SS
+    reserved, fats, root_entries = 4, 2, 512
+    root_secs = root_entries * 32 // SS
+    spc = 1
+    while True:
+        fat_secs = ((total // spc + 2) * 2 + SS - 1) // SS
+        clusters = (total - reserved - fats * fat_secs - root_secs) // spc
+        if clusters <= 65524:
+            break
+        spc *= 2
+    cs = spc * SS
+    fat_start = reserved * SS
+    root_start = (reserved + fats * fat_secs) * SS
+    data_start = root_start + root_secs * SS
+    fat = [0] * (clusters + 2)
+    fat[0], fat[1] = 0xFFF8, 0xFFFF
+    state = {"next": 2, "serial": 0}
+
+    out = open(out_path, "wb")
+    out.truncate(size)
+
+    def alloc(nbytes):
+        n = max(1, (nbytes + cs - 1) // cs)
+        first = state["next"]
+        if first + n > clusters + 2:
+            sys.exit("The simulated SD card is full")
+        for c in range(first, first + n - 1):
+            fat[c] = c + 1
+        fat[first + n - 1] = 0xFFFF
+        state["next"] += n
+        return first
+
+    def at(cluster):
+        return data_start + (cluster - 2) * cs
+
+    def short_name():
+        state["serial"] += 1
+        return ("DK%06X" % state["serial"]).encode("ascii") + b"   "
+
+    def dirent(name11, attr, cluster, fsize):
+        return struct.pack("<11sBBBHHHHHHHI", name11, attr, 0, 0, 0, 0x21, 0x21, 0, 0, 0x21, cluster, fsize)
+
+    def named(name, attr, cluster, fsize):
+        sfn = short_name()
+        check = 0
+        for b in sfn:
+            check = (((check & 1) << 7) + (check >> 1) + b) & 0xFF
+        chars = [ord(c) for c in name] + [0]
+        count = (len(chars) + 12) // 13
+        chars += [0xFFFF] * (count * 13 - len(chars))
+        raw = b""
+        for i in range(count, 0, -1):
+            part = chars[(i - 1) * 13 : i * 13]
+            raw += struct.pack("<B10sBBB12sH4s", i | (0x40 if i == count else 0),
+                               struct.pack("<5H", *part[0:5]), 0x0F, 0, check,
+                               struct.pack("<6H", *part[5:11]), 0, struct.pack("<2H", *part[11:13]))
+        return raw + dirent(sfn, attr, cluster, fsize)
+
+    def entry_bytes(name):
+        return ((len(name) + 1 + 12) // 13 + 1) * 32
+
+    def write_dir(path, cluster, parent):
+        raw = b""
+        if cluster:
+            raw += dirent(b".          ", 0x10, cluster, 0) + dirent(b"..         ", 0x10, parent, 0)
+        for name in entries_of.get(path, []):
+            full = os.path.join(path, name)
+            if os.path.isdir(full):
+                children = entries_of.get(full, [])
+                child = alloc(64 + sum(entry_bytes(n) for n in children))
+                raw += named(name, 0x10, child, 0)
+                write_dir(full, child, cluster)
+            else:
+                fsize = os.path.getsize(full)
+                first = alloc(fsize) if fsize else 0
+                if fsize:
+                    with open(full, "rb") as f:
+                        out.seek(at(first))
+                        out.write(f.read())
+                raw += named(name, 0x20, first, fsize)
+        if cluster:
+            out.seek(at(cluster))
+        else:
+            if len(raw) > root_secs * SS:
+                sys.exit("Too many files at the top of the simulated SD card")
+            out.seek(root_start)
+        out.write(raw)
+
+    write_dir(card_dir, 0, 0)
+
+    boot = bytearray(SS)
+    boot[0:3] = b"\xEB\x3C\x90"
+    boot[3:11] = b"DEKI    "
+    struct.pack_into("<HBHBHHBHHHII", boot, 11, SS, spc, reserved, fats, root_entries,
+                     total if total < 65536 else 0, 0xF8, fat_secs, 63, 255, 0, total if total >= 65536 else 0)
+    struct.pack_into("<BBBI11s8s", boot, 36, 0x80, 0, 0x29, 0x44454B49, b"DEKI SD    ", b"FAT16   ")
+    boot[510:512] = b"\x55\xAA"
+    out.seek(0)
+    out.write(boot)
+    table = struct.pack("<%dH" % len(fat), *fat)
+    for i in range(fats):
+        out.seek(fat_start + i * fat_secs * SS)
+        out.write(table)
+    out.close()
+    return size, content
+
+if not os.path.isdir(card_dir):
+    sys.exit("No simulated SD card at " + card_dir + ": build with Simulate in QEMU first")
+card_size, card_content = make_card(card_dir, "qemu_sd.img")
+print("SD card: %d MB, %d KB of files (%s)" % (card_size >> 20, card_content >> 10, os.path.abspath(card_dir)))
+subprocess.check_call([sys.executable, "-m", "esptool", "--chip=" + chip, "merge-bin",
+                       "--output=qemu_flash.bin", "--pad-to-size=" + flash_size, "@flash_args"])
+if not os.path.exists("qemu_efuse.bin"):
+    sys.path.insert(0, os.path.join(os.environ["IDF_PATH"], "tools"))
+    from idf_py_actions.qemu_ext import QEMU_TARGETS
+    with open("qemu_efuse.bin", "wb") as f:
+        f.write(QEMU_TARGETS[chip].default_efuse)
+qemu = shutil.which("qemu-system-xtensa")
+if not qemu:
+    print("QEMU is not installed. Install ESP-IDF's qemu-xtensa tool: "
+          "idf_tools.py install qemu-xtensa", file=sys.stderr)
+    sys.exit(2)
+args = [qemu, "-M", chip]
+if psram_mb:
+    args += ["-m", str(psram_mb) + "M"]
+args += ["-drive", "file=qemu_flash.bin,if=mtd,format=raw",
+         "-drive", "file=qemu_efuse.bin,if=none,format=raw,id=efuse",
+         "-global", "driver=nvram." + chip + ".efuse,property=drive,value=efuse",
+         "-global", "driver=timer." + chip + ".timg,property=wdt_disable,value=true",
+         "-drive", "file=qemu_sd.img,if=sd,format=raw",
+         "-nic", "user,model=open_eth", "-display", "sdl",
+         "-serial", "file:qemu.log", "-monitor", "tcp:127.0.0.1:4555,server,nowait"]
+if os.path.exists("qemu.log"):
+    os.remove("qemu.log")
+qemu_proc = subprocess.Popen(args, stdin=subprocess.DEVNULL)
+print("QEMU started: " + " ".join(args))
+print("Monitor on 127.0.0.1:4555 (screendump <file>.ppm). Close the QEMU window to stop.", flush=True)
+# The serial output, as it comes, until QEMU closes.
+pos = 0
+while True:
+    done = qemu_proc.poll() is not None
+    if os.path.exists("qemu.log"):
+        with open("qemu.log", "rb") as log:
+            log.seek(pos)
+            data = log.read()
+        pos += len(data)
+        if data:
+            sys.stdout.write(data.decode("utf-8", "replace"))
+            sys.stdout.flush()
+    if done:
+        break
+    time.sleep(0.2)
+sys.exit(qemu_proc.returncode)
+)PY";
+
+void ESPIDFBuilder::DoRunQemu(const std::string& projectPath, BuildOutputCallback outputCallback,
+                              BuildProgressCallback progressCallback)
+{
+    SetProgress(BuildState::Deploying, "Starting QEMU...", 0.0f);
+    if (progressCallback) progressCallback(GetProgress());
+
+    if (!IsToolchainInstalled())
+    {
+        SetError("ESP-IDF is not installed. Please download and install it first.");
+        if (progressCallback) progressCallback(GetProgress());
+        return;
+    }
+
+    const fs::path imageDir = fs::path(GetBuildDirectory(projectPath)) / "build";
+    std::error_code ec;
+    if (!fs::exists(imageDir / "flash_args", ec))
+    {
+        SetError("No simulated build to run: build with Simulate in QEMU first");
+        if (outputCallback) outputCallback("No simulated build in " + imageDir.string(), true);
+        if (progressCallback) progressCallback(GetProgress());
+        return;
+    }
+
+    const std::string chip = !m_PlatformConfig.Option("idfTarget").empty() ? m_PlatformConfig.Option("idfTarget")
+                                                                          : m_PlatformConfig.Option("mcuChip");
+    const uint32_t flashMB = std::max<uint32_t>(4, m_PlatformConfig.OptionU32("flashSize") / (1024 * 1024));
+    const uint32_t configuredFlash = flashMB >= 16 ? 16 : (flashMB >= 8 ? 8 : 4);
+    const uint32_t psramMB = m_PlatformConfig.externalMemorySize / (1024 * 1024);
+    if (psramMB != 0 && psramMB != 2 && psramMB != 4 && psramMB != 8 && psramMB != 16)
+    {
+        SetError("QEMU simulates 2, 4, 8 or 16 MB of PSRAM; this board has " + std::to_string(psramMB) + " MB");
+        if (progressCallback) progressCallback(GetProgress());
+        return;
+    }
+
+    {
+        std::ofstream script(imageDir / "run_qemu.py", std::ios::binary | std::ios::trunc);
+        script << kRunQemuScript;
+    }
+    const std::string cardDir =
+        (fs::path(GetBuildDirectory(projectPath)) / kSimulationSceneDir / kSimulationCardDir).generic_string();
+    const std::string command = "python run_qemu.py " + chip + " " + std::to_string(configuredFlash) + "MB " +
+                                std::to_string(psramMB) + " \"" + cardDir + "\"";
+    SetProgress(BuildState::Deploying, "Running in QEMU", 0.5f);
+    if (progressCallback) progressCallback(GetProgress());
+    const int exitCode =
+        m_Toolchain.ExecuteIDF(command, imageDir.string(), GetEnginePath(projectPath), outputCallback, MakeExecContext());
+    if (exitCode == 0)
+    {
+        SetProgress(BuildState::Completed, "QEMU closed", 1.0f);
+        if (outputCallback) outputCallback("QEMU closed.", false);
+    }
+    else
+    {
+        SetError("QEMU stopped with exit code " + std::to_string(exitCode));
+        if (outputCallback) outputCallback("QEMU stopped with exit code " + std::to_string(exitCode) + ".", true);
+    }
     if (progressCallback) progressCallback(GetProgress());
 }
 
@@ -517,7 +858,7 @@ bool ESPIDFBuilder::GenerateBuildFiles(const std::string& projectPath,
         }
         if (newDefaults != oldDefaults)
         {
-            fs::path sdkconfigPath = ProjectPaths::Build(projectPath) / "esp-idf" / "sdkconfig";
+            fs::path sdkconfigPath = buildersPath / "sdkconfig";
             if (fs::exists(sdkconfigPath))
                 fs::remove(sdkconfigPath);
         }
@@ -709,7 +1050,12 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
     }
 
     // What this build leaves out (services/FeatureResolver).
-    const StripPlan strip = ComputeStripPlan(projectPath, config.id);
+    // A simulated build also counts its own boot scene, which holds the QEMU
+    // screen (the editor writes it there; the board's is not changed).
+    std::vector<std::string> simulationScenes;
+    if (m_BuildOptions.simulate)
+        simulationScenes.push_back((fs::path(GetBuildDirectory(projectPath)) / kSimulationSceneDir).string());
+    const StripPlan strip = ComputeStripPlan(projectPath, config.id, simulationScenes);
     for (const auto& w : strip.warnings)
         DEKI_LOG_WARNING("%s", w.c_str());
 
@@ -1009,6 +1355,23 @@ bool ESPIDFBuilder::GenerateSdkConfigDefaults(const std::string& boardPath, cons
         file << "\n# From the platform's \"sdkconfig\"\n";
         for (const auto& line : extraSdkconfig)
             file << line << "\n";
+    }
+
+    // A simulated build runs in QEMU, which reads the flash in DIO at 40 MHz:
+    // a board's QIO build boots there but cannot mount its LittleFS partition.
+    // Its PSRAM is quad: QEMU (esp_develop_9.2.2) crashes booting an octal
+    // PSRAM build with 8 MB. The game sees the same PSRAM size. Its console is
+    // UART0, the serial port QEMU has (a board's may be USB).
+    // Last, so it wins over the board's own lines. The board's build is not
+    // affected; this one has its own directory.
+    if (m_BuildOptions.simulate)
+    {
+        file << "\n# Simulated in QEMU\n";
+        file << "CONFIG_ESPTOOLPY_FLASHMODE_DIO=y\n";
+        file << "CONFIG_ESPTOOLPY_FLASHFREQ_40M=y\n";
+        file << "CONFIG_ESP_CONSOLE_UART_DEFAULT=y\n";
+        if (config.externalMemorySize > 0)
+            file << "CONFIG_SPIRAM_MODE_QUAD=y\n";
     }
 
     return CMakeGen::WriteIfChanged(filePath, file.str());
