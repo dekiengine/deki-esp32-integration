@@ -8,7 +8,7 @@ breaking change bumps the minor across the editor, the engine and every
 package together, so a package with no changes of its own is still released
 alongside one that has them.
 
-## Unreleased
+## 0.17.0
 
 ### Added
 - `ESP32QemuDisplaySetup` (feature `qemu_display`): the screen Espressif's
@@ -51,6 +51,7 @@ alongside one that has them.
   (plain `SPIRAM | DMA`) was not cache aligned.
 
 ### Changed
+- `minEngine` 0.17.0. Reflection ABI 20: the package must be rebuilt.
 - The default partition table's data partition (LittleFS, `F:/`) takes the
   rest of the flash instead of 960 KB: about 13 MB on a 16 MB board. A build
   that keeps its assets in internal storage puts them there, and the build
