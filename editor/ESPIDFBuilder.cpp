@@ -7,6 +7,7 @@
 #include <deki-editor/Paths.h>
 #include <deki-editor/build/ProjectPaths.h>
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/EditorUI.h>
 #include <deki-editor/build/CMakeGenUtils.h>
 #include <deki-editor/build/BuilderDefinition.h>
 #include <deki-editor/EditorPaths.h>
@@ -1448,127 +1449,95 @@ public:
 
     void Draw() override
     {
+        auto& ui = DekiEditor::EditorUI::Get();
+
         // --- Chip ---
-        if (!m_Targets.empty())
+        if (!m_Targets.empty() && DekiEditor::SchematicSectionBegin("Chip"))
         {
-            if (ImGui::CollapsingHeader("Chip", ImGuiTreeNodeFlags_DefaultOpen))
+            DekiEditor::BeginPropertyContext();
+            ui.PropertyRow("MCU Chip");
+            std::vector<const char*> chips;
+            for (const std::string& t : m_Targets)
+                chips.push_back(t.c_str());
+            int chip = m_ChipIndex;
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            if (DekiEditor::SchematicCombo("##McuChip", &chip, chips.data(), (int)chips.size()) &&
+                chip >= 0 && chip < (int)m_Targets.size())
             {
-                ImGui::Indent();
-
-                ImGui::Text("MCU Chip");
-                ImGui::SetNextItemWidth(-1);
-
-                std::string currentChip;
-                if (m_ChipIndex >= 0 && m_ChipIndex < (int)m_Targets.size())
-                    currentChip = m_Targets[m_ChipIndex];
-
-                if (ImGui::BeginCombo("##McuChip", currentChip.c_str()))
-                {
-                    for (int i = 0; i < (int)m_Targets.size(); i++)
-                    {
-                        bool selected = (i == m_ChipIndex);
-                        if (ImGui::Selectable(m_Targets[i].c_str(), selected))
-                        {
-                            m_ChipIndex = i;
-                            strncpy(m_McuChip, m_Targets[i].c_str(), sizeof(m_McuChip) - 1);
-                        }
-                        if (selected) ImGui::SetItemDefaultFocus();
-                    }
-                    ImGui::EndCombo();
-                }
-
-                ImGui::Unindent();
+                m_ChipIndex = chip;
+                strncpy(m_McuChip, m_Targets[chip].c_str(), sizeof(m_McuChip) - 1);
             }
-            ImGui::Spacing();
+            DekiEditor::EndPropertyContext();
+            DekiEditor::SchematicSectionEnd();
         }
 
         // --- Display ---
-        if (ImGui::CollapsingHeader("Display", ImGuiTreeNodeFlags_DefaultOpen))
+        if (DekiEditor::SchematicSectionBegin("Display"))
         {
-            ImGui::Indent();
-
-            ImGui::Text("Screen Resolution");
-            ImGui::SetNextItemWidth(100.0f * ImGui::GetWindowDpiScale());
-            ImGui::InputInt("##ScreenWidth", &m_ScreenWidth);
+            DekiEditor::BeginPropertyContext();
+            ui.PropertyRow("Resolution");
+            const float gap = ImGui::GetStyle().ItemSpacing.x;
+            const float fieldW = (ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize("x").x - gap * 2.0f) * 0.5f;
+            ImGui::SetNextItemWidth(fieldW);
+            DekiEditor::SchematicDragInt("##ScreenWidth", &m_ScreenWidth, 1.0f, 1, 16384);
+            ImGui::SameLine(0.0f, gap);
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextColored(DekiEditor::Palette::Dim, "x");
+            ImGui::SameLine(0.0f, gap);
+            ImGui::SetNextItemWidth(fieldW);
+            DekiEditor::SchematicDragInt("##ScreenHeight", &m_ScreenHeight, 1.0f, 1, 16384);
             if (m_ScreenWidth < 1) m_ScreenWidth = 1;
-            ImGui::SameLine();
-            ImGui::Text("x");
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(100.0f * ImGui::GetWindowDpiScale());
-            ImGui::InputInt("##ScreenHeight", &m_ScreenHeight);
             if (m_ScreenHeight < 1) m_ScreenHeight = 1;
-
-            ImGui::Unindent();
+            DekiEditor::EndPropertyContext();
+            DekiEditor::SchematicSectionEnd();
         }
-
-        ImGui::Spacing();
 
         // --- Memory ---
-        if (ImGui::CollapsingHeader("Memory"))
+        if (DekiEditor::SchematicSectionBegin("Memory", 0))
         {
-            ImGui::Indent();
-
-            ImGui::Text("Flash Size (MB)");
-            ImGui::SetNextItemWidth(100.0f * ImGui::GetWindowDpiScale());
-            ImGui::InputInt("##FlashSize", &m_FlashSizeMB);
-            if (m_FlashSizeMB < 0) m_FlashSizeMB = 0;
-            ImGui::SameLine();
-            if (ImGui::SmallButton("4")) m_FlashSizeMB = 4;
-            ImGui::SameLine();
-            if (ImGui::SmallButton("8")) m_FlashSizeMB = 8;
-            ImGui::SameLine();
-            if (ImGui::SmallButton("16")) m_FlashSizeMB = 16;
-
-            ImGui::Spacing();
-
-            ImGui::Text("PSRAM Size (MB)");
-            ImGui::SetNextItemWidth(100.0f * ImGui::GetWindowDpiScale());
-            ImGui::InputInt("##PsramSize", &m_PsramSizeMB);
-            if (m_PsramSizeMB < 0) m_PsramSizeMB = 0;
-            ImGui::SameLine();
-            if (ImGui::SmallButton("0##psram")) m_PsramSizeMB = 0;
-            ImGui::SameLine();
-            if (ImGui::SmallButton("2")) m_PsramSizeMB = 2;
-            ImGui::SameLine();
-            if (ImGui::SmallButton("8##psram")) m_PsramSizeMB = 8;
-
+            DekiEditor::BeginPropertyContext();
+            // A number field with the common values as presets beside it.
+            auto presetRow = [&ui](const char* label, const char* id, int* v, std::initializer_list<int> presets)
+            {
+                ui.PropertyRow(label);
+                ImGui::PushID(id);
+                const float gap = ImGui::GetStyle().ItemSpacing.x * 0.5f;
+                float presetsW = 0.0f;
+                for (int p : presets)
+                    presetsW += ImGui::CalcTextSize(std::to_string(p).c_str()).x + ImGui::GetStyle().FramePadding.x * 2.0f + gap;
+                ImGui::SetNextItemWidth(std::max(ImGui::GetFrameHeight() * 2.0f, ImGui::GetContentRegionAvail().x - presetsW));
+                DekiEditor::SchematicDragInt("##v", v, 0.1f, 0, 4096);
+                if (*v < 0) *v = 0;
+                for (int p : presets)
+                {
+                    ImGui::SameLine(0.0f, gap);
+                    const std::string text = std::to_string(p);
+                    if (ImGui::Button(text.c_str()))
+                        *v = p;
+                }
+                ImGui::PopID();
+            };
+            presetRow("Flash (MB)", "flash", &m_FlashSizeMB, { 4, 8, 16 });
+            presetRow("PSRAM (MB)", "psram", &m_PsramSizeMB, { 0, 2, 8 });
             if (m_PsramSizeMB > 0)
             {
-                ImGui::Spacing();
-                ImGui::Text("PSRAM Mode");
-                ImGui::SetNextItemWidth(120.0f * ImGui::GetWindowDpiScale());
+                ui.PropertyRow("PSRAM Mode");
                 static const char* psramModes[] = { "Quad SPI", "Octal SPI" };
-                ImGui::Combo("##PsramMode", &m_PsramModeIndex, psramModes, 2);
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                DekiEditor::SchematicCombo("##PsramMode", &m_PsramModeIndex, psramModes, 2);
             }
-
-            ImGui::Spacing();
-
-            ImGui::Text("CPU Frequency (MHz)");
-            ImGui::SetNextItemWidth(100.0f * ImGui::GetWindowDpiScale());
-            ImGui::InputInt("##CpuFreq", &m_CpuFreqMHz);
-            if (m_CpuFreqMHz < 0) m_CpuFreqMHz = 0;
-            ImGui::SameLine();
-            if (ImGui::SmallButton("80")) m_CpuFreqMHz = 80;
-            ImGui::SameLine();
-            if (ImGui::SmallButton("160")) m_CpuFreqMHz = 160;
-            ImGui::SameLine();
-            if (ImGui::SmallButton("240")) m_CpuFreqMHz = 240;
-
-            ImGui::Unindent();
+            presetRow("CPU (MHz)", "cpu", &m_CpuFreqMHz, { 80, 160, 240 });
+            DekiEditor::EndPropertyContext();
+            DekiEditor::SchematicSectionEnd();
         }
 
-        ImGui::Spacing();
-
         // --- Compiler ---
-        if (ImGui::CollapsingHeader("Compiler & Build"))
+        if (DekiEditor::SchematicSectionBegin("Compiler & Build", 0))
         {
-            ImGui::Indent();
             DekiEditor::SchematicCheckbox("Use IRAM for fast functions (IRAM_ATTR)", &m_UseIramAttr);
-            ImGui::Spacing();
             DrawStringListEditor("Preprocessor Defines", m_Defines, m_NewItemBuf, sizeof(m_NewItemBuf));
-            ImGui::Spacing();
             DrawStringListEditor("Required Libraries", m_RequiredLibraries, m_NewItemBuf2, sizeof(m_NewItemBuf2));
-            ImGui::Unindent();
+            DekiEditor::SchematicSectionEnd();
         }
     }
 
