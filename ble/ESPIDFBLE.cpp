@@ -1,4 +1,5 @@
 #include "ESPIDFBLE.h"
+#include "../NvsFlash.h"
 #include <deki/LogSystem.h>
 
 #include <cstring>
@@ -344,6 +345,9 @@ bool InitStackOnce()
 {
     if (s_StackInited) return true;
 
+    // NimBLE keeps bonding keys in NVS.
+    if (!EnsureNvsFlash())
+        return false;
     esp_err_t e = esp_nimble_hci_and_controller_init();
     if (e != ESP_OK) {
         DEKI_LOG_ERROR("[ble] esp_nimble_hci_and_controller_init failed (%d)", e);
@@ -386,11 +390,10 @@ bool InitStackOnce()
 
 bool ESPIDFBLE::Initialize()
 {
-    if (!InitStackOnce()) {
-        m_LastError = "nimble init failed";
-        m_State = Deki::PackageState::Error;
-        return false;
-    }
+    // The stack starts on first use (every operation calls InitStackOnce), as
+    // WiFi's does. Starting it here ran from a static constructor, before the
+    // FreeRTOS scheduler: the vTaskDelay while waiting for the host to sync
+    // asserts there.
     m_State = Deki::PackageState::Initialized;
     return true;
 }

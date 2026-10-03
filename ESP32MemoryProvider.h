@@ -36,7 +36,7 @@ public:
 
 private:
     /// PSRAM, cache-line aligned so a DMA engine and the CPU agree about it.
-    void* AllocateExternalBytes(size_t size);
+    void* AllocateExternalBytes(size_t size, bool needsDma);
 
 private:
     bool m_HasPSRAM = false;

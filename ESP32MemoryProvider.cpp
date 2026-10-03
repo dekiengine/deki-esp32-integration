@@ -4,6 +4,7 @@
 // ESP-IDF heap capabilities API
 #include "esp_heap_caps.h"
 #include "esp_system.h"
+#include "soc/soc_caps.h"
 #endif
 
 namespace Deki
@@ -33,9 +34,21 @@ void ESP32MemoryProvider::Shutdown()
 // heap_caps_malloc(SPIRAM | DMA) behind it - a fallback that was NOT cache
 // aligned, whatever its comment said. ESP-IDF 6 removed esp_dma_malloc and
 // names this capability as its replacement.
-void* ESP32MemoryProvider::AllocateExternalBytes(size_t size)
+//
+// Only where PSRAM can do DMA at all (the S2 and S3). The classic ESP32
+// registers its PSRAM without MALLOC_CAP_DMA, so asking for it there made
+// every External allocation fail: meshes, map chunks and whole-file asset
+// reads all came back null on a board with megabytes free.
+void* ESP32MemoryProvider::AllocateExternalBytes(size_t size, bool needsDma)
 {
+#if SOC_PSRAM_DMA_CAPABLE
+    (void)needsDma;
     return heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_DMA | MALLOC_CAP_CACHE_ALIGNED);
+#else
+    if (needsDma)
+        return nullptr;  // this chip's PSRAM is out of a DMA engine's reach
+    return heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+#endif
 }
 
 bool ESP32MemoryProvider::Serves(Memory::Region region) const
@@ -56,7 +69,7 @@ void* ESP32MemoryProvider::Allocate(Memory::Region region, size_t bytes, bool ne
     {
         if (!m_HasPSRAM)
             return nullptr;
-        return AllocateExternalBytes(bytes);
+        return AllocateExternalBytes(bytes, needsDma);
     }
 
     if (region != Deki::Memory::Internal)

@@ -1,4 +1,5 @@
 #include "ESPIDFWiFi.h"
+#include "../NvsFlash.h"
 #include <deki/LogSystem.h>
 
 #include <cstring>
@@ -43,6 +44,8 @@ bool InitStackOnce()
 {
     if (s_StackInited) return true;
 
+    if (!EnsureNvsFlash())
+        return false;
     if (esp_netif_init() != ESP_OK) {
         DEKI_LOG_ERROR("[wifi] esp_netif_init failed");
         return false;
