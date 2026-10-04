@@ -3,34 +3,20 @@
 namespace DekiEsp32
 {
 
-/**
- * @brief Serial command handler for ESP32 platforms
- *
- * Processes serial commands from the editor for device management:
- * - STORAGE_MODE: Enter USB storage mode for asset deployment
- * - EXIT_STORAGE: Exit storage mode and resume normal operation
- * - STATUS: Get current device status
- * - PING: Check if device is responsive
- */
+/// Handles the editor's device-management commands over serial on ESP32:
+/// - STORAGE_MODE: enter USB storage mode to deploy assets
+/// - EXIT_STORAGE: leave storage mode and resume normal operation
+/// - STATUS: report the device status
+/// - PING: check that the device responds
 class ESP32SerialCommands
 {
 public:
-    /**
-     * @brief Initialize the serial command handler
-     * @param baudRate Baud rate for serial communication (default: 115200)
-     */
+    /// Starts the command handler on the serial port at `baudRate`.
     static void Initialize(unsigned long baudRate = 115200);
 
-    /**
-     * @brief Process any pending serial commands
-     * Call this from the main loop
-     */
+    /// Handles pending serial commands. Call from the main loop.
     static void ProcessCommands();
 
-    /**
-     * @brief Check if device is in storage mode
-     * @return true if in storage mode
-     */
     static bool IsInStorageMode();
 
 private:

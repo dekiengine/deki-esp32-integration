@@ -8,17 +8,11 @@
 namespace DekiEsp32
 {
 
-/**
- * @brief Component to configure and initialize ESP32 serial command handling
- *
- * Add this component to your boot scene to enable serial command processing
- * for editor communication (storage mode, status queries, etc.).
- *
- * Registers a per-frame update callback via Deki::Engine::RegisterUpdate()
- * to process incoming serial commands.
- *
- * Inherits from SetupComponent to participate in boot sequence.
- */
+/// Starts ESP32 serial command handling, so the editor can talk to the
+/// device (storage mode, status queries, etc.). Add it to the boot scene.
+///
+/// Registers a per-frame update through Deki::Engine::RegisterUpdate() that
+/// handles incoming serial commands.
 DEKI_CATEGORY("ESP32 HAL")
 DEKI_DESCRIPTION("Answers the editor's commands over the ESP32's serial port.")
 DEKI_FORMER_NAME("ESP32SerialSetup")
@@ -33,7 +27,5 @@ public:
     void Setup(SetupCallback onComplete) override;
     const char* GetSetupName() const override { return "ESP32 Serial Commands"; }
 };
-
-// Generated property metadata
 
 }  // namespace DekiEsp32

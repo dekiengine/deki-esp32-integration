@@ -66,8 +66,8 @@ bool ESP32FileSystem::Initialize()
     conf.base_path = "/littlefs";
     conf.partition_label = "spiffs";
     // Never format on a failed mount: the partition holds the boot payload,
-    // the assets and whatever the game saved there, and formatting wiped all
-    // of it on any fault. Only a partition never written is formatted.
+    // the assets and whatever the game saved there, and formatting would wipe
+    // all of it on any fault. Only a partition never written is formatted.
     conf.format_if_mount_failed = false;
 
     esp_err_t ret = esp_vfs_littlefs_register(&conf);
@@ -82,7 +82,7 @@ bool ESP32FileSystem::Initialize()
     if (ret != ESP_OK)
     {
         // The engine runs on without F:/, so the error shows on the console
-        // rather than the board stopping at boot. Flashing the firmware again
+        // instead of the board stopping at boot. Flashing the firmware again
         // rewrites the partition.
         ESP_LOGE(TAG,
                  "LittleFS mount failed: %s. Running without F:/; nothing on it was changed. "
@@ -117,7 +117,7 @@ std::string ESP32FileSystem::ConvertPathInternal(const char* virtualPath)
 
     std::string path(virtualPath);
 
-    // Convert "F:/..." to "/littlefs/..." (VFS mount point)
+    // "F:/..." to "/littlefs/..." (the VFS mount point)
     if (path.length() >= 3 && path.substr(0, 3) == "F:/")
     {
         path = "/littlefs/" + path.substr(3);
@@ -261,7 +261,7 @@ bool ESP32FileSystem::ConvertPath(const char* virtualPath, char* outBuffer, size
 
 #else
 
-// Non-ESP32 stub implementation
+// Stub for non-ESP32 builds
 ESP32FileSystem::ESP32FileSystem()
     : m_Initialized(false)
 {

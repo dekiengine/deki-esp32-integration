@@ -12,14 +12,14 @@ ESPIDFInstaller::~ESPIDFInstaller() = default;
 
 fs::path ESPIDFInstaller::GetYamlPath(const std::string& projectPath) const
 {
-    // Check current project structure: build/esp-idf/main/idf_component.yml
+    // build/esp-idf/main/idf_component.yml
     fs::path buildPath = DekiEditor::ProjectPaths::Build(projectPath) / "esp-idf" / "main" / "idf_component.yml";
     if (fs::exists(buildPath))
     {
         return buildPath;
     }
 
-    // Return new path as default (will be created if needed)
+    // Created when needed.
     return buildPath;
 }
 
@@ -47,7 +47,7 @@ bool ESPIDFInstaller::ParseYaml(const fs::path& path, std::vector<DependencyInfo
     DependencyInfo currentDep;
     bool hasCurrentDep = false;
 
-    // Simple YAML parser for our specific format:
+    // A small parser for exactly this YAML shape:
     // dependencies:
     //   namespace/name:           # Registry package
     //     version: "x.x.x"
@@ -57,7 +57,6 @@ bool ESPIDFInstaller::ParseYaml(const fs::path& path, std::vector<DependencyInfo
 
     while (std::getline(file, line))
     {
-        // Check if we're entering dependencies section
         if (line.find("dependencies:") != std::string::npos)
         {
             inDependencies = true;
@@ -69,44 +68,40 @@ bool ESPIDFInstaller::ParseYaml(const fs::path& path, std::vector<DependencyInfo
             continue;
         }
 
-        // Check if we're leaving dependencies section (new top-level key)
+        // A new top-level key ends the dependencies section.
         if (!line.empty() && line[0] != ' ' && line[0] != '\t')
         {
             break;
         }
 
-        // Check for dependency name (2-space indent, ends with :)
+        // A dependency name: 2-space indent, ends with ':'
         if (line.size() > 2 && line[0] == ' ' && line[1] == ' ' && line[2] != ' ')
         {
-            // Save previous dependency if complete
+            // Keep the previous dependency if it is complete.
             if (hasCurrentDep && !currentDep.name.empty() && !currentDep.version.empty())
             {
                 dependencies.push_back(currentDep);
             }
 
-            // Start new dependency
             currentDep = DependencyInfo{};
             hasCurrentDep = true;
 
-            // Extract dependency name
             size_t colonPos = line.find(':');
             if (colonPos != std::string::npos)
             {
                 currentDep.name = line.substr(2, colonPos - 2);
-                // Trim whitespace
                 currentDep.name.erase(0, currentDep.name.find_first_not_of(" \t"));
                 currentDep.name.erase(currentDep.name.find_last_not_of(" \t") + 1);
             }
         }
 
-        // Check for git line (4-space indent)
+        // git line (4-space indent)
         if (line.size() > 4 && line.substr(0, 4) == "    " && line.find("git:") != std::string::npos)
         {
             size_t colonPos = line.find(':');
             if (colonPos != std::string::npos && hasCurrentDep)
             {
                 std::string gitUrl = line.substr(colonPos + 1);
-                // Remove whitespace
                 gitUrl.erase(0, gitUrl.find_first_not_of(" \t"));
                 gitUrl.erase(gitUrl.find_last_not_of(" \t") + 1);
                 currentDep.gitUrl = gitUrl;
@@ -114,15 +109,13 @@ bool ESPIDFInstaller::ParseYaml(const fs::path& path, std::vector<DependencyInfo
             }
         }
 
-        // Check for version line (4-space indent)
+        // version line (4-space indent)
         if (line.size() > 4 && line.substr(0, 4) == "    " && line.find("version:") != std::string::npos)
         {
-            // Extract version
             size_t colonPos = line.find(':');
             if (colonPos != std::string::npos && hasCurrentDep)
             {
                 std::string version = line.substr(colonPos + 1);
-                // Remove quotes and whitespace
                 version.erase(0, version.find_first_not_of(" \t\"'"));
                 version.erase(version.find_last_not_of(" \t\"'") + 1);
                 currentDep.version = version;
@@ -130,7 +123,7 @@ bool ESPIDFInstaller::ParseYaml(const fs::path& path, std::vector<DependencyInfo
         }
     }
 
-    // Don't forget the last dependency
+    // The last dependency
     if (hasCurrentDep && !currentDep.name.empty() && !currentDep.version.empty())
     {
         dependencies.push_back(currentDep);
@@ -141,7 +134,6 @@ bool ESPIDFInstaller::ParseYaml(const fs::path& path, std::vector<DependencyInfo
 
 bool ESPIDFInstaller::WriteYaml(const fs::path& path, const std::vector<DependencyInfo>& dependencies)
 {
-    // Create parent directories if needed
     fs::create_directories(path.parent_path());
 
     std::ofstream file(path);
@@ -187,23 +179,21 @@ std::vector<PackageEntry> ESPIDFInstaller::GetInstalledPackages(const std::strin
 
         if (dep.source == PackageSourceType::GitHub)
         {
-            // GitHub package - extract owner/repo from git URL for the ID
-            // e.g., "https://github.com/lovyan03/LovyanGFX.git" -> "github:lovyan03/LovyanGFX"
+            // GitHub package: the ID is owner/repo from the git URL, e.g.
+            // "https://github.com/lovyan03/LovyanGFX.git" -> "github:lovyan03/LovyanGFX"
             std::string ownerRepo = dep.gitUrl;
-            // Remove .git suffix if present
             if (ownerRepo.size() > 4 && ownerRepo.substr(ownerRepo.size() - 4) == ".git")
             {
                 ownerRepo = ownerRepo.substr(0, ownerRepo.size() - 4);
             }
-            // Extract owner/repo from URL
             size_t githubPos = ownerRepo.find("github.com/");
             if (githubPos != std::string::npos)
             {
-                ownerRepo = ownerRepo.substr(githubPos + 11);  // Skip "github.com/"
+                ownerRepo = ownerRepo.substr(githubPos + 11);  // past "github.com/"
             }
             pkg.id = "github:" + ownerRepo;
             pkg.url = dep.gitUrl;
-            // Remove .git suffix from URL for display
+            // The URL is shown without its .git suffix.
             if (pkg.url.size() > 4 && pkg.url.substr(pkg.url.size() - 4) == ".git")
             {
                 pkg.url = pkg.url.substr(0, pkg.url.size() - 4);
@@ -213,7 +203,7 @@ std::vector<PackageEntry> ESPIDFInstaller::GetInstalledPackages(const std::strin
         {
             // Registry package
             pkg.id = "espidf:" + dep.name;
-            // Extract display name from package name (e.g., "owner/PackageName" -> "PackageName")
+            // Display name from the package name ("owner/PackageName" -> "PackageName")
             size_t slashPos = dep.name.find('/');
             if (slashPos != std::string::npos)
             {
@@ -235,16 +225,14 @@ void ESPIDFInstaller::Install(const std::string& projectPath, const PackageEntry
 {
     fs::path yamlPath = GetYamlPath(projectPath);
 
-    // Read existing dependencies
     std::vector<DependencyInfo> dependencies;
     ParseYaml(yamlPath, dependencies);
 
-    // Create DependencyInfo for the new package
     DependencyInfo newDep;
-    // Handle "branch:" prefix - strip it for the actual version
+    // A "branch:" prefix is stripped from the version.
     if (version.rfind("branch:", 0) == 0)
     {
-        newDep.version = version.substr(7);  // Remove "branch:" prefix
+        newDep.version = version.substr(7);
     }
     else
     {
@@ -254,7 +242,7 @@ void ESPIDFInstaller::Install(const std::string& projectPath, const PackageEntry
 
     if (pkg.source == PackageSourceType::GitHub)
     {
-        // For GitHub packages, extract repo name from pkg.name (e.g., "lovyan03/LovyanGFX" -> "LovyanGFX")
+        // GitHub packages use the repo name from pkg.name ("lovyan03/LovyanGFX" -> "LovyanGFX").
         std::string repoName = pkg.name;
         size_t slashPos = repoName.find('/');
         if (slashPos != std::string::npos)
@@ -263,7 +251,6 @@ void ESPIDFInstaller::Install(const std::string& projectPath, const PackageEntry
         }
         newDep.name = repoName;
 
-        // Construct git URL from pkg.url
         newDep.gitUrl = pkg.url;
         if (!newDep.gitUrl.empty() && newDep.gitUrl.substr(newDep.gitUrl.size() - 4) != ".git")
         {
@@ -272,18 +259,17 @@ void ESPIDFInstaller::Install(const std::string& projectPath, const PackageEntry
     }
     else
     {
-        // Registry package - use full name (e.g., "espressif/esp_tinyusb")
+        // Registry packages use the full name (e.g. "espressif/esp_tinyusb").
         newDep.name = pkg.name;
     }
 
-    // Check if already exists (by name for registry, by git URL for GitHub)
+    // Already listed? By name for the registry, by git URL for GitHub.
     bool found = false;
     for (auto& dep : dependencies)
     {
         bool match = false;
         if (pkg.source == PackageSourceType::GitHub && dep.source == PackageSourceType::GitHub)
         {
-            // Match by git URL or name
             match = (dep.gitUrl == newDep.gitUrl) || (dep.name == newDep.name);
         }
         else
@@ -293,19 +279,17 @@ void ESPIDFInstaller::Install(const std::string& projectPath, const PackageEntry
 
         if (match)
         {
-            dep = newDep;  // Update existing
+            dep = newDep;
             found = true;
             break;
         }
     }
 
-    // Add new dependency
     if (!found)
     {
         dependencies.push_back(newDep);
     }
 
-    // Write back
     if (WriteYaml(yamlPath, dependencies))
     {
         callback(true, "Package installed successfully");
@@ -320,7 +304,6 @@ void ESPIDFInstaller::Remove(const std::string& projectPath, const PackageEntry&
 {
     fs::path yamlPath = GetYamlPath(projectPath);
 
-    // Read existing dependencies
     std::vector<DependencyInfo> dependencies;
     if (!ParseYaml(yamlPath, dependencies))
     {
@@ -328,7 +311,7 @@ void ESPIDFInstaller::Remove(const std::string& projectPath, const PackageEntry&
         return;
     }
 
-    // For GitHub packages, extract repo name for matching
+    // GitHub packages are matched by repo name.
     std::string matchName = pkg.name;
     if (pkg.source == PackageSourceType::GitHub)
     {
@@ -339,13 +322,11 @@ void ESPIDFInstaller::Remove(const std::string& projectPath, const PackageEntry&
         }
     }
 
-    // Remove the dependency
     auto it = std::remove_if(dependencies.begin(), dependencies.end(),
                              [&pkg, &matchName](const DependencyInfo& dep)
                              {
                                  if (pkg.source == PackageSourceType::GitHub && dep.source == PackageSourceType::GitHub)
                                  {
-                                     // Match by name or git URL
                                      return dep.name == matchName ||
                                             (!pkg.url.empty() && dep.gitUrl.find(pkg.url) != std::string::npos);
                                  }
@@ -360,7 +341,6 @@ void ESPIDFInstaller::Remove(const std::string& projectPath, const PackageEntry&
 
     dependencies.erase(it, dependencies.end());
 
-    // Write back
     if (WriteYaml(yamlPath, dependencies))
     {
         callback(true, "Package removed successfully");
@@ -372,15 +352,15 @@ void ESPIDFInstaller::Remove(const std::string& projectPath, const PackageEntry&
 }
 
 // ============================================================================
-// Core Dependencies (managed by editor, hidden from users)
+// Core dependencies (managed by the editor, hidden from users)
 // ============================================================================
 
-// Core dependencies for Espressif platforms (ESP32, ESP32-S3, etc.)
-// These are now bundled in toolchains/esp-idf-components/ and copied to project's
-// builders/esp-idf/components/ folder during project creation.
-// Empty list since we no longer manage dependencies via idf_component.yml.
+// Core dependencies for Espressif platforms (ESP32, ESP32-S3, etc.). Empty:
+// the components are bundled in toolchains/esp-idf-components/ and copied to
+// the project's builders/esp-idf/components/ folder when it is created, not
+// managed through idf_component.yml.
 static const std::vector<CoreDependency> kEspressifCoreDeps = {
-    // Components are bundled - no managed dependencies needed
+    // Bundled; nothing to manage
 };
 
 std::vector<CoreDependency> ESPIDFInstaller::GetCoreDependencies() const
@@ -392,13 +372,12 @@ bool ESPIDFInstaller::IsCoreDependency(const std::string& name) const
 {
     for (const auto& coreDep : kEspressifCoreDeps)
     {
-        // Match exact name
         if (coreDep.name == name)
         {
             return true;
         }
 
-        // For registry packages like "espressif/esp_tinyusb", also match just "esp_tinyusb"
+        // Registry packages like "espressif/esp_tinyusb" also match "esp_tinyusb"
         size_t slashPos = coreDep.name.find('/');
         if (slashPos != std::string::npos)
         {
@@ -409,10 +388,9 @@ bool ESPIDFInstaller::IsCoreDependency(const std::string& name) const
             }
         }
 
-        // For GitHub packages, match the repo name or owner/repo format
+        // GitHub packages match by repo name or owner/repo.
         if (coreDep.isGitHub && !coreDep.gitUrl.empty())
         {
-            // Extract owner/repo from URL (e.g., "lovyan03/LovyanGFX")
             std::string url = coreDep.gitUrl;
             if (url.size() > 4 && url.substr(url.size() - 4) == ".git")
             {
@@ -426,7 +404,7 @@ bool ESPIDFInstaller::IsCoreDependency(const std::string& name) const
                 {
                     return true;
                 }
-                // Also match just the repo name
+                // or just the repo name
                 size_t lastSlash = ownerRepo.find_last_of('/');
                 if (lastSlash != std::string::npos)
                 {
@@ -446,30 +424,27 @@ void ESPIDFInstaller::EnsureCoreDependencies(const std::string& projectPath)
 {
     fs::path yamlPath = GetYamlPath(projectPath);
 
-    // Read existing dependencies
     std::vector<DependencyInfo> dependencies;
     ParseYaml(yamlPath, dependencies);
 
     bool modified = false;
 
-    // Check each core dependency
     for (const auto& coreDep : kEspressifCoreDeps)
     {
-        // Determine the name to match (repo name for GitHub, full name for registry)
+        // The name to match: repo name for GitHub, full name for the registry
         std::string matchName = coreDep.name;
         if (coreDep.isGitHub && !coreDep.gitUrl.empty())
         {
-            // For GitHub, the yaml uses repo name (e.g., "LovyanGFX")
-            // which is already the case for our core deps
+            // For GitHub the YAML uses the repo name (e.g. "LovyanGFX"),
+            // which core deps already are named by.
         }
 
-        // Find if this dependency exists
         bool found = false;
         for (auto& dep : dependencies)
         {
             bool isMatch = (dep.name == coreDep.name);
 
-            // Also check short name for registry packages
+            // Registry packages also match by short name.
             if (!isMatch)
             {
                 size_t slashPos = coreDep.name.find('/');
@@ -480,7 +455,7 @@ void ESPIDFInstaller::EnsureCoreDependencies(const std::string& projectPath)
                 }
             }
 
-            // For GitHub packages, also match by repo name
+            // GitHub packages also match by repo name.
             if (!isMatch && coreDep.isGitHub)
             {
                 isMatch = (dep.name == coreDep.name);
@@ -489,13 +464,11 @@ void ESPIDFInstaller::EnsureCoreDependencies(const std::string& projectPath)
             if (isMatch)
             {
                 found = true;
-                // Update version if different
                 if (dep.version != coreDep.version)
                 {
                     dep.version = coreDep.version;
                     modified = true;
                 }
-                // Update git URL if needed
                 if (coreDep.isGitHub && dep.gitUrl != coreDep.gitUrl)
                 {
                     dep.gitUrl = coreDep.gitUrl;
@@ -506,7 +479,6 @@ void ESPIDFInstaller::EnsureCoreDependencies(const std::string& projectPath)
             }
         }
 
-        // Add if not found
         if (!found)
         {
             DependencyInfo newDep;
@@ -519,7 +491,6 @@ void ESPIDFInstaller::EnsureCoreDependencies(const std::string& projectPath)
         }
     }
 
-    // Write back if modified
     if (modified)
     {
         WriteYaml(yamlPath, dependencies);
@@ -528,14 +499,14 @@ void ESPIDFInstaller::EnsureCoreDependencies(const std::string& projectPath)
 
 void ESPIDFInstaller::MergePackageDeps(const std::string& projectPath)
 {
-    // Scan project/packages/*/ for .deki-package.json files containing dependencies.espidf
+    // Scan project/packages/*/ for .deki-package.json files with dependencies.espidf.
     fs::path packagesDir = fs::path(DekiEditor::GetPackagesDirectory(projectPath));
     if (!fs::exists(packagesDir))
     {
         return;
     }
 
-    // Collect all espidf deps from installed packages (highest version wins)
+    // Collect the installed packages' espidf deps; the highest version wins.
     std::vector<DependencyInfo> packageDeps;
 
     try
@@ -556,21 +527,18 @@ void ESPIDFInstaller::MergePackageDeps(const std::string& projectPath)
             std::ifstream metaFile(metaPath);
             std::string content((std::istreambuf_iterator<char>(metaFile)), std::istreambuf_iterator<char>());
 
-            // Find "dependencies" section
             size_t pdPos = content.find("\"dependencies\"");
             if (pdPos == std::string::npos)
             {
                 continue;
             }
 
-            // Find "espidf" key within dependencies
             size_t espidfPos = content.find("\"espidf\"", pdPos);
             if (espidfPos == std::string::npos)
             {
                 continue;
             }
 
-            // Find the array start
             size_t arrayStart = content.find('[', espidfPos);
             if (arrayStart == std::string::npos)
             {
@@ -584,7 +552,7 @@ void ESPIDFInstaller::MergePackageDeps(const std::string& projectPath)
 
             std::string arrayContent = content.substr(arrayStart, arrayEnd - arrayStart + 1);
 
-            // Parse each dep object within the array
+            // Each dep object in the array
             size_t searchPos = 0;
             while (true)
             {
@@ -602,7 +570,6 @@ void ESPIDFInstaller::MergePackageDeps(const std::string& projectPath)
                 std::string obj = arrayContent.substr(objStart, objEnd - objStart + 1);
                 searchPos = objEnd + 1;
 
-                // Extract fields from the dep object
                 auto extractField = [&obj](const std::string& key) -> std::string
                 {
                     std::string needle = "\"" + key + "\"";
@@ -638,7 +605,7 @@ void ESPIDFInstaller::MergePackageDeps(const std::string& projectPath)
 
                 if (!dep.name.empty() && !dep.version.empty())
                 {
-                    // Deduplicate: if same dep from another package, keep higher version
+                    // The same dep from another package: keep the higher version.
                     bool replaced = false;
                     for (auto& existing : packageDeps)
                     {
@@ -682,12 +649,11 @@ void ESPIDFInstaller::MergeDeps(const std::string& projectPath, const std::vecto
         return;
     }
 
-    // Read current idf_component.yml
     fs::path yamlPath = GetYamlPath(projectPath);
     std::vector<DependencyInfo> existingDeps;
     ParseYaml(yamlPath, existingDeps);
 
-    // Merge: add new deps or upgrade existing ones to higher versions
+    // Add new deps, or upgrade existing ones to higher versions.
     bool modified = false;
     for (const auto& dep : deps)
     {
@@ -699,7 +665,7 @@ void ESPIDFInstaller::MergeDeps(const std::string& projectPath, const std::vecto
                 match = &existing;
                 break;
             }
-            // Also check short name (e.g., "esp_tinyusb" matches "espressif/esp_tinyusb")
+            // Short names match too ("esp_tinyusb" matches "espressif/esp_tinyusb").
             size_t slashPos = dep.name.find('/');
             if (slashPos != std::string::npos)
             {
@@ -718,7 +684,6 @@ void ESPIDFInstaller::MergeDeps(const std::string& projectPath, const std::vecto
         }
         else if (DekiEditor::CompareVersions(dep.version, match->version) > 0)
         {
-            // Needs a higher version — upgrade
             match->version = dep.version;
             match->gitUrl = dep.gitUrl;
             match->source = dep.source;
@@ -735,10 +700,9 @@ void ESPIDFInstaller::MergeDeps(const std::string& projectPath, const std::vecto
 // ---------------------------------------------------------------------------
 // Installer plugin entry points
 //
-// ESP-IDF component installation was built into the editor's PackageManager,
-// which meant the editor knew one framework's package manager by name. It
-// arrives from this package now, through the same probe the build backends
-// use.
+// ESP-IDF component installation comes from this package, through the same
+// probe the build backends use, so the editor's PackageManager knows no
+// framework's package manager by name.
 // ---------------------------------------------------------------------------
 
 #include <deki-editor/PackageInstallerPlugin.h>

@@ -29,7 +29,7 @@ bool ESPIDFPower::Initialize()
 {
     m_LastActivityUs = esp_timer_get_time();
 
-    // Built-in handlers: keep backlight in sync with sleep state. App callbacks
+    // Built-in handlers: keep the backlight in step with sleep. App callbacks
     // are appended to the same vectors and fire after these.
     m_OnBeforeSleep.push_back([](SleepInfo) { SetBacklight(false); });
     m_OnScreenOn.push_back([](SleepInfo) { SetBacklight(true); });
@@ -45,7 +45,7 @@ void ESPIDFPower::Shutdown()
 
 bool ESPIDFPower::SupportsMode(SleepMode mode) const
 {
-    // Deep sleep needs NVS persistence + reboot-as-wake plumbing. Light only for now.
+    // Light only: deep sleep needs NVS persistence and reboot-as-wake handling.
     return mode == SleepMode::Light;
 }
 
@@ -72,8 +72,8 @@ void ESPIDFPower::RequestSleep(SleepMode mode)
 
 void ESPIDFPower::Tick()
 {
-    // First Tick after boot fires OnScreenOn so app code that needs to run on
-    // every wake covers the cold-boot path with the same callback.
+    // The first Tick after boot fires OnScreenOn, so app code that runs on
+    // every wake covers the cold boot with the same callback.
     if (!m_BootScreenOnFired)
     {
         m_BootScreenOnFired = true;
@@ -118,12 +118,12 @@ void ESPIDFPower::EnterSleep(SleepMode mode)
 
     if (mode == SleepMode::Light)
     {
-        // Blocks until wake source fires.
+        // Blocks until a wake source fires.
         esp_light_sleep_start();
     }
     else
     {
-        // Never returns; device reboots on wake.
+        // Never returns; the device reboots on wake.
         esp_deep_sleep_start();
     }
 

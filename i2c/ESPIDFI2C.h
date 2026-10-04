@@ -39,10 +39,9 @@ private:
     uint32_t m_FreqHz = 400000;
 
 #if defined(ESP32)
-    // The new I2C driver hands out a handle per device rather than taking an
+    // The new I2C driver hands out a handle per device instead of taking an
     // address per transaction, so addresses are mapped back to handles here.
-    // Typed void* in the header to keep driver/i2c_master.h out of it, which
-    // the desktop build has no business including.
+    // void* in the header keeps driver/i2c_master.h out of the desktop build.
     struct Device
     {
         uint8_t addr;

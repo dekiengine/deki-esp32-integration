@@ -7,18 +7,15 @@
 namespace DekiEsp32
 {
 
-/**
- * @brief NimBLE implementation of DekiBle::IDekiBLE.
- *
- * Drops into the active-driver slot via DekiBle::DekiBLE::SetCurrent at package load
- * (see ESP32HALPackage.cpp). Backed by ESP-IDF's NimBLE host stack (the
- * `nimble` component). BLE-only by design; no Bluetooth Classic.
- *
- * Bonding / SMP key persistence are intentionally left at NimBLE defaults
- * (Just Works, no IO capability, no bond persisted). Higher layers that
- * need encryption or authenticated pairing should extend the interface
- * or sit beside this package.
- */
+/// DekiBle::IDekiBLE on ESP-IDF's NimBLE host stack (the `nimble` component).
+///
+/// Becomes the active driver through DekiBle::DekiBLE::SetCurrent at package
+/// load (see ESP32HALPackage.cpp). BLE only, by design: no Bluetooth Classic.
+///
+/// Bonding and SMP key storage stay at NimBLE's defaults on purpose (Just
+/// Works, no IO capability, no bond stored). Layers that need encryption or
+/// authenticated pairing should extend the interface or sit beside this
+/// package.
 class ESPIDFBLE : public DekiBle::IDekiBLE
 {
 public:

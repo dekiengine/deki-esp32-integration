@@ -65,7 +65,7 @@ void ESP32SerialCommands::ProcessCommands()
         return;
     }
 
-    // Read until newline
+    // Read up to the newline.
     char buf[SERIAL_BUF_SIZE];
     int len = 0;
     while (len < (int)sizeof(buf) - 1)

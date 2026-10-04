@@ -5,16 +5,12 @@
 namespace DekiEsp32
 {
 
-/**
- * @brief ESP-IDF implementation of DekiHttp::IDekiHttpClient.
- *
- * Registered with DekiHttp::SetCurrent at ESP32 boot (see ESP32BackendInit
- * in ESP32HALPackage.cpp). Backed by esp_http_client + esp_crt_bundle_attach
- * for TLS validation against the Mozilla CA bundle.
- *
- * Blocking; called from low-priority FreeRTOS tasks by the providers that
- * consume DekiHttp::Get / PostJson.
- */
+/// DekiHttp::IDekiHttpClient on ESP-IDF's esp_http_client, with
+/// esp_crt_bundle_attach checking TLS against the Mozilla CA bundle.
+///
+/// Registered with DekiHttp::SetCurrent at ESP32 boot (see ESP32BackendInit
+/// in ESP32HALPackage.cpp). Blocking; the providers that use DekiHttp::Get /
+/// PostJson call it from low-priority FreeRTOS tasks.
 class ESPIDFHttpClient : public DekiHttp::IDekiHttpClient
 {
 public:

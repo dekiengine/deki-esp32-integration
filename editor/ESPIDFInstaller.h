@@ -12,7 +12,7 @@ public:
     ~ESPIDFInstaller();
 
     // Also what project files say for a component from Espressif's registry
-    // ("source": "espidf"), and always have. Do not rename it.
+    // ("source": "espidf"). Do not rename it.
     std::string GetId() const override { return "espidf"; }
     std::string GetPlatformName() const override { return "ESP-IDF"; }
 
@@ -27,19 +27,16 @@ public:
     void EnsureCoreDependencies(const std::string& projectPath) override;
     bool IsCoreDependency(const std::string& name) const override;
 
-    // Merge dependencies from installed packages into idf_component.yml
+    // Merges the installed packages' dependencies into idf_component.yml.
     void MergePackageDeps(const std::string& projectPath);
 
-    // Merge a pre-built list of deps into idf_component.yml (add or upgrade)
+    // Merges a ready list of deps into idf_component.yml, adding or upgrading.
     void MergeDeps(const std::string& projectPath, const std::vector<DependencyInfo>& deps);
 
 private:
-    // Get path to idf_component.yml
     fs::path GetYamlPath(const std::string& projectPath) const;
 
-    // Parse idf_component.yml
     bool ParseYaml(const fs::path& path, std::vector<DependencyInfo>& dependencies);
 
-    // Write idf_component.yml
     bool WriteYaml(const fs::path& path, const std::vector<DependencyInfo>& dependencies);
 };

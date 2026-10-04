@@ -35,7 +35,7 @@ void WifiEventHandler(void* /*arg*/, esp_event_base_t base, int32_t id, void* /*
     {
         s_Connected = false;
         xEventGroupSetBits(s_WifiEvents, BIT_DISCONNECT);
-        // Best-effort reconnect; bounded by Connect's timeoutMs.
+        // Best-effort reconnect, limited by Connect's timeoutMs.
         esp_wifi_connect();
     }
     else if (base == IP_EVENT && id == IP_EVENT_STA_GOT_IP)
@@ -141,7 +141,7 @@ bool ESPIDFWiFi::Connect(const char* ssid, const char* password, uint32_t timeou
         return false;
     }
 
-    // esp_wifi_start is fine to call when already started; non-OK is logged but not fatal here.
+    // Safe to call when already started, so its result is ignored.
     esp_wifi_start();
 
     xEventGroupClearBits(s_WifiEvents, BIT_CONNECTED | BIT_DISCONNECT);

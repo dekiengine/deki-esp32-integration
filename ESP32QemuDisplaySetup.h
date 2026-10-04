@@ -15,14 +15,12 @@ enum class QemuPanelFormat : uint8_t
     ARGB8888 = 1
 };
 
-/**
- * @brief Brings up the screen Espressif's QEMU gives an ESP32 machine.
- *
- * For a platform that runs under QEMU rather than on a board: its boot scene
- * takes this in place of a real display's setup, and the game renders into
- * QEMU's window (or a `screendump` of it). On a real chip there is no such
- * panel and the setup fails, saying so.
- */
+/// Brings up the screen Espressif's QEMU gives an ESP32 machine.
+///
+/// For a platform that runs under QEMU instead of on a board: its boot scene
+/// uses this in place of a real display's setup, and the game renders into
+/// QEMU's window (or a `screendump` of it). On a real chip there is no such
+/// panel, and the setup fails with a message saying so.
 DEKI_CATEGORY("ESP32 HAL")
 DEKI_DESCRIPTION("Opens the screen of Espressif's QEMU, for running a firmware build without a board.")
 class DEKI_ESP32_HAL_API ESP32QemuDisplaySetup : public Deki::SetupComponent
@@ -45,7 +43,5 @@ public:
     void Setup(SetupCallback onComplete) override;
     const char* GetSetupName() const override { return "QEMU Display"; }
 };
-
-// Generated property metadata
 
 }  // namespace DekiEsp32

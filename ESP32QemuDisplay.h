@@ -7,21 +7,19 @@
 namespace DekiEsp32
 {
 
-/**
- * @brief The virtual RGB panel of Espressif's QEMU.
- *
- * Espressif's QEMU gives its ESP32 and ESP32-S3 machines a screen that no
- * real chip has: a window QEMU draws, fed through a few memory-mapped
- * registers (a size, an update rectangle, a pointer to the pixels and a start
- * flag). This display drives it, so a firmware build runs its renderer under
- * QEMU and a frame can be captured with QEMU's `screendump`.
- *
- * The register layout follows Espressif's esp_lcd_qemu_rgb component
- * (Apache-2.0); the driver here is Deki's own and needs no component.
- *
- * RGB565 and ARGB8888 are the panel's two formats. The whole frame is pushed
- * on every Present; QEMU copies it before the call returns.
- */
+/// The virtual RGB panel of Espressif's QEMU.
+///
+/// Espressif's QEMU gives its ESP32 and ESP32-S3 machines a screen no real
+/// chip has: a window QEMU draws, fed through a few memory-mapped registers
+/// (a size, an update rectangle, a pointer to the pixels and a start flag).
+/// This display drives it, so a firmware build runs its renderer under QEMU
+/// and a frame can be captured with QEMU's `screendump`.
+///
+/// The register layout follows Espressif's esp_lcd_qemu_rgb component
+/// (Apache-2.0); the driver here is Deki's own and needs no component.
+///
+/// RGB565 and ARGB8888 are the panel's two formats. The whole frame is pushed
+/// on every Present; QEMU copies it before the call returns.
 class ESP32QemuDisplay : public Deki::IDisplay
 {
 public:

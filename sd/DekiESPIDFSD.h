@@ -1,17 +1,9 @@
 #pragma once
 
-/**
- * @file DekiESPIDFSD.h
- * @brief ESP-IDF native SD card package for Deki engine
- *
- * Include this header to enable SD card support via ESP-IDF native SPI APIs.
- * Uses esp_vfs_fat_sdspi_mount for direct VFS integration.
- *
- * This implementation works on ESP32 platforms built with ESP-IDF:
- * - ESP32, ESP32-S2, ESP32-S3, ESP32-C3, ESP32-C6
- *
- * The package auto-registers via ESP32HALPackage when building for ESP32.
- */
+// SD card support on ESP-IDF's own SD drivers and VFS, for the ESP32,
+// ESP32-S2, ESP32-S3, ESP32-C3 and ESP32-C6.
+//
+// ESP32HALPackage registers it automatically in ESP32 builds.
 
 #include "ESPIDFSDCard.h"
 #include "ESPIDFSDFileSystem.h"

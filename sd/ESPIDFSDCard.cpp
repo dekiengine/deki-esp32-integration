@@ -19,18 +19,12 @@
 namespace DekiEsp32
 {
 
-// ESP-IDF native SD card APIs
-
 #if defined(ESP32)
 static const char* TAG = "ESPIDFSD";
 #endif
 
 // ============================================================================
-// Package Metadata (for editor UI generation)
-// ============================================================================
-
-// ============================================================================
-// ESPIDFSDCard Implementation
+// ESPIDFSDCard
 // ============================================================================
 
 ESPIDFSDCard::ESPIDFSDCard()
@@ -50,7 +44,6 @@ void ESPIDFSDCard::Configure(const Deki::PackageConfig& config)
     m_AutoMount = config.GetBool("auto_mount", true);
     m_MountPoint = config.GetString("mount_point", "/sdcard");
 
-    // Determine mode
     std::string modeStr = config.GetString("mode", "SPI");
     if (modeStr == "SDMMC4Bit")
     {
@@ -60,9 +53,7 @@ void ESPIDFSDCard::Configure(const Deki::PackageConfig& config)
         m_PinD1 = config.GetPin("D1", -1);
         m_PinD2 = config.GetPin("D2", -1);
         m_PinD3 = config.GetPin("D3", -1);
-        // Hertz, as the field name now says. This was megahertz multiplied out
-        // here, which is how this package ended up in MHz while deki-i2c next
-        // door was already in Hz.
+        // Hertz, as the field name says, like deki-i2c.
         m_SdmmcFrequency = static_cast<uint32_t>(config.GetInt("sdmmcHz", 20000000));
     }
     else if (modeStr == "SDMMC1Bit")
@@ -117,7 +108,6 @@ bool ESPIDFSDCard::Initialize()
         ESP_LOGI(TAG, "Initialize SPI: MOSI=%d, MISO=%d, CLK=%d, CS=%d, CD=%d, SPI=%d MHz", m_PinMOSI, m_PinMISO,
                  m_PinCLK, m_PinCS, m_PinCD, static_cast<int>(m_SpiFrequency / 1000000));
 
-        // Validate required pins
         if (m_PinCS < 0)
         {
             m_LastError = "CS pin not configured";
@@ -137,10 +127,10 @@ bool ESPIDFSDCard::Initialize()
 
             // The bus may already be up: on a handheld the card shares the
             // display's SPI bus, and the display driver set it up first. The
-            // card is then one more device on it, and the driver arbitrates
-            // between them. Only a bus this owns is pre-conditioned below
-            // (that bit-bangs the pins as GPIO, which would knock the display
-            // off them) and freed on shutdown.
+            // card is then one more device on it, and the driver arbitrates.
+            // Only a bus this code owns is pre-conditioned below (which
+            // bit-bangs the pins as GPIO and would cut the display off) and
+            // freed on shutdown.
             esp_err_t ret = spi_bus_initialize(SPI2_HOST, &bus_cfg, SDSPI_DEFAULT_DMA);
             if (ret == ESP_ERR_INVALID_STATE)
             {
@@ -157,8 +147,8 @@ bool ESPIDFSDCard::Initialize()
             }
             else
             {
-                // Ours. Give it back for a moment: the pre-conditioning needs
-                // the pins as plain GPIO.
+                // Ours. Free it for a moment: the pre-conditioning needs the
+                // pins as plain GPIO.
                 spi_bus_free(SPI2_HOST);
                 m_OwnsSpiBus = true;
             }
@@ -166,11 +156,11 @@ bool ESPIDFSDCard::Initialize()
 
         if (m_PinMOSI >= 0 && m_PinMISO >= 0 && m_PinCLK >= 0 && m_OwnsSpiBus)
         {
-            // SD card SPI pre-conditioning: bit-bang 80+ clock pulses with CS HIGH.
-            // Required by SD Physical Layer Spec to reset the card's SPI state machine.
-            // If the card was mid-transaction when the MCU reset (or from a previous
-            // session), it can be stuck waiting for clocks. Arduino's SD.begin() does
-            // this internally via card.init() — ESP-IDF's sdspi driver may not.
+            // SPI pre-conditioning: bit-bang 80+ clock pulses with CS HIGH, as
+            // the SD Physical Layer Spec requires to reset the card's SPI state
+            // machine. A card caught mid-transaction by an MCU reset can be
+            // stuck waiting for clocks, and ESP-IDF's sdspi driver may not send
+            // them (Arduino's SD.begin() does, in card.init()).
             {
                 gpio_num_t cs = static_cast<gpio_num_t>(m_PinCS);
                 gpio_num_t clk = static_cast<gpio_num_t>(m_PinCLK);
@@ -184,9 +174,9 @@ bool ESPIDFSDCard::Initialize()
                 gpio_set_level(mosi, 1);  // MOSI HIGH (0xFF)
                 gpio_set_level(clk, 0);   // CLK idle low (SPI mode 0)
 
-                vTaskDelay(pdMS_TO_TICKS(10));  // Let card power stabilize
+                vTaskDelay(pdMS_TO_TICKS(10));  // let the card's power settle
 
-                // 80 full clock cycles at ~100 KHz
+                // 80 full clock cycles at ~100 kHz
                 for (int i = 0; i < 80; i++)
                 {
                     gpio_set_level(clk, 1);
@@ -197,7 +187,7 @@ bool ESPIDFSDCard::Initialize()
 
                 ESP_LOGI(TAG, "SD card pre-conditioning complete (80 clocks with CS HIGH)");
             }
-            // spi_bus_initialize will reconfigure these pins for the SPI peripheral
+            // spi_bus_initialize gives these pins back to the SPI peripheral.
 
             spi_bus_config_t bus_cfg = {};
             bus_cfg.mosi_io_num = m_PinMOSI;
@@ -219,7 +209,7 @@ bool ESPIDFSDCard::Initialize()
         }
     }
 
-    // Configure card detect pin as input with pullup (if specified)
+    // Card detect pin, if any: input with pull-up
     if (m_PinCD >= 0)
     {
         gpio_set_direction(static_cast<gpio_num_t>(m_PinCD), GPIO_MODE_INPUT);
@@ -230,16 +220,14 @@ bool ESPIDFSDCard::Initialize()
     m_Initialized = true;
     m_State = Deki::PackageState::Initialized;
 
-    // Create filesystem wrapper
     m_FileSystem = std::make_unique<ESPIDFSDFileSystem>(this);
 
-    // Auto-mount if enabled
     if (m_AutoMount)
     {
         if (!Mount())
         {
-            // Mount failed, but package is still initialized
-            // Card might not be inserted yet
+            // The package still counts as initialised: the card may not be
+            // inserted yet.
         }
     }
 
@@ -274,19 +262,17 @@ void ESPIDFSDCard::Update(float deltaTime)
 {
     (void)deltaTime;
 
-    // Check for card insertion/removal via card detect pin
+    // Card inserted or removed, by the card detect pin
     if (m_PinCD >= 0 && m_Initialized)
     {
         bool inserted = CheckCardDetect();
 
         if (inserted && m_CardState == DekiSdCard::SDCardState::NotMounted && m_AutoMount)
         {
-            // Card was inserted, try to mount
             Mount();
         }
         else if (!inserted && m_CardState == DekiSdCard::SDCardState::Mounted)
         {
-            // Card was removed, unmount
             Unmount();
         }
     }
@@ -375,7 +361,7 @@ bool ESPIDFSDCard::Mount()
     m_LastError = "Mount failed";
     return false;
 #else
-    // Non-ESP32 platform - return success for editor simulation
+    // Not an ESP32: report success, for simulation in the editor.
     m_CardState = DekiSdCard::SDCardState::Mounted;
     return true;
 #endif
@@ -407,7 +393,7 @@ bool ESPIDFSDCard::IsCardInserted() const
         return CheckCardDetect();
     }
 
-    // No card detect pin - assume inserted if mounted
+    // No card detect pin: inserted if mounted
     return m_CardState == DekiSdCard::SDCardState::Mounted;
 }
 
@@ -416,11 +402,11 @@ bool ESPIDFSDCard::CheckCardDetect() const
 #if defined(ESP32)
     if (m_PinCD >= 0)
     {
-        // Card detect pins are typically active LOW (pulled low when card inserted)
+        // Card detect pins are usually active LOW (pulled low with a card in).
         return gpio_get_level(static_cast<gpio_num_t>(m_PinCD)) == 0;
     }
 #endif
-    return true;  // Assume inserted if no CD pin
+    return true;  // no CD pin: assume a card
 }
 
 uint64_t ESPIDFSDCard::GetTotalBytes() const

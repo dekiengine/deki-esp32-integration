@@ -62,9 +62,9 @@ std::string ESPIDFToolchain::GetIDFPath() const
 {
     std::string idfDir = GetToolchainsDir() + "/espressif/esp-idf";
 
-    // The SDK sitting directly in its install directory is the normal case now
-    // that the installer lifts a wrapping folder out of the archive. The search
-    // below stays for installs made before it did.
+    // Normally the SDK sits directly in its install directory: the installer
+    // lifts a wrapping folder out of the archive. The search below finds an
+    // SDK still inside such a folder.
 #ifdef _WIN32
     if (fs::exists(fs::path(idfDir) / "export.bat"))
     {
@@ -174,8 +174,8 @@ bool ESPIDFToolchain::IsInstalled() const
     {
         return false;
     }
-    // No pin known means the definition failed to load, which the builder has
-    // already reported; judging the version against nothing would only hide it.
+    // No known pin means the definition failed to load, which the builder has
+    // already reported; judging the version against nothing would hide that.
     if (m_RequiredVersion.empty())
     {
         return true;
@@ -238,27 +238,25 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
     // Forward slashes: the generated CMake reads this as $ENV{DEKI_ENGINE_PATH}
     // inside idf_component_register(SRCS ...), and ESP-IDF 6 re-parses those
     // arguments as CMake code, where the "\U" of "C:\Users" is an invalid
-    // escape. 5.3 happened to pass the string through untouched. Forward
-    // slashes are what CMake means by a path on every platform.
+    // escape. Forward slashes are a path to CMake on every platform.
     std::string enginePathForCMake = enginePath;
     std::replace(enginePathForCMake.begin(), enginePathForCMake.end(), '\\', '/');
     std::string envSettings = "set \"DEKI_ENGINE_PATH=" + enginePathForCMake + "\" && ";
 
     // Anything that must happen before export.bat runs. cmd expands %PATH%
-    // when it parses the whole line rather than when each piece runs, so
-    // appending to PATH after the export would append to the PATH as it was
-    // beforehand and discard everything ESP-IDF had just added, leaving idf.py
-    // unfindable. Doing it first is correct either way: export.bat prepends
-    // its own entries and leaves ours in place behind them.
+    // when it parses the whole line, not when each piece runs, so appending
+    // to PATH after the export would build on the old PATH and drop
+    // everything ESP-IDF just added, so idf.py would not be found. Before the
+    // export is right: export.bat prepends its own entries and keeps ours
+    // behind them.
     std::string preExportSettings;
 
-    // The reflection generator's compiler, handed down explicitly.
+    // The reflection generator's compiler, passed down explicitly.
     //
-    // A stripped firmware build regenerates the reflection tables, and that
-    // needs GCC 16. Inside the ESP-IDF environment PATH belongs to Espressif,
-    // so a search for g++ there finds the cross compiler or nothing at all.
-    // The editor was itself built with the compiler in question, so it is the
-    // one thing in the chain that knows where it is.
+    // A stripped firmware build regenerates the reflection tables, which needs
+    // GCC 16. Inside the ESP-IDF environment PATH belongs to Espressif, so a
+    // search for g++ finds the cross compiler or nothing. The editor was built
+    // with that compiler, so it knows where it is.
     {
         std::string gxx16;
         if (const char* fromEnv = std::getenv("DEKI_GXX16"); fromEnv && *fromEnv)
@@ -281,18 +279,16 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
         {
             envSettings += "set \"DEKI_GXX16=" + gxx16 + "\" && ";
 
-            // And its own directory on PATH, or the compiler cannot run at all.
+            // And its own directory on PATH, or the compiler cannot run.
             //
-            // g++ is only a driver: the real compiler is cc1plus, which lives
-            // in lib/gcc/... rather than beside g++, so Windows resolves its
-            // DLLs through PATH. export.bat replaces PATH with Espressif's,
-            // cc1plus then fails to start, and because it never starts it
-            // prints nothing: the build reported "generator compile failed"
-            // with no diagnostics whatsoever.
+            // g++ is only a driver: the real compiler, cc1plus, lives in
+            // lib/gcc/..., not beside g++, so Windows finds its DLLs through
+            // PATH. With only Espressif's PATH, cc1plus fails to start and
+            // prints nothing, so the build fails with no diagnostics.
             //
             // Appended, not prepended: ESP-IDF's own cmake, ninja and python
-            // must keep winning, and nothing in its directories supplies the
-            // libraries cc1plus wants.
+            // must still come first, and nothing in its directories supplies
+            // the libraries cc1plus needs.
             std::string compilerDir = fs::path(gxx16).parent_path().string();
             std::replace(compilerDir.begin(), compilerDir.end(), '/', '\\');
             if (!compilerDir.empty())
@@ -314,8 +310,8 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
     {
         bool usePsram = ctx.platformConfig->externalMemorySize > 0;
         envSettings += "set \"DEKI_USE_PSRAM=" + std::string(usePsram ? "1" : "") + "\" && ";
-        // Checked at the point of use as well as in ValidatePlatform: this is
-        // a shell line, and not every path to it runs the validation first.
+        // Checked here as well as in ValidatePlatform: this is a shell line,
+        // and not every path to it runs the validation first.
         const std::string displayBus = ctx.platformConfig->Option("displayBus");
         if (IsValidDisplayBus(displayBus))
         {
@@ -364,28 +360,25 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
         }
     }
 
-    // export.bat by its full path, not by name after a cd. Windows can be
-    // configured with NoDefaultCurrentDirectoryInExePath, and then cmd refuses
-    // to run anything from the working directory: the build failed with
-    // "export.bat is not recognised" while the file sat right there.
+    // export.bat by its full path, not by name after a cd: with
+    // NoDefaultCurrentDirectoryInExePath set, cmd refuses to run anything
+    // from the working directory ("export.bat is not recognised").
     // /S: with this many quoted segments cmd otherwise strips the wrong pair
     // and reports "the filename, directory name, or volume label syntax is
     // incorrect". /S makes it take everything between the outermost quotes
-    // literally.
-    // Backslashes for the script's own path. export.bat works out where it
-    // lives from %~dp0 and decides from that whether it is running under
-    // CMD; handed a forward-slash path it concludes it is not, and refuses
-    // with "This .bat file is for Windows CMD.EXE shell only".
+    // as is.
+    // Backslashes for the script's own path: export.bat works out from %~dp0
+    // whether it runs under CMD, and with a forward-slash path it decides it
+    // does not and refuses ("This .bat file is for Windows CMD.EXE shell
+    // only").
     std::string idfPathNative = idfPath;
     std::replace(idfPathNative.begin(), idfPathNative.end(), '/', '\\');
 
-    // MSYSTEM unset first. export.bat refuses outright when it sees that
-    // variable, on the grounds that it is being run from an MSYS shell rather
-    // than CMD. It is set for every child of an MSYS2 or Git Bash session, so
-    // launching the editor from the same shell its own compiler lives in was
-    // enough to make every firmware build fail with "This .bat file is for
-    // Windows CMD.EXE shell only". The child really is CMD; only the inherited
-    // variable said otherwise.
+    // Unset MSYSTEM first. export.bat refuses to run when it sees that
+    // variable, taking it to mean an MSYS shell, not CMD. Every child of an
+    // MSYS2 or Git Bash session inherits it, so an editor launched from such
+    // a shell would fail every firmware build with "This .bat file is for
+    // Windows CMD.EXE shell only", though the child really is CMD.
     std::string fullCommand = "cmd /s /c \"set \"MSYSTEM=\" && " + preExportSettings + "cd /d \"" + idfPathNative +
                               "\" && call \"" + idfPathNative + "\\export.bat\" && cd /d \"" + workDir + "\" && " +
                               envSettings + command + "\"";

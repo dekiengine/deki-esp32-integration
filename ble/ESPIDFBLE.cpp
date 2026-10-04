@@ -27,17 +27,17 @@ namespace DekiEsp32
 {
 
 // Bluetooth is a sdkconfig choice, not a platform one: a board that leaves
-// CONFIG_BT_ENABLED off has no NimBLE headers to include, and a package
-// shipping a BLE backend must not stop such a firmware from compiling. The
-// stub branch below already answers every call safely, so use it.
+// CONFIG_BT_ENABLED off has no NimBLE headers, and this package must not stop
+// such a firmware from compiling. The stub branch below answers every call
+// safely, so it is used there.
 #if defined(ESP32) && defined(CONFIG_BT_ENABLED)
 
 namespace
 {
 
 // =============================================================================
-// Package-wide state. NimBLE is a singleton stack, the ESPIDFBLE class is a
-// thin facade on top, so we keep state here in a single anonymous namespace.
+// Package-wide state. NimBLE is a single stack and ESPIDFBLE a thin facade
+// on it, so the state lives here in one anonymous namespace.
 // =============================================================================
 
 bool s_StackInited = false;
@@ -54,13 +54,14 @@ bool s_Advertising = false;
 uint8_t s_AdvRawBuf[31];
 uint8_t s_AdvRawLen = 0;
 
-// GATT server: persisted service table (NimBLE references this after registration).
-// Each translated service has a flat char array terminated by a zero entry.
+// GATT server: the service table, kept alive because NimBLE refers to it
+// after registration. Each service has a flat characteristic array ended by a
+// zero entry.
 struct GattCharRecord
 {
     DekiBle::DekiBLEUUID dekiUuid;
     ble_uuid_any_t nimbleUuid;
-    uint16_t valHandle;  // populated by NimBLE via ble_gatts_add_svcs callback
+    uint16_t valHandle;  // filled by NimBLE through the ble_gatts_add_svcs callback
     uint8_t props;
     uint16_t maxLen;
     uint8_t idxInService;
@@ -71,11 +72,11 @@ struct GattServiceRecord
     DekiBle::DekiBLEUUID dekiUuid;
     ble_uuid_any_t nimbleUuid;
     std::vector<GattCharRecord> chars;
-    std::vector<ble_gatt_chr_def> chrDefs;  // terminated entry appended
+    std::vector<ble_gatt_chr_def> chrDefs;  // ends with a zero entry
 };
 
 std::vector<GattServiceRecord> s_GattServices;
-std::vector<ble_gatt_svc_def> s_GattSvcDefs;  // flat array passed to NimBLE; terminated
+std::vector<ble_gatt_svc_def> s_GattSvcDefs;  // flat array passed to NimBLE; ends with a zero entry
 
 // GATT server callbacks
 DekiBle::DekiBLECharWriteCb s_CharWriteCb = nullptr;
@@ -85,7 +86,7 @@ void* s_CharReadUser = nullptr;
 DekiBle::DekiBLEConnCb s_ConnCb = nullptr;
 void* s_ConnUser = nullptr;
 
-// GATT client async wait state
+// GATT client: state for waiting on async operations
 SemaphoreHandle_t s_ClientSem = nullptr;
 struct ClientOpState
 {
@@ -116,7 +117,7 @@ void ToNimbleUuid(const DekiBle::DekiBLEUUID& in, ble_uuid_any_t& out)
     else
     {
         out.u.type = BLE_UUID_TYPE_128;
-        // NimBLE expects little-endian; DekiBLEUUID is big-endian canonical.
+        // NimBLE expects little-endian; DekiBLEUUID is canonical big-endian.
         for (int i = 0; i < 16; ++i)
         {
             out.u128.value[i] = in.bytes[15 - i];
@@ -136,7 +137,7 @@ void FromNimbleUuid(const ble_uuid_t* in, DekiBle::DekiBLEUUID& out)
         const ble_uuid16_t* u = (const ble_uuid16_t*)in;
         out.is16bit = true;
         out.shortId = u->value;
-        // Splice into Bluetooth base UUID: 00000000-0000-1000-8000-00805F9B34FB
+        // Expand into the Bluetooth base UUID: 00000000-0000-1000-8000-00805F9B34FB
         static const uint8_t base[16] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00,
                                           0x80, 0x00, 0x00, 0x80, 0x5F, 0x9B, 0x34, 0xFB };
         std::memcpy(out.bytes, base, 16);
@@ -209,7 +210,7 @@ void HostTask(void* /*param*/)
 
 int GapEvent(struct ble_gap_event* ev, void* /*arg*/);
 
-// Translate a NimBLE scan event into DekiBLEDevice, then dispatch to user cb.
+// Turns a NimBLE scan event into a DekiBLEDevice and passes it to the user callback.
 void DispatchScanResult(const struct ble_gap_disc_desc& disc)
 {
     if (!s_ScanCb)
@@ -226,7 +227,7 @@ void DispatchScanResult(const struct ble_gap_disc_desc& disc)
     std::memcpy(dev.advData, disc.data, copyLen);
     dev.advLen = copyLen;
 
-    // Parse common AD types out of the raw payload.
+    // Parse the common AD types out of the raw payload.
     struct ble_hs_adv_fields fields;
     if (ble_hs_adv_parse_fields(&fields, disc.data, disc.length_data) == 0)
     {
@@ -251,7 +252,7 @@ void DispatchScanResult(const struct ble_gap_disc_desc& disc)
             std::memcpy(dev.manufacturerData, fields.mfg_data + 2, mlen);
             dev.manufacturerDataLen = mlen;
         }
-        // Parse up to 4 service UUIDs across 16/32/128 lists.
+        // Up to 4 service UUIDs from the 16-, 32- and 128-bit lists.
         uint8_t outI = 0;
         for (uint8_t i = 0; i < fields.num_uuids16 && outI < 4; ++i)
         {
@@ -301,7 +302,7 @@ int GapEvent(struct ble_gap_event* ev, void* /*arg*/)
             {
                 DispatchConnEvent(ev->connect.conn_handle, &desc.peer_id_addr, ev->connect.status == 0);
             }
-            // Wake any blocked Connect()
+            // Wake a blocked Connect().
             s_ClientOp.status = ev->connect.status;
             s_ClientOp.connHandle = ev->connect.conn_handle;
             if (s_ClientSem)
@@ -436,8 +437,8 @@ bool InitStackOnce()
 
     nimble_port_freertos_init(HostTask);
 
-    // Wait briefly for the host to sync. NimBLE issues the sync callback once
-    // the controller is up; without it we cannot pick an own_addr_type.
+    // Wait briefly for the host to sync. NimBLE calls the sync callback once
+    // the controller is up; until then no own_addr_type can be chosen.
     for (int i = 0; i < 50 && !s_HostReady; ++i)
     {
         vTaskDelay(pdMS_TO_TICKS(20));
@@ -461,9 +462,9 @@ bool InitStackOnce()
 bool ESPIDFBLE::Initialize()
 {
     // The stack starts on first use (every operation calls InitStackOnce), as
-    // WiFi's does. Starting it here ran from a static constructor, before the
-    // FreeRTOS scheduler: the vTaskDelay while waiting for the host to sync
-    // asserts there.
+    // WiFi's does. Must not start here: this runs from a static constructor,
+    // before the FreeRTOS scheduler, and the vTaskDelay while waiting for the
+    // host to sync asserts there.
     m_State = Deki::PackageState::Initialized;
     return true;
 }
@@ -512,7 +513,7 @@ bool ESPIDFBLE::StartScan(uint16_t intervalMs, uint16_t windowMs, bool active, u
     }
 
     struct ble_gap_disc_params dp = {};
-    dp.itvl = (uint16_t)((intervalMs * 1000) / 625);  // 0.625ms units
+    dp.itvl = (uint16_t)((intervalMs * 1000) / 625);  // 0.625 ms units
     dp.window = (uint16_t)((windowMs * 1000) / 625);
     dp.passive = active ? 0 : 1;
     dp.filter_duplicates = 0;
@@ -581,7 +582,7 @@ bool ESPIDFBLE::StartAdvertising(const DekiBle::DekiBLEAdvData& data)
             fields.name_len = (uint8_t)std::strlen(data.localName);
             fields.name_is_complete = 1;
         }
-        // Marshal manufacturer data with leading manufacturer_id (LE).
+        // Manufacturer data, led by manufacturer_id (little-endian).
         uint8_t mfgBuf[29];
         if (data.manufacturerId != 0xFFFF && data.manufacturerDataLen > 0 && data.manufacturerDataLen <= 27)
         {
@@ -591,7 +592,7 @@ bool ESPIDFBLE::StartAdvertising(const DekiBle::DekiBLEAdvData& data)
             fields.mfg_data = mfgBuf;
             fields.mfg_data_len = data.manufacturerDataLen + 2;
         }
-        // Service UUIDs: only 128-bit emitted here (16-bit can be added if asked).
+        // Service UUIDs: only 128-bit ones are advertised.
         std::vector<ble_uuid128_t> u128s;
         for (uint8_t i = 0; i < data.serviceUuidCount && i < 4; ++i)
         {
@@ -696,7 +697,7 @@ bool ESPIDFBLE::BuildGattServer(DekiBle::DekiBLEServiceSpec* services, uint8_t c
             d.flags = PropsToNimble(cr.props);
             d.val_handle = &cr.valHandle;
         }
-        // Terminator
+        // Zero entry ending the list
         std::memset(&rec.chrDefs[services[s].charCount], 0, sizeof(ble_gatt_chr_def));
 
         ble_gatt_svc_def& sd = s_GattSvcDefs[s];
@@ -705,7 +706,7 @@ bool ESPIDFBLE::BuildGattServer(DekiBle::DekiBLEServiceSpec* services, uint8_t c
         sd.uuid = (const ble_uuid_t*)&rec.nimbleUuid;
         sd.characteristics = rec.chrDefs.data();
     }
-    // Terminator
+    // Zero entry ending the list
     std::memset(&s_GattSvcDefs[count], 0, sizeof(ble_gatt_svc_def));
 
     int rc = ble_gatts_count_cfg(s_GattSvcDefs.data());
@@ -727,7 +728,7 @@ bool ESPIDFBLE::BuildGattServer(DekiBle::DekiBLEServiceSpec* services, uint8_t c
         return false;
     }
 
-    // Copy resolved value handles back into caller's specs.
+    // Copy the value handles NimBLE assigned back into the caller's specs.
     for (uint8_t s = 0; s < count; ++s)
     {
         for (uint8_t c = 0; c < services[s].charCount; ++c)
@@ -787,7 +788,7 @@ bool ESPIDFBLE::Connect(const DekiBle::DekiBLEAddress& addr, uint32_t timeoutMs)
     peer.type = ToNimbleAddrType(addr.type);
     std::memcpy(peer.val, addr.bytes, 6);
 
-    xSemaphoreTake(s_ClientSem, 0);  // drain
+    xSemaphoreTake(s_ClientSem, 0);  // clear a stale signal
     s_ClientOp = {};
 
     int rc = ble_gap_connect(s_OwnAddrType, &peer, timeoutMs, NULL, GapEvent, this);
@@ -886,9 +887,9 @@ bool ESPIDFBLE::DiscoverService(DekiBle::DekiBLEConnHandle conn, const DekiBle::
     s_ClientOp = {};
 
     int rc = ble_gattc_disc_all_chrs(conn, 0x0001, 0xFFFF, DiscChrCb, nullptr);
-    // Note: filtering by service UUID requires first discovering the service handle
-    // range. For simplicity we discover all chrs and trust the caller to match by
-    // UUID downstream; revisit if filtering becomes necessary.
+    // Filtering by service UUID needs the service's handle range first, so
+    // this discovers every characteristic and leaves matching by UUID to the
+    // caller.
     (void)any;
     if (rc != 0)
     {

@@ -69,9 +69,9 @@ std::vector<std::string> ESPIDFBuilder::ValidatePlatform(const PlatformConfig& c
     std::vector<std::string> problems;
 
     // idfTarget reaches the shell line that runs idf.py and the generated
-    // CMake, and a platform JSON can arrive in a board pack, so it is
-    // allowlisted rather than trusted. It used to be silently cleared at load,
-    // which turned a typo into a confusing downstream failure.
+    // CMake, and a platform JSON can arrive in a board pack, so it is checked
+    // against an allowlist, not trusted. A bad value is reported here, so a
+    // typo does not turn into a confusing failure later.
     if (config.Option("idfTarget").empty())
     {
         problems.push_back("idfTarget is not set; an ESP-IDF platform must name its chip");
@@ -92,9 +92,8 @@ std::vector<std::string> ESPIDFBuilder::ValidatePlatform(const PlatformConfig& c
     }
 
     // displayBus reaches the shell line that exports the build environment
-    // (DEKI_DISPLAY_BUS), so it is an identifier or the build is refused. The
-    // editor's platform loader used to check this, by knowing that a platform
-    // has a display bus; the setting and its rule are this backend's now.
+    // (DEKI_DISPLAY_BUS), so it must be an identifier or the build is
+    // refused. The setting and its rule belong to this backend.
     const std::string displayBus = config.Option("displayBus");
     if (!displayBus.empty() && !IsValidDisplayBus(displayBus))
     {
@@ -106,10 +105,8 @@ std::vector<std::string> ESPIDFBuilder::ValidatePlatform(const PlatformConfig& c
 
 ESPIDFBuilder::ESPIDFBuilder()
 {
-    // The definition travels inside this backend; see ESPIDFToolchainDefinition.h.
-    // It used to be read from beside the editor's executable, and a miss was
-    // silent: the builder came up with no toolchain components at all and the
-    // Build panel simply showed nothing to install.
+    // The definition is compiled into this backend (see
+    // ESPIDFToolchainDefinition.h), so it cannot go missing.
     BuilderDefinition def;
     std::string error;
     if (ParseBuilderDefinition(kESPIDFToolchainDefinition, def, error))
@@ -141,7 +138,7 @@ ESPIDFBuilder::~ESPIDFBuilder()
 }
 
 // ============================================================================
-// Toolchain — delegates to ESPIDFToolchain
+// Toolchain: handed on to ESPIDFToolchain
 // ============================================================================
 
 std::string ESPIDFBuilder::GetIDFPath() const
@@ -284,8 +281,8 @@ bool ESPIDFBuilder::MakeSimulationBootScene(std::string& scene, const PlatformCo
                     " " + format + ") added after the board's steps");
 
     // QEMU has no SPI controller for a card, but it has the SD host. A card
-    // wired for SPI is moved to the SD host in 1-bit mode, the SD pinout of
-    // the same wires: CMD on the MOSI pin, D0 on the MISO pin, the clock kept.
+    // wired for SPI moves to the SD host in 1-bit mode, the SD pinout of the
+    // same wires: CMD on the MOSI pin, D0 on the MISO pin, the same clock.
     ForEachComponent(json["objects"], "DekiSdCard::SDCardComponent",
                      [&notes](nlohmann::json& object, nlohmann::json& component)
                      {
@@ -327,7 +324,7 @@ std::string ESPIDFBuilder::GetBuildDirectory(const std::string& projectPath) con
 // Build helpers
 // ============================================================================
 
-// Determine the ESP-IDF target chip from the platform config.
+// The ESP-IDF target chip from the platform config.
 static std::string GetIdfTarget(const PlatformConfig& config)
 {
     if (!config.Option("idfTarget").empty())
@@ -351,7 +348,7 @@ static std::string GetIdfTarget(const PlatformConfig& config)
     return "";
 }
 
-// Read CONFIG_IDF_TARGET value from an existing sdkconfig file.
+// CONFIG_IDF_TARGET from an existing sdkconfig file.
 static std::string ReadSdkConfigTarget(const std::string& buildDir)
 {
     std::ifstream f(fs::path(buildDir) / "sdkconfig");
@@ -372,7 +369,7 @@ static std::string ReadSdkConfigTarget(const std::string& buildDir)
 }
 
 // ============================================================================
-// Core operations — use RunOnBuildThread()
+// Core operations, run on RunOnBuildThread()
 // ============================================================================
 
 void ESPIDFBuilder::Build(const std::string& projectPath, BuildOutputCallback outputCallback,
@@ -403,7 +400,7 @@ void ESPIDFBuilder::Clean(const std::string& projectPath, BuildOutputCallback ou
 }
 
 // ============================================================================
-// Internal worker functions
+// Workers
 // ============================================================================
 
 void ESPIDFBuilder::DoBuild(const std::string& projectPath, BuildOutputCallback outputCallback,
@@ -440,7 +437,7 @@ void ESPIDFBuilder::DoBuild(const std::string& projectPath, BuildOutputCallback 
         outputCallback("Engine path: " + enginePath, false);
     }
 
-    // Regenerate build files before every build so platform config changes are always applied
+    // Regenerate build files before every build so platform config changes always apply.
     if (m_HasPlatformConfig)
     {
         if (!GenerateBuildFiles(projectPath, m_PlatformConfig, m_PackageDefines))
@@ -458,9 +455,9 @@ void ESPIDFBuilder::DoBuild(const std::string& projectPath, BuildOutputCallback 
 
     {
         ESPIDFInstaller installer;
-        // User-installed package deps
+        // Packages the user installed
         installer.MergePackageDeps(projectPath);
-        // Built-in engine package deps (framework from PlatformConfig)
+        // The engine's own packages (framework from PlatformConfig)
         if (m_HasPlatformConfig)
         {
             auto engineDeps = ReadEnginePackageDeps(enginePath, projectPath, GetPlatformKey());
@@ -485,9 +482,9 @@ void ESPIDFBuilder::DoBuild(const std::string& projectPath, BuildOutputCallback 
         {
             if (!expectedTarget.empty() && sdkconfigExists && currentTarget != expectedTarget)
             {
-                // Target changed — remove sdkconfig and the entire build/ directory.
-                // Removing only CMakeCache.txt is insufficient: subprojects like the bootloader
-                // have their own CMakeCache and will fail if the toolchain file doesn't match.
+                // Target changed: remove sdkconfig and the whole build/ directory.
+                // CMakeCache.txt alone is not enough: subprojects like the bootloader
+                // have their own CMakeCache and fail if the toolchain file differs.
                 fs::remove(fs::path(buildDir) / "sdkconfig");
                 try
                 {
@@ -569,12 +566,12 @@ void ESPIDFBuilder::DoBuild(const std::string& projectPath, BuildOutputCallback 
 // window, passing its serial output on, until the window is closed (Cancel
 // stops it too: the editor's job ends QEMU with the script). Python because
 // it runs in the ESP-IDF environment, where esptool and QEMU are on the path,
-// and it keeps Windows and Linux alike. The
-// efuse image comes from ESP-IDF's own QEMU support, so it matches the ESP-IDF
-// installed. PSRAM: QEMU takes 2..16 MB here (idf.py qemu's 32 MB leaves no
-// room to map the flash). The SD card is made fresh from the build's
-// simulation/sd_card: FAT16, written here because ESP-IDF's fatfsgen sizes
-// its FAT as if every sector were a cluster and stops at 16 MB.
+// and it works the same on Windows and Linux. The efuse image comes from
+// ESP-IDF's own QEMU support, so it matches the installed ESP-IDF. PSRAM:
+// QEMU takes 2..16 MB here (idf.py qemu's 32 MB leaves no room to map the
+// flash). The SD card is made fresh from the build's simulation/sd_card as
+// FAT16, written here because ESP-IDF's fatfsgen sizes its FAT as if every
+// sector were a cluster and stops at 16 MB.
 static const char* const kRunQemuScript = R"PY(import os, shutil, struct, subprocess, sys, time
 chip, flash_size, psram_mb, card_dir = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4]
 
@@ -1000,7 +997,6 @@ bool ESPIDFBuilder::GenerateBuildFiles(const std::string& projectPath, const Pla
     fs::path mainPath = buildersPath / "main";
     fs::path boardPath = buildersPath / config.id;
 
-    // Create required directories
     try
     {
         fs::create_directories(mainPath);
@@ -1011,7 +1007,7 @@ bool ESPIDFBuilder::GenerateBuildFiles(const std::string& projectPath, const Pla
         return false;
     }
 
-    // Generate build files (always overwrite — these are managed by the editor)
+    // Always overwritten: the editor manages these files.
     if (!GenerateRootCMakeLists(buildersPath.string(), config))
     {
         return false;
@@ -1022,7 +1018,7 @@ bool ESPIDFBuilder::GenerateBuildFiles(const std::string& projectPath, const Pla
         return false;
     }
 
-    // Snapshot sdkconfig.defaults before regeneration to detect changes
+    // Keep sdkconfig.defaults from before regeneration, to detect changes.
     fs::path sdkDefaultsPath = fs::path(boardPath) / "sdkconfig.defaults";
     std::string oldDefaults;
     if (fs::exists(sdkDefaultsPath))
@@ -1036,8 +1032,8 @@ bool ESPIDFBuilder::GenerateBuildFiles(const std::string& projectPath, const Pla
         return false;
     }
 
-    // ESP-IDF ignores sdkconfig.defaults once sdkconfig exists.
-    // If defaults changed, delete stale sdkconfig so it gets regenerated.
+    // ESP-IDF ignores sdkconfig.defaults once sdkconfig exists, so when the
+    // defaults changed, delete the stale sdkconfig to regenerate it.
     {
         std::string newDefaults;
         if (fs::exists(sdkDefaultsPath))
@@ -1061,8 +1057,8 @@ bool ESPIDFBuilder::GenerateBuildFiles(const std::string& projectPath, const Pla
     }
 
     // What goes into the data partition has to fit it: the boot payload, and
-    // on internal storage every asset. A board's own partitionTable is its
-    // own business; mklittlefs still refuses what does not fit.
+    // on internal storage every asset. A board with its own partitionTable is
+    // not checked here; mklittlefs still refuses what does not fit.
     if (config.Option("partitionTable").empty())
     {
         const uint64_t need = LittleFsFootprint(GetBootPayloadDirectory(projectPath));
@@ -1076,7 +1072,7 @@ bool ESPIDFBuilder::GenerateBuildFiles(const std::string& projectPath, const Pla
         }
     }
 
-    // Load dependency version pins from deki-packages.json
+    // Dependency version pins from deki-packages.json
     std::map<std::string, std::string> depOverrides;
     {
         fs::path packagesJson = fs::path(projectPath) / GetPackageManifestFileName();
@@ -1097,8 +1093,7 @@ bool ESPIDFBuilder::GenerateBuildFiles(const std::string& projectPath, const Pla
             }
             catch (const std::exception& e)
             {
-                // Dependency overrides silently lost here would produce a build
-                // against the wrong package versions.
+                // Lost overrides would build against the wrong package versions.
                 DEKI_LOG_WARNING("ESPIDFBuilder: could not parse dependency overrides (%s); "
                                  "building with the manifest versions",
                                  e.what());
@@ -1106,7 +1101,7 @@ bool ESPIDFBuilder::GenerateBuildFiles(const std::string& projectPath, const Pla
         }
     }
 
-    // Always regenerate idf_component.yml to include package dependencies
+    // Always regenerate idf_component.yml so it lists the package dependencies.
     {
         std::ostringstream file;
         file << "# Deki Game - Component Dependencies\n";
@@ -1142,19 +1137,18 @@ bool ESPIDFBuilder::GenerateBuildFiles(const std::string& projectPath, const Pla
             }
             out << file.str();
 
-            // A changed manifest invalidates the component manager's lock. It
-            // does not notice on its own: a git dependency stays at the commit
-            // the lock recorded even when the manifest asks for another
-            // version, so bumping LovyanGFX from 1.2.19 to 1.2.29 went on
-            // building 1.2.19. The lock is generated output in this build
-            // directory, not anything the user wrote. An unchanged manifest
-            // keeps it, so an ordinary rebuild re-resolves nothing.
+            // A changed manifest invalidates the component manager's lock,
+            // which it does not notice on its own: a git dependency stays at
+            // the commit the lock recorded even when the manifest asks for
+            // another version. The lock is generated output in this build
+            // directory, nothing the user wrote. An unchanged manifest keeps
+            // it, so an ordinary rebuild resolves nothing again.
             std::error_code ec;
             fs::remove(buildersPath / "dependencies.lock", ec);
         }
     }
 
-    // Apply any version overrides to an existing idf_component.yml via MergeDeps
+    // Apply version overrides to the existing idf_component.yml through MergeDeps.
     if (!depOverrides.empty())
     {
         ESPIDFInstaller installer;
@@ -1204,14 +1198,13 @@ bool ESPIDFBuilder::GenerateRootCMakeLists(const std::string& espIdfPath, const 
 bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const std::string& projectPath,
                                            const PlatformConfig& config, const std::vector<std::string>& packageDefines)
 {
-    // Scan packages and resolve active set (needed before REQUIRES generation)
+    // Scan packages and work out the active set (needed before REQUIRES generation).
     std::string enginePath = GetEnginePath(projectPath);
     auto allPackages = CMakeGen::ScanPackageManifests(projectPath);
 
-    // A firmware needs its hardware abstraction layer whether or not any scene
-    // names one of its components. The platform says which package that is, so
-    // a board on a framework this editor has never heard of names its own
-    // instead of needing a line added here.
+    // A firmware needs its hardware abstraction layer whether or not any
+    // scene names one of its components. The platform says which package that
+    // is, so a board on any framework names its own.
     std::vector<std::string> allDefines = packageDefines;
     for (const auto& id : config.requiresPackages)
     {
@@ -1245,8 +1238,8 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
 
     // Content this target needs but cannot have. Packages left out because
     // nothing here uses them are normal and silent; a scene on THIS target
-    // naming a component from a package this target cannot build is a mistake,
-    // and saying so now beats a compiler or linker error later.
+    // naming a component from a package this target cannot build is a
+    // mistake, reported now instead of as a compiler or linker error later.
     const auto conflicts = FindTargetContentConflicts(projectPath, config.id);
     if (!conflicts.empty())
     {
@@ -1274,9 +1267,9 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
         DEKI_LOG_WARNING("%s", w.c_str());
     }
 
-    // Build REQUIRES list from platform config + active package ESP-IDF deps.
-    // Not named `requires`: that is a keyword since C++20, and the firmware
-    // has been compiling at gnu++2b (which ESP-IDF forces) for a while.
+    // The REQUIRES list: platform config plus the active packages' ESP-IDF
+    // deps. Not named `requires`: that is a keyword since C++20, and ESP-IDF
+    // forces gnu++2b.
     std::string idfRequires = "esp_psram";
     for (const auto& lib : config.OptionList("requiredLibraries"))
     {
@@ -1330,11 +1323,11 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
     file << "\n";
 
     CMakeGen::EmitEngineCoreSourceCollection(file);
-    // When something is stripped, the reflection tables the editor left in each
-    // package's generated/ (made with every feature present) would reference
-    // components this build does not compile, so this build regenerates its own
-    // with the same exclusions. When nothing is stripped, today's path: the
-    // package copies are compiled as they are.
+    // When something is stripped, the reflection tables the editor left in
+    // each package's generated/ (made with every feature present) would refer
+    // to components this build does not compile, so this build regenerates
+    // its own with the same exclusions. When nothing is stripped, the package
+    // copies are compiled as they are.
     file << "message(STATUS \"Deki stripping: " << CMakeGen::EscapeCMakeString(strip.summary) << "\")\n";
     CMakeGen::EmitActivePackageSources(file, allPackages, activeIds, strip.SourceExcludeRegexes(),
                                        strip.AnythingStripped());
@@ -1401,10 +1394,9 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
         file << "endforeach()\n";
         file << "target_sources(${COMPONENT_LIB} PRIVATE ${_DEKI_FW_GEN_SRCS})\n";
         // Generate before compiling what is generated. Without this edge ninja
-        // is free to compile the previous build's .gen.cpp first, and did: a
-        // changed generator never ran, because the stale tables it would have
-        // replaced failed to compile before it got the chance. The package DLL
-        // build has carried the same edge all along (BuildFileGenerator).
+        // may compile the previous build's .gen.cpp first, and the stale
+        // tables fail to compile before a changed generator gets to run. The
+        // package DLL build has the same edge (BuildFileGenerator).
         file << "foreach(_TAG" << tags << ")\n";
         file << "    string(MAKE_C_IDENTIFIER \"${_TAG}\" _RC_TAGID)\n";
         file << "    add_dependencies(${COMPONENT_LIB} ${DEKI_RC_TARGETS_${_RC_TAGID}})\n";
@@ -1415,8 +1407,9 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
         file << "endforeach()\n";
     }
 
-    // Generate package init file that calls each package's RegisterComponents()
-    // and registers project game components with ComponentFactory
+    // Generate the package init file, which calls each package's
+    // RegisterComponents() and registers the project's game components with
+    // ComponentFactory.
     fs::path projectSrcPath = fs::path(GetSourceDirectory(projectPath));
     std::string packageInitPath = CMakeGen::GeneratePackageInitFile(mainPath, allPackages, activeIds, projectSrcPath);
     file << "\n# Package registration (calls each package's RegisterComponents for firmware builds)\n";
@@ -1428,7 +1421,6 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
 
     CMakeGen::EmitIncludePaths(file, "${COMPONENT_LIB}", "${DEKI_PROJECT_PATH}/src");
 
-    // Project sources
     file << "\n";
     file << "# =============================================================================\n";
     file << "# Project Sources\n";
@@ -1446,7 +1438,7 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
     file << "# =============================================================================\n";
     CMakeGen::EmitPlatformDefines(file, "${COMPONENT_LIB}", config, allDefines);
 
-    // ESP32 define (previously provided by arduino-esp32, now needed explicitly for engine guards)
+    // ESP32 define, which the engine's platform guards test
     file << "\ntarget_compile_definitions(${COMPONENT_LIB} PRIVATE ESP32)\n";
     file << "message(STATUS \"Deki transform: " << CMakeGen::EscapeCMakeString(transformWhy) << "\")\n";
     for (const auto& define : transformDefines)
@@ -1454,12 +1446,12 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
         file << "target_compile_definitions(${COMPONENT_LIB} PRIVATE " << define << ")\n";
     }
 
-    // Enable logging when requested by build options (DEKI_LOG_ENABLED env var set by ExecuteIDF)
+    // Logging when the build options ask for it (ExecuteIDF sets DEKI_LOG_ENABLED)
     file << "\nif(DEFINED ENV{DEKI_LOG_ENABLED} AND NOT \"$ENV{DEKI_LOG_ENABLED}\" STREQUAL \"\")\n";
     file << "    target_compile_definitions(${COMPONENT_LIB} PRIVATE DEKI_LOG_ENABLED)\n";
     file << "endif()\n";
 
-    // Enable internal logging when requested (verbose engine diagnostics)
+    // Internal logging when asked for (verbose engine diagnostics)
     file << "\nif(DEFINED ENV{DEKI_LOG_INTERNAL_ENABLED} AND NOT \"$ENV{DEKI_LOG_INTERNAL_ENABLED}\" STREQUAL \"\")\n";
     file << "    target_compile_definitions(${COMPONENT_LIB} PRIVATE DEKI_LOG_INTERNAL_ENABLED)\n";
     file << "endif()\n";
@@ -1474,7 +1466,7 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
         file << "target_compile_options(${COMPONENT_LIB} PRIVATE -include esp_attr.h)\n";
     }
 
-    // LittleFS data partition — create image from spiffs_data/ and flash with firmware
+    // LittleFS data partition: an image made from spiffs_data/, flashed with the firmware
     file << "\n";
     file << "# =============================================================================\n";
     file << "# LittleFS Data Partition (boot.scene, project_data.bin, assets/)\n";
@@ -1513,7 +1505,7 @@ bool ESPIDFBuilder::GenerateSdkConfigDefaults(const std::string& boardPath, cons
         file << "# PSRAM Configuration\n";
         file << "CONFIG_SPIRAM=y\n";
 
-        // PSRAM SPI mode: "oct" for Octal SPI, default is Quad
+        // PSRAM SPI mode: "oct" for Octal SPI, otherwise Quad
         if (config.Option("psramMode", "quad") == "oct")
         {
             file << "CONFIG_SPIRAM_MODE_OCT=y\n";
@@ -1527,7 +1519,7 @@ bool ESPIDFBuilder::GenerateSdkConfigDefaults(const std::string& boardPath, cons
     uint32_t cpuMhz = config.OptionU32("cpuFreqHz") / 1000000;
     if (cpuMhz == 0)
     {
-        cpuMhz = 240;  // Default
+        cpuMhz = 240;  // default
     }
 
     file << "# CPU Configuration\n";
@@ -1554,7 +1546,7 @@ bool ESPIDFBuilder::GenerateSdkConfigDefaults(const std::string& boardPath, cons
     uint32_t flashMB = config.OptionU32("flashSize") / (1024 * 1024);
     if (flashMB == 0)
     {
-        flashMB = 4;  // Default
+        flashMB = 4;  // default
     }
 
     file << "# Flash Configuration\n";
@@ -1580,23 +1572,22 @@ bool ESPIDFBuilder::GenerateSdkConfigDefaults(const std::string& boardPath, cons
     file << "CONFIG_PARTITION_TABLE_FILENAME=\"" << config.id << "/partitions.csv\"\n";
     file << "\n";
 
-    // Stack configuration
+    // Stack sizes
     file << "# Stack Sizes\n";
     file << "CONFIG_ESP_MAIN_TASK_STACK_SIZE=16384\n";
     file << "\n";
 
-    // FAT filesystem — long filename support required for SD card assets
-    // Asset files use GUID-based names (36 chars) and asset_table.bin (15 chars),
-    // both exceeding the 8.3 DOS filename limit.
+    // FAT filesystem: SD card assets need long filenames. Asset files have
+    // GUID names (36 chars) and asset_table.bin (15 chars), both past the 8.3
+    // DOS limit.
     file << "# FAT Filesystem (SD card)\n";
     file << "CONFIG_FATFS_LFN_HEAP=y\n";
     file << "CONFIG_FATFS_MAX_LFN=255\n";
 
     // The board's own options, last so they override anything chosen above.
-    // This file is rewritten on every build, so without this a board had no way
-    // to say anything the editor did not already know how to emit, and editing
-    // it by hand lasted exactly one build. Boards differ in ways this generator
-    // should not have to enumerate.
+    // This file is rewritten on every build, so this is how a board says
+    // what the generator does not know; boards differ in ways it should not
+    // have to list.
     const std::vector<std::string> extraSdkconfig = config.OptionList("sdkconfig");
     if (!extraSdkconfig.empty())
     {
@@ -1638,7 +1629,7 @@ bool ESPIDFBuilder::GeneratePartitionsCsv(const std::string& boardPath, const Pl
     const std::string partitionTable = config.Option("partitionTable");
     if (!partitionTable.empty())
     {
-        // Use custom partition table from platform config
+        // The platform config's own partition table
         file << partitionTable;
     }
     else
@@ -1812,7 +1803,7 @@ public:
     void ApplyToConfig(PlatformConfig& config) const override
     {
         config.SetOption("mcuChip", m_McuChip);
-        config.SetOption("idfTarget", m_McuChip);  // ESP-IDF target = chip
+        config.SetOption("idfTarget", m_McuChip);  // the ESP-IDF target is the chip
         config.framework = "espidf";
 
         config.screenWidth = m_ScreenWidth;
@@ -1858,10 +1849,9 @@ std::unique_ptr<IPlatformEditorUI> ESPIDFBuilder::CreateEditorUI(const PlatformC
 // ---------------------------------------------------------------------------
 // Builder plugin entry points
 //
-// This backend was compiled into DekiEditor.exe. It lives in the package for
-// the target it serves now and reaches the editor through the same plugin ABI
-// a third-party or NDA'd backend uses - so that path is the only path,
-// exercised on every build, and cannot quietly rot.
+// This backend lives in the package for the target it serves and reaches the
+// editor through the same plugin ABI a third-party or NDA'd backend uses, so
+// that path is tested on every build.
 //
 // In editor/ so the editor-side package DLL picks it up and firmware builds,
 // which filter editor/ out, do not.

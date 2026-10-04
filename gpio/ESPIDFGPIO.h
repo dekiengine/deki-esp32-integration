@@ -5,14 +5,12 @@
 namespace DekiEsp32
 {
 
-/**
- * @brief ESP-IDF pins
- *
- * Edge counting is one interrupt handler per counted pin, adding to a counter
- * the frame reads and clears with TakeEdges. The counter is a 32-bit word,
- * which the Xtensa core reads and writes in one go, so no lock is needed
- * between the handler and the frame.
- */
+/// GPIO pins on ESP-IDF.
+///
+/// Edge counting is one interrupt handler per counted pin, adding to a
+/// counter the frame reads and clears with TakeEdges. The counter is a 32-bit
+/// word, which the Xtensa core reads and writes in one go, so the handler and
+/// the frame need no lock.
 class ESPIDFGPIO : public DekiGpio::IDekiGPIO
 {
 public:

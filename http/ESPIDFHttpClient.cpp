@@ -16,8 +16,8 @@ namespace
 {
 
 #if defined(ESP32)
-// Largest response body kept. With no limit a large response grew the string
-// until an allocation failed, which aborts on the device (no exceptions).
+// Largest response body kept. Without a limit a large response grows the
+// string until an allocation fails, which aborts on the device (no exceptions).
 constexpr size_t kMaxBodyBytes = 512 * 1024;
 
 struct BodySink
@@ -26,8 +26,8 @@ struct BodySink
     bool tooLarge = false;
 };
 
-// esp_http_client event handler: appends response body to the BodySink passed
-// via user_data. Avoids the need to pre-size a response buffer.
+// esp_http_client event handler: appends the response body to the BodySink
+// passed in user_data, so no response buffer has to be sized up front.
 esp_err_t HttpEventCb(esp_http_client_event_t* evt)
 {
     if (!evt)
@@ -48,8 +48,8 @@ esp_err_t HttpEventCb(esp_http_client_event_t* evt)
     }
     else if (needed > out->text.capacity())
     {
-        // Growing copies into a block up to twice the size; refuse rather
-        // than let that allocation fail.
+        // Growing copies into a block up to twice the size; refuse instead of
+        // letting that allocation fail.
         const size_t grown = std::max(needed, out->text.capacity() * 2) + 1;
         // The string grows through malloc, so this asks malloc's heap for its
         // largest free block.

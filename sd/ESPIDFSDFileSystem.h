@@ -6,31 +6,22 @@
 namespace DekiEsp32
 {
 
-// Forward declaration
 class ESPIDFSDCard;
 
-/**
- * @brief ESP-IDF native SD card implementation of Deki::IFileSystem
- *
- * Uses POSIX file operations on the ESP-IDF VFS-mounted SD card.
- * After esp_vfs_fat_sdspi_mount(), the SD card is accessible via
- * standard fopen/fread/fwrite at the configured mount point.
- *
- * Path conversion:
- * - "S:/saves/game.sav" -> "/sdcard/saves/game.sav" (VFS mount point)
- * - "D:/saves/game.sav" -> "/sdcard/saves/game.sav" (legacy prefix)
- */
+/// Deki::IFileSystem on the SD card ESP-IDF's VFS has mounted, with POSIX
+/// file calls (fopen/fread/fwrite) at the mount point.
+///
+/// Path conversion:
+/// - "S:/saves/game.sav" -> "/sdcard/saves/game.sav" (VFS mount point)
+/// - "D:/saves/game.sav" -> "/sdcard/saves/game.sav" (legacy prefix)
 class ESPIDFSDFileSystem : public Deki::IFileSystem
 {
 public:
-    /**
-     * @brief Construct filesystem wrapper
-     * @param sdCard Parent SD card package (provides mount point)
-     */
+    /// `sdCard` is the SD card package that owns this and gives the mount point.
     explicit ESPIDFSDFileSystem(ESPIDFSDCard* sdCard);
     ~ESPIDFSDFileSystem() override;
 
-    // Deki::IFileSystem interface
+    // Deki::IFileSystem
     bool Initialize() override;
     void Shutdown() override;
     FileHandle OpenFile(const char* path, OpenMode mode) override;
@@ -47,10 +38,10 @@ private:
     ESPIDFSDCard* m_SDCard;
     std::string m_MountPoint;
 
-    // Convert virtual path (S:/... or D:/...) to VFS path (/sdcard/...)
+    // Virtual path (S:/... or D:/...) to VFS path (/sdcard/...)
     std::string ConvertVirtualPath(const char* virtualPath);
 
-    // Stack-buffer version — avoids heap allocation
+    // Same into a caller's buffer, with no heap allocation
     bool ConvertVirtualPathTo(const char* virtualPath, char* outBuffer, size_t bufSize);
 };
 

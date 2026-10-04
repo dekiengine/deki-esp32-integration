@@ -2,10 +2,8 @@
 
 #include <deki/providers/ITimeProvider.h>
 
-// Guarded because this header now lives in the package rather than the engine,
-// and the package's sources are also compiled for the editor's own DLL on a
-// desktop, where ESP-IDF's headers do not exist. It was unguarded while the
-// engine owned it, since nothing but a firmware build ever reached it.
+// Guarded: the package's sources are also compiled for the editor's DLL on a
+// desktop, where ESP-IDF's headers do not exist.
 #if defined(ESP32)
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
@@ -23,8 +21,8 @@ public:
 
     void DelayMs(uint32_t ms) const override { vTaskDelay(pdMS_TO_TICKS(ms)); }
 #else
-    // Declared but inert off-target, so the editor can still name the type
-    // while the package's sources compile on a desktop.
+    // Does nothing off-target, so the editor can still name the type while
+    // the package's sources compile on a desktop.
     uint32_t GetTicksMs() const override { return 0; }
     void DelayMs(uint32_t) const override {}
 #endif

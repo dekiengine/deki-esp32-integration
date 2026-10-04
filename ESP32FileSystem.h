@@ -3,12 +3,8 @@
 #include <deki/providers/IFileSystem.h>
 #include <string>
 
-/**
- * @brief ESP32 file system implementation using LittleFS via ESP-IDF VFS
- *
- * Uses esp_vfs_littlefs (ESP-IDF native) with POSIX file operations.
- * Virtual paths: F:/file.bin → /littlefs/file.bin
- */
+/// ESP32 file system on LittleFS through the ESP-IDF VFS (esp_vfs_littlefs),
+/// with POSIX file operations. Virtual paths: F:/file.bin → /littlefs/file.bin
 
 namespace Deki
 {
@@ -18,11 +14,7 @@ class ESP32FileSystem : public IFileSystem
 private:
     bool m_Initialized;
 
-    /**
-     * @brief Convert virtual path to VFS path
-     * @param virtualPath Virtual path (e.g., "F:/project_data.bin")
-     * @return VFS path (e.g., "/littlefs/project_data.bin")
-     */
+    // Virtual path to VFS path: "F:/project_data.bin" -> "/littlefs/project_data.bin".
     std::string ConvertPathInternal(const char* virtualPath);
 
 public:

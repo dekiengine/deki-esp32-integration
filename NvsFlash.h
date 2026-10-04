@@ -1,8 +1,8 @@
 #pragma once
 
-// Non-volatile storage, which the WiFi and Bluetooth stacks keep their
-// calibration and keys in. esp_wifi_init fails with ESP_ERR_NVS_NOT_INITIALIZED
-// until it is initialised, and nothing in Deki did, so WiFi never connected.
+// Non-volatile storage, where the WiFi and Bluetooth stacks keep their
+// calibration and keys. esp_wifi_init fails with ESP_ERR_NVS_NOT_INITIALIZED
+// until it is initialised, so the WiFi and BLE drivers call this first.
 
 #if defined(ESP32)
 #include "esp_err.h"
@@ -12,7 +12,7 @@
 namespace DekiEsp32
 {
 
-// Initialise NVS once. A partition that is full or was written by a newer
+// Initialises NVS once. A partition that is full or was written by a newer
 // IDF is erased and initialised again, as ESP-IDF's own examples do.
 inline bool EnsureNvsFlash()
 {

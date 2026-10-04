@@ -30,7 +30,7 @@ void ESP32SerialSetup::Setup(SetupCallback onComplete)
 
 void ESP32SerialSetup::Setup(SetupCallback onComplete)
 {
-    // Non-ESP32: Serial commands not applicable
+    // Not an ESP32: there are no serial commands to handle.
     onComplete(true);
 }
 

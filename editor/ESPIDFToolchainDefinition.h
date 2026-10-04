@@ -4,10 +4,9 @@
 // downloaded from, the digest each download is pinned to, and how an installed
 // copy is recognised.
 //
-// Carried in the backend rather than read from a file. This package's editor
-// DLL is built into the project's runtime directory, nowhere near these
-// sources, and the editor no longer ships a copy beside its executable - that
-// copy was the last thing making the editor carry one framework's recipe.
+// Compiled into the backend, not read from a file: this package's editor DLL
+// is built into the project's runtime directory, far from these sources, and
+// the editor itself carries no framework's recipe.
 //
 // It is JSON so it reads as the data it is; ToolchainComponentManager parses it
 // through DekiEditor::ParseBuilderDefinition.

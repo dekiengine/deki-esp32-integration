@@ -1,10 +1,6 @@
-/**
- * @file ESP32HALPackage.cpp
- * @brief Package entry point for deki-esp32-hal DLL
- *
- * This file exports the standard Deki plugin interface so the editor
- * can load deki-esp32-hal.dll and discover available ESP32 HAL components.
- */
+// Package entry point of the deki-esp32-hal DLL: exports the standard Deki
+// plugin interface so the editor can load it and find its ESP32 HAL
+// components.
 
 #include "ESP32HALPackage.h"
 #include <deki/interop/Plugin.h>
@@ -51,7 +47,7 @@ extern const Deki::ComponentMeta* DekiESP32HALGetAutoComponentMeta(int index);
 namespace DekiEsp32
 {
 
-// Direct backend registration for ESP32 hardware
+// Registers the ESP32 hardware backends at static-init time.
 #if defined(ESP32)
 
 namespace
@@ -73,33 +69,33 @@ struct ESP32BackendInit
         s_Gpio.Initialize();
         DekiGpio::DekiGPIO::SetCurrent(&s_Gpio);
 
-        // WiFi: single-active. The driver instance is intentionally leaked at
-        // process exit, matching the rest of this init block.
+        // WiFi: one active driver. Like the rest of this block, it is never
+        // freed.
         static ESPIDFWiFi s_WiFi;
         s_WiFi.Initialize();
         DekiWifi::DekiWiFi::SetCurrent(&s_WiFi);
 
-        // BLE: single-active, NimBLE-backed. Same leak rationale as WiFi.
+        // BLE: one active driver, on NimBLE. Never freed, like WiFi.
         static ESPIDFBLE s_BLE;
         s_BLE.Initialize();
         DekiBle::DekiBLE::SetCurrent(&s_BLE);
 
-        // HTTP: register ESP-IDF backed client with the abstract facade from
-        // deki-http. Consumers (location/weather providers) reach the active
-        // client through DekiHttp::Get / PostJson, never via the concrete type.
+        // HTTP: the ESP-IDF client behind deki-http's facade. Consumers
+        // (location and weather providers) reach it through DekiHttp::Get /
+        // PostJson, never through the concrete type.
         static ESPIDFHttpClient s_Http;
         DekiHttp::SetCurrent(&s_Http);
 
-        // Power: light-sleep driver. Idle timeout / wake GPIO are configured
-        // by the app at runtime via Deki::Power::GetCurrent()->Set*.
+        // Power: the light-sleep driver. The app sets idle timeout and wake
+        // GPIO at run time through Deki::Power::GetCurrent()->Set*.
         static ESPIDFPower s_Power;
         s_Power.Initialize();
         Deki::Power::SetCurrent(&s_Power);
 
 #if defined(CONFIG_IDF_TARGET_ESP32S3)
-        // S3 PIE SIMD blit kernels. Only kernels with verified implementations
-        // are registered; the dispatcher in QuadBlit runs its scalar inner
-        // loop for unregistered ops. See blit/S3PIEBlitKernels.cpp.
+        // S3 PIE SIMD blit kernels. Only verified kernels are registered;
+        // QuadBlit runs its scalar inner loop for the other ops. See
+        // blit/S3PIEBlitKernels.cpp.
         QuadBlit::RegisterKernel(QuadBlit::KernelOp::RGB565CopyRow, &DekiEsp32::Blit::S3PIERGB565CopyRow);
 #endif
     }
@@ -121,16 +117,12 @@ extern "C" void app_main(void)
 
 #ifdef DEKI_EDITOR
 
-// Auto-generated registration helpers
-
-// Track if already registered to avoid duplicates
+// Set once registered, so a second call does not register twice.
 static bool s_ESP32HALRegistered = false;
 
 extern "C"
 {
-    /**
-     * @brief Ensure deki-esp32-hal package is loaded and components are registered
-     */
+    /// Registers the package's components once and returns how many there are.
     DEKI_ESP32_HAL_API int DekiESP32HALEnsureRegistered(void)
     {
         if (s_ESP32HALRegistered)
@@ -139,14 +131,14 @@ extern "C"
         }
         s_ESP32HALRegistered = true;
 
-        // Auto-generated: registers all ESP32 HAL components with ComponentRegistry + ComponentFactory
+        // Generated: registers every ESP32 HAL component with ComponentRegistry and ComponentFactory.
         ::DekiESP32HALRegisterComponents();
 
         return ::DekiESP32HALGetAutoComponentCount();
     }
 
     // =============================================================================
-    // Plugin metadata (for dynamic loading compatibility)
+    // Plugin metadata, for loading as a DLL
     // =============================================================================
 
     DEKI_PLUGIN_API const char* DekiPluginGetName(void)
@@ -189,7 +181,7 @@ extern "C"
     }
 
     // =============================================================================
-    // Package-specific feature API (for linked DLL access without name conflicts)
+    // Package-specific API, named so linked DLLs do not clash
     // =============================================================================
 
     DEKI_ESP32_HAL_API const char* DekiESP32HALGetName(void)
@@ -199,9 +191,9 @@ extern "C"
 
 }  // extern "C"
 
-#else  // !DEKI_EDITOR - Runtime registration
+#else  // !DEKI_EDITOR
 
-// For runtime builds, component registration happens via static initializers
-// or explicit calls from the application
+// Runtime builds register components through static initializers or explicit
+// calls from the application.
 
 #endif  // DEKI_EDITOR

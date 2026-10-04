@@ -2,13 +2,8 @@
 
 #include <deki/providers/IMemoryProvider.h>
 
-/**
- * @file ESP32MemoryProvider.h
- * @brief ESP32 memory provider implementation using heap_caps API
- *
- * Provides PSRAM (SPI RAM) support for ESP32, ESP32-S2, ESP32-S3, etc.
- * Uses ESP-IDF heap_caps functions for external memory allocation.
- */
+// ESP32 memory provider on the ESP-IDF heap_caps API, with PSRAM (SPI RAM)
+// support for the ESP32, ESP32-S2, ESP32-S3 and others.
 
 namespace Deki
 {
@@ -30,8 +25,8 @@ public:
     size_t GetAvailable(Memory::Region region) const override;
 
     // AllocateRaw/FreeRaw keep the base malloc/free, which on ESP-IDF is
-    // heap_caps under the hood with the same alignment operator new had
-    // before it was routed here. Only the size query needs the platform.
+    // heap_caps underneath with operator new's alignment. Only the size
+    // query needs the platform.
     size_t GetRawBlockSize(void* ptr) const override;
 
 private:

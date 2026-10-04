@@ -7,17 +7,11 @@
 namespace DekiEsp32
 {
 
-/**
- * @brief ESP-IDF implementation of DekiWifi::IDekiWiFi.
- *
- * Drops into the active-driver slot via DekiWifi::DekiWiFi::SetCurrent at package load
- * (see DekiESP32HALPackage.cpp). Knows nothing about credentials, NVS, or
- * provisioning UX — the caller passes ssid/password to Connect explicitly.
- *
- * A small auto-connect helper elsewhere in this package reads NVS-stored
- * credentials at boot and calls Connect; that's the temporary placeholder
- * for the future captive-portal provisioning package.
- */
+/// DekiWifi::IDekiWiFi on ESP-IDF.
+///
+/// Becomes the active driver through DekiWifi::DekiWiFi::SetCurrent at
+/// package load (see ESP32HALPackage.cpp). Keeps no credentials and has no
+/// provisioning UI: the caller passes ssid and password to Connect.
 class ESPIDFWiFi : public DekiWifi::IDekiWiFi
 {
 public:

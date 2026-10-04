@@ -1,8 +1,8 @@
 // S3 PIE (Processor Instruction Extensions) SIMD blit kernels.
 //
-// Compiled only when targeting the ESP32-S3 — the entire translation unit is
-// guarded so non-S3 builds (desktop editor, P4, etc.) link cleanly with no
-// references to PIE-only intrinsics or instruction encodings.
+// Compiled only for the ESP32-S3: the whole file is guarded so other builds
+// (desktop editor, P4, etc.) never see PIE-only intrinsics or instruction
+// encodings.
 //
 // PIE reference: ESP32-S3 Technical Reference Manual, ch. "Processor
 // Instruction Extensions", and the user-mode "ee.*" instruction set.
@@ -19,13 +19,12 @@ namespace DekiEsp32::Blit
 // ---------------------------------------------------------------------------
 // RGB565 1:1 row copy
 // ---------------------------------------------------------------------------
-// Copies pixelCount RGB565 pixels (2 bytes each) from src to dst using PIE
-// 128-bit loads/stores. Caller guarantees both pointers are 16-byte aligned.
-// Each iteration moves 8 pixels (16 bytes); tail is handled with memcpy.
+// Copies pixelCount RGB565 pixels (2 bytes each) from src to dst with PIE
+// 128-bit loads and stores. The caller guarantees both pointers are 16-byte
+// aligned. Each iteration moves 8 pixels (16 bytes); memcpy copies the tail.
 //
-// Uses ee.vld.128.ip / ee.vst.128.ip with post-increment by 16. The "ip"
-// suffix produces an immediate post-increment; the assembler accepts an
-// integer offset literal in the instruction encoding.
+// Uses ee.vld.128.ip / ee.vst.128.ip, which post-increment the pointer by
+// the immediate 16 (the "ip" suffix).
 
 void S3PIERGB565CopyRow(const uint8_t* src, uint8_t* dst, int32_t pixelCount, uint8_t /*tintR*/, uint8_t /*tintG*/,
                         uint8_t /*tintB*/, uint8_t /*tintA*/)
@@ -52,20 +51,18 @@ void S3PIERGB565CopyRow(const uint8_t* src, uint8_t* dst, int32_t pixelCount, ui
 // ---------------------------------------------------------------------------
 // RGB565A8 → RGB565 1:1 row alpha blend
 // ---------------------------------------------------------------------------
-// NOT YET REGISTERED. The per-pixel pipeline (3-byte gather, RGB565 unpack,
-// multiply-add by alpha, repack) needs careful PIE asm with on-hardware bit
-// verification. Until that exists, ESP32HALPackage.cpp does not register this
-// kernel — the QuadBlit dispatcher then runs its scalar inner loop, same as
-// every other build target.
+// NOT REGISTERED. The per-pixel pipeline (3-byte gather, RGB565 unpack,
+// multiply-add by alpha, repack) needs PIE asm verified bit for bit on
+// hardware. Without it ESP32HALPackage.cpp leaves this kernel out and the
+// QuadBlit dispatcher runs its scalar inner loop, as on every other target.
 //
-// The symbol is provided so the dispatch shape is end-to-end and future work
-// only needs to fill in the body and flip the registration on.
+// The symbol exists so the dispatch is complete: an implementation only has
+// to fill in the body and register it.
 
 void S3PIERGB565A8BlendRow(const uint8_t* /*src*/, uint8_t* /*dst*/, int32_t /*pixelCount*/, uint8_t /*tintR*/,
                            uint8_t /*tintG*/, uint8_t /*tintB*/, uint8_t /*tintA*/)
 {
-    // Intentionally empty until a verified PIE implementation lands.
-    // This function is not registered with QuadBlit, so it is never called.
+    // Empty on purpose: it is not registered with QuadBlit, so never called.
 }
 
 }  // namespace DekiEsp32::Blit

@@ -7,14 +7,12 @@
 //
 // ESP-IDF refuses to have both in one application and aborts during startup
 // with "CONFLICT! driver_ng is not allowed to be used with this old driver".
-// LovyanGFX uses the new one, so any board with both a display and this
-// package used to abort before reaching app_main. The legacy driver is
-// deprecated anyway.
+// LovyanGFX uses the new one, so a board with a display and this package
+// needs it too. The legacy driver is deprecated anyway.
 //
-// The shape differs: the old driver addressed a port and carried the target
-// address in each transaction, the new one hands out a handle per device. So
-// a small cache below turns an address back into a handle, which keeps
-// DekiI2c::IDekiI2C's address-per-call interface intact.
+// The new driver hands out a handle per device instead of taking the target
+// address in each transaction, so a small cache below turns an address back
+// into a handle and DekiI2c::IDekiI2C keeps its address-per-call interface.
 #include "driver/i2c_master.h"
 #endif
 
@@ -144,8 +142,7 @@ bool ESPIDFI2C::Read(uint8_t addr, uint8_t reg, uint8_t* dst, size_t len)
         return false;
     }
 
-    // Write the register then read, as one transaction with a repeated start:
-    // the driver does what the old cmd link was hand-built to do.
+    // Write the register then read, as one transaction with a repeated start.
     return i2c_master_transmit_receive(dev, &reg, 1, dst, len, 50) == ESP_OK;
 #else
     (void)addr;

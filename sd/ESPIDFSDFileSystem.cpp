@@ -32,13 +32,13 @@ ESPIDFSDFileSystem::~ESPIDFSDFileSystem()
 
 bool ESPIDFSDFileSystem::Initialize()
 {
-    // Initialization is handled by ESPIDFSDCard
+    // ESPIDFSDCard does the work.
     return true;
 }
 
 void ESPIDFSDFileSystem::Shutdown()
 {
-    // Shutdown is handled by ESPIDFSDCard
+    // ESPIDFSDCard does the work.
 }
 
 std::string ESPIDFSDFileSystem::ConvertVirtualPath(const char* virtualPath)
@@ -50,19 +50,19 @@ std::string ESPIDFSDFileSystem::ConvertVirtualPath(const char* virtualPath)
 
     std::string path(virtualPath);
 
-    // Convert "S:/" prefix to VFS mount point path
-    // ESP-IDF VFS uses full mount point paths (e.g., "/sdcard/scenes/Demo")
+    // "S:/" becomes the VFS mount point; ESP-IDF's VFS uses full mount point
+    // paths (e.g. "/sdcard/scenes/Demo").
     if (path.length() >= 3 && (path[0] == 'S' || path[0] == 's') && path[1] == ':' && path[2] == '/')
     {
         path = m_MountPoint + "/" + path.substr(3);
     }
-    // Legacy: Convert "D:/" prefix
+    // Legacy "D:/" prefix
     else if (path.length() >= 3 && (path[0] == 'D' || path[0] == 'd') && path[1] == ':' && path[2] == '/')
     {
         path = m_MountPoint + "/" + path.substr(3);
     }
 
-    // Ensure forward slashes
+    // Forward slashes only
     for (char& c : path)
     {
         if (c == '\\')
@@ -84,7 +84,7 @@ bool ESPIDFSDFileSystem::ConvertVirtualPathTo(const char* virtualPath, char* out
     const char* suffix = virtualPath;
     bool hasPrefix = false;
 
-    // Check S:/ or D:/ prefix
+    // S:/ or D:/ prefix
     if (virtualPath[0] && virtualPath[1] == ':' && virtualPath[2] == '/' &&
         (virtualPath[0] == 'S' || virtualPath[0] == 's' || virtualPath[0] == 'D' || virtualPath[0] == 'd'))
     {

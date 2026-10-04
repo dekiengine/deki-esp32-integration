@@ -9,26 +9,22 @@
 namespace DekiEditor
 {
 
-/**
- * @brief ESP-IDF firmware builder implementation
- *
- * Builds firmware using the Espressif ESP-IDF framework and idf.py tool.
- * Supports ESP32, ESP32-S2, ESP32-S3, ESP32-C3, ESP32-C6, ESP32-H2 targets.
- */
+/// Builds firmware with Espressif's ESP-IDF and its idf.py tool, for the
+/// ESP32, ESP32-S2, ESP32-S3, ESP32-C3, ESP32-C6 and ESP32-H2.
 class ESPIDFBuilder : public FirmwareBuilderBase
 {
 public:
     ESPIDFBuilder();
     ~ESPIDFBuilder() override;
 
-    // Core operations — use RunOnBuildThread()
+    // Core operations; they run on RunOnBuildThread().
     void Build(const std::string& projectPath, BuildOutputCallback outputCallback = nullptr,
                BuildProgressCallback progressCallback = nullptr) override;
     void Clean(const std::string& projectPath, BuildOutputCallback outputCallback = nullptr,
                BuildProgressCallback progressCallback = nullptr) override;
 
-    // Deploy = write the image over a serial port. The target id is the port;
-    // empty lets idf.py find one. A simulated build is run in QEMU instead.
+    // Deploy writes the image over a serial port. The target id is the port;
+    // empty lets idf.py find one. A simulated build runs in QEMU instead.
     bool SupportsDeploy() const override { return true; }
     const char* GetDeployLabel() const override { return m_BuildOptions.simulate ? "Run" : "Flash"; }
     std::vector<DeployTarget> EnumerateDeployTargets() const override;
@@ -37,15 +33,15 @@ public:
     std::vector<std::pair<std::string, std::string>> DescribePlatform(const PlatformConfig& config) const override;
 
     // Simulation: the board's firmware in Espressif's QEMU (ESP32 and
-    // ESP32-S3, which QEMU gives a screen), built into <id>_qemu with the
-    // QEMU screen added to the boot scene and an SPI card moved to the SD
-    // host, and run in a QEMU window with a card image.
+    // ESP32-S3, which QEMU gives a screen). Built into <id>_qemu with the QEMU
+    // screen added to the boot scene and an SPI card moved to the SD host,
+    // then run in a QEMU window with a card image.
     bool SupportsSimulation() const override;
     const char* GetSimulatorName() const override { return "QEMU"; }
     bool MakeSimulationBootScene(std::string& scene, const PlatformConfig& config, std::vector<std::string>& notes,
                                  std::string& error) const override;
 
-    // Toolchain — ESP-IDF specific
+    // Toolchain
     bool IsToolchainInstalled() const override;
     std::string GetToolchainStatus() const override;
     // Build file generation
@@ -54,9 +50,8 @@ public:
 
     // Identity
     const char* GetName() const override { return "ESP-IDF"; }
-    // Shown in the platform editor's framework picker. The editor used to
-    // hold these strings for the backends it shipped; a backend describes
-    // itself now, so one it has never heard of is not anonymous.
+    // Shown in the platform editor's framework picker. Each backend
+    // describes itself, so the editor needs no list of them.
     const char* GetIcon() const override { return ICON_TI_CPU; }
     const char* GetDescription() const override { return "Build for ESP32, ESP32-S3 and other Espressif chips"; }
 
@@ -72,16 +67,13 @@ public:
     // Platform editor UI
     std::unique_ptr<IPlatformEditorUI> CreateEditorUI(const PlatformConfig& config) const override;
 
-    // ESP-IDF specific public methods
     std::string GetIDFPath() const;
 
 private:
     ESPIDFToolchain m_Toolchain;
 
-    // Build execution context helper
     ESPIDFExecContext MakeExecContext();
 
-    // Internal worker functions
     void DoBuild(const std::string& projectPath, BuildOutputCallback outputCallback,
                  BuildProgressCallback progressCallback);
     void DoRunQemu(const std::string& projectPath, BuildOutputCallback outputCallback,

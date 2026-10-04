@@ -8,24 +8,21 @@
 namespace DekiEsp32
 {
 
-/**
- * @brief ESP-IDF implementation of Deki::IPower.
- *
- * Light sleep only for this iteration. `SupportsMode(Deep)` returns false
- * until a follow-up wires NVS persistence and the reboot-as-wake handling
- * deep sleep requires (esp_deep_sleep_start never returns; the device boots
- * fresh when the wake source fires).
- *
- * Tick() drives the idle timer and, when the timeout elapses, fires
- * OnBeforeSleep callbacks, configures wake sources, and calls
- * esp_light_sleep_start() which blocks until wake. On wake the function
- * returns, OnScreenOn callbacks fire, and Tick() returns to the engine main
- * loop which proceeds with the next frame as normal.
- *
- * Backlight is toggled automatically in built-in OnBeforeSleep / OnScreenOn
- * handlers registered during Initialize(); app callbacks are appended to the
- * same lists and fire alongside the backlight ones.
- */
+/// Deki::IPower on ESP-IDF.
+///
+/// Light sleep only. `SupportsMode(Deep)` returns false: deep sleep needs NVS
+/// persistence and reboot-as-wake handling (esp_deep_sleep_start never
+/// returns; the device boots fresh when the wake source fires).
+///
+/// Tick() drives the idle timer. When the timeout passes it fires the
+/// OnBeforeSleep callbacks, sets up the wake sources and calls
+/// esp_light_sleep_start(), which blocks until wake. Then the OnScreenOn
+/// callbacks fire and Tick() returns to the engine's main loop, which goes on
+/// with the next frame.
+///
+/// Built-in OnBeforeSleep / OnScreenOn handlers registered in Initialize()
+/// switch the backlight; app callbacks are appended to the same lists and
+/// fire after them.
 class ESPIDFPower : public Deki::IPower
 {
 public:
