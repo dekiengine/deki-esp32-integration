@@ -51,7 +51,10 @@ esp_err_t HttpEventCb(esp_http_client_event_t* evt)
         // Growing copies into a block up to twice the size; refuse rather
         // than let that allocation fail.
         const size_t grown = std::max(needed, out->text.capacity() * 2) + 1;
-        if (heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT) < grown + 16 * 1024)
+        // The string grows through malloc, so this asks malloc's heap for its
+        // largest free block.
+        const size_t largest = heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT);  // deki-alloc-ok: a query
+        if (largest < grown + 16 * 1024)
         {
             out->tooLarge = true;
         }

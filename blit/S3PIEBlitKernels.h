@@ -13,15 +13,15 @@ namespace DekiEsp32::Blit
 // RGB565 1:1 row copy. src/dst point at RGB565 pixels (2 bytes/pixel),
 // 16-byte aligned. pixelCount may be any non-negative integer; tail handled
 // scalar inside the kernel.
-void S3PIE_RGB565_Copy_Row(const uint8_t* src, uint8_t* dst, int32_t pixelCount, uint8_t tintR, uint8_t tintG,
-                           uint8_t tintB, uint8_t tintA);
+void S3PIERGB565CopyRow(const uint8_t* src, uint8_t* dst, int32_t pixelCount, uint8_t tintR, uint8_t tintG,
+                        uint8_t tintB, uint8_t tintA);
 
 // RGB565A8 → RGB565 1:1 row alpha blend. src is 3 bytes/pixel (RGB565 + 1
 // alpha), dst is 2 bytes/pixel. Both 16-byte aligned. Handles a==0 skip and
 // a==255 short-circuit per pixel. No tint, no chroma key — caller has already
 // gated those out.
-void S3PIE_RGB565A8_Blend_Row(const uint8_t* src, uint8_t* dst, int32_t pixelCount, uint8_t tintR, uint8_t tintG,
-                              uint8_t tintB, uint8_t tintA);
+void S3PIERGB565A8BlendRow(const uint8_t* src, uint8_t* dst, int32_t pixelCount, uint8_t tintR, uint8_t tintG,
+                           uint8_t tintB, uint8_t tintA);
 
 // True if this build will register kernels (compile-time gate). Used by
 // ESP32HALPackage.cpp to suppress the registration call on non-S3 builds.

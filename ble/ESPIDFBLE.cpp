@@ -58,20 +58,20 @@ uint8_t s_AdvRawLen = 0;
 // Each translated service has a flat char array terminated by a zero entry.
 struct GattCharRecord
 {
-    DekiBle::DekiBLEUUID deki_uuid;
-    ble_uuid_any_t nimble_uuid;
-    uint16_t val_handle;  // populated by NimBLE via ble_gatts_add_svcs callback
+    DekiBle::DekiBLEUUID dekiUuid;
+    ble_uuid_any_t nimbleUuid;
+    uint16_t valHandle;  // populated by NimBLE via ble_gatts_add_svcs callback
     uint8_t props;
-    uint16_t max_len;
-    uint8_t idx_in_service;
+    uint16_t maxLen;
+    uint8_t idxInService;
 };
 
 struct GattServiceRecord
 {
-    DekiBle::DekiBLEUUID deki_uuid;
-    ble_uuid_any_t nimble_uuid;
+    DekiBle::DekiBLEUUID dekiUuid;
+    ble_uuid_any_t nimbleUuid;
     std::vector<GattCharRecord> chars;
-    std::vector<ble_gatt_chr_def> chr_defs;  // terminated entry appended
+    std::vector<ble_gatt_chr_def> chrDefs;  // terminated entry appended
 };
 
 std::vector<GattServiceRecord> s_GattServices;
@@ -90,12 +90,12 @@ SemaphoreHandle_t s_ClientSem = nullptr;
 struct ClientOpState
 {
     int status;
-    DekiBle::DekiBLEConnHandle conn_handle;
-    uint16_t attr_handle_first;
-    uint8_t attr_handle_count;
-    uint8_t* read_buf;
-    size_t read_buf_max;
-    size_t read_buf_written;
+    DekiBle::DekiBLEConnHandle connHandle;
+    uint16_t attrHandleFirst;
+    uint8_t attrHandleCount;
+    uint8_t* readBuf;
+    size_t readBufMax;
+    size_t readBufWritten;
 } s_ClientOp;
 
 // GATT notify dispatch
@@ -223,7 +223,7 @@ void DispatchScanResult(const struct ble_gap_disc_desc& disc)
     dev.rssi = disc.rssi;
 
     uint8_t copyLen = disc.length_data > 31 ? 31 : disc.length_data;
-    std::memcpy(dev.adv_data, disc.data, copyLen);
+    std::memcpy(dev.advData, disc.data, copyLen);
     dev.advLen = copyLen;
 
     // Parse common AD types out of the raw payload.
@@ -252,26 +252,26 @@ void DispatchScanResult(const struct ble_gap_disc_desc& disc)
             dev.manufacturerDataLen = mlen;
         }
         // Parse up to 4 service UUIDs across 16/32/128 lists.
-        uint8_t out_i = 0;
-        for (uint8_t i = 0; i < fields.num_uuids16 && out_i < 4; ++i)
+        uint8_t outI = 0;
+        for (uint8_t i = 0; i < fields.num_uuids16 && outI < 4; ++i)
         {
             ble_uuid16_t u = { .u = { .type = BLE_UUID_TYPE_16 }, .value = fields.uuids16[i].value };
-            FromNimbleUuid((const ble_uuid_t*)&u, dev.serviceUuids[out_i++]);
+            FromNimbleUuid((const ble_uuid_t*)&u, dev.serviceUuids[outI++]);
         }
-        for (uint8_t i = 0; i < fields.num_uuids128 && out_i < 4; ++i)
+        for (uint8_t i = 0; i < fields.num_uuids128 && outI < 4; ++i)
         {
             ble_uuid128_t u;
             u.u.type = BLE_UUID_TYPE_128;
             std::memcpy(u.value, fields.uuids128[i].value, 16);
-            FromNimbleUuid((const ble_uuid_t*)&u, dev.serviceUuids[out_i++]);
+            FromNimbleUuid((const ble_uuid_t*)&u, dev.serviceUuids[outI++]);
         }
-        dev.serviceUuidCount = out_i;
+        dev.serviceUuidCount = outI;
     }
 
     s_ScanCb(dev, s_ScanUser);
 }
 
-void DispatchConnEvent(uint16_t conn_handle, const ble_addr_t* peer, bool connected)
+void DispatchConnEvent(uint16_t connHandle, const ble_addr_t* peer, bool connected)
 {
     if (!s_ConnCb)
     {
@@ -283,7 +283,7 @@ void DispatchConnEvent(uint16_t conn_handle, const ble_addr_t* peer, bool connec
         std::memcpy(addr.bytes, peer->val, 6);
         addr.type = FromNimbleAddrType(peer->type);
     }
-    s_ConnCb(conn_handle, addr, connected, s_ConnUser);
+    s_ConnCb(connHandle, addr, connected, s_ConnUser);
 }
 
 int GapEvent(struct ble_gap_event* ev, void* /*arg*/)
@@ -303,7 +303,7 @@ int GapEvent(struct ble_gap_event* ev, void* /*arg*/)
             }
             // Wake any blocked Connect()
             s_ClientOp.status = ev->connect.status;
-            s_ClientOp.conn_handle = ev->connect.conn_handle;
+            s_ClientOp.connHandle = ev->connect.conn_handle;
             if (s_ClientSem)
             {
                 xSemaphoreGive(s_ClientSem);
@@ -322,11 +322,11 @@ int GapEvent(struct ble_gap_event* ev, void* /*arg*/)
             if (s_NotifyCb && ev->notify_rx.om)
             {
                 uint8_t buf[256];
-                uint16_t out_len = 0;
-                int rc = ble_hs_mbuf_to_flat(ev->notify_rx.om, buf, sizeof(buf), &out_len);
+                uint16_t outLen = 0;
+                int rc = ble_hs_mbuf_to_flat(ev->notify_rx.om, buf, sizeof(buf), &outLen);
                 if (rc == 0)
                 {
-                    s_NotifyCb(ev->notify_rx.conn_handle, ev->notify_rx.attr_handle, buf, out_len, s_NotifyUser);
+                    s_NotifyCb(ev->notify_rx.conn_handle, ev->notify_rx.attr_handle, buf, outLen, s_NotifyUser);
                 }
             }
             return 0;
@@ -340,7 +340,7 @@ int GapEvent(struct ble_gap_event* ev, void* /*arg*/)
 // GATT server access callback
 // =============================================================================
 
-int GattAccess(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt_access_ctxt* ctxt, void* /*arg*/)
+int GattAccess(uint16_t connHandle, uint16_t attrHandle, struct ble_gatt_access_ctxt* ctxt, void* /*arg*/)
 {
     if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR)
     {
@@ -349,13 +349,13 @@ int GattAccess(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt_acces
             return 0;
         }
         uint8_t buf[512];
-        uint16_t out_len = 0;
-        int rc = ble_hs_mbuf_to_flat(ctxt->om, buf, sizeof(buf), &out_len);
+        uint16_t outLen = 0;
+        int rc = ble_hs_mbuf_to_flat(ctxt->om, buf, sizeof(buf), &outLen);
         if (rc != 0)
         {
             return BLE_ATT_ERR_UNLIKELY;
         }
-        s_CharWriteCb(conn_handle, attr_handle, buf, out_len, s_CharWriteUser);
+        s_CharWriteCb(connHandle, attrHandle, buf, outLen, s_CharWriteUser);
         return 0;
     }
     if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR)
@@ -364,7 +364,7 @@ int GattAccess(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt_acces
         int written = 0;
         if (s_CharReadCb)
         {
-            written = s_CharReadCb(conn_handle, attr_handle, buf, sizeof(buf), s_CharReadUser);
+            written = s_CharReadCb(connHandle, attrHandle, buf, sizeof(buf), s_CharReadUser);
         }
         if (written < 0)
         {
@@ -379,23 +379,23 @@ int GattAccess(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt_acces
 uint8_t PropsToNimble(uint8_t deki)
 {
     uint8_t f = 0;
-    if (deki & DekiBLECharProp_Read)
+    if (deki & DekiBLECharPropRead)
     {
         f |= BLE_GATT_CHR_F_READ;
     }
-    if (deki & DekiBLECharProp_Write)
+    if (deki & DekiBLECharPropWrite)
     {
         f |= BLE_GATT_CHR_F_WRITE;
     }
-    if (deki & DekiBLECharProp_WriteNoResp)
+    if (deki & DekiBLECharPropWriteNoResp)
     {
         f |= BLE_GATT_CHR_F_WRITE_NO_RSP;
     }
-    if (deki & DekiBLECharProp_Notify)
+    if (deki & DekiBLECharPropNotify)
     {
         f |= BLE_GATT_CHR_F_NOTIFY;
     }
-    if (deki & DekiBLECharProp_Indicate)
+    if (deki & DekiBLECharPropIndicate)
     {
         f |= BLE_GATT_CHR_F_INDICATE;
     }
@@ -582,13 +582,13 @@ bool ESPIDFBLE::StartAdvertising(const DekiBle::DekiBLEAdvData& data)
             fields.name_is_complete = 1;
         }
         // Marshal manufacturer data with leading manufacturer_id (LE).
-        uint8_t mfg_buf[29];
+        uint8_t mfgBuf[29];
         if (data.manufacturerId != 0xFFFF && data.manufacturerDataLen > 0 && data.manufacturerDataLen <= 27)
         {
-            mfg_buf[0] = data.manufacturerId & 0xFF;
-            mfg_buf[1] = (data.manufacturerId >> 8) & 0xFF;
-            std::memcpy(mfg_buf + 2, data.manufacturerData, data.manufacturerDataLen);
-            fields.mfg_data = mfg_buf;
+            mfgBuf[0] = data.manufacturerId & 0xFF;
+            mfgBuf[1] = (data.manufacturerId >> 8) & 0xFF;
+            std::memcpy(mfgBuf + 2, data.manufacturerData, data.manufacturerDataLen);
+            fields.mfg_data = mfgBuf;
             fields.mfg_data_len = data.manufacturerDataLen + 2;
         }
         // Service UUIDs: only 128-bit emitted here (16-bit can be added if asked).
@@ -673,37 +673,37 @@ bool ESPIDFBLE::BuildGattServer(DekiBle::DekiBLEServiceSpec* services, uint8_t c
     for (uint8_t s = 0; s < count; ++s)
     {
         GattServiceRecord& rec = s_GattServices[s];
-        rec.deki_uuid = services[s].uuid;
-        ToNimbleUuid(rec.deki_uuid, rec.nimble_uuid);
+        rec.dekiUuid = services[s].uuid;
+        ToNimbleUuid(rec.dekiUuid, rec.nimbleUuid);
 
         rec.chars.resize(services[s].charCount);
-        rec.chr_defs.resize(services[s].charCount + 1);
+        rec.chrDefs.resize(services[s].charCount + 1);
 
         for (uint8_t c = 0; c < services[s].charCount; ++c)
         {
             GattCharRecord& cr = rec.chars[c];
-            cr.deki_uuid = services[s].chars[c].uuid;
+            cr.dekiUuid = services[s].chars[c].uuid;
             cr.props = services[s].chars[c].props;
             cr.maxLen = services[s].chars[c].maxLen;
-            cr.idx_in_service = c;
-            ToNimbleUuid(cr.deki_uuid, cr.nimble_uuid);
+            cr.idxInService = c;
+            ToNimbleUuid(cr.dekiUuid, cr.nimbleUuid);
 
-            ble_gatt_chr_def& d = rec.chr_defs[c];
+            ble_gatt_chr_def& d = rec.chrDefs[c];
             std::memset(&d, 0, sizeof(d));
-            d.uuid = (const ble_uuid_t*)&cr.nimble_uuid;
+            d.uuid = (const ble_uuid_t*)&cr.nimbleUuid;
             d.access_cb = GattAccess;
             d.arg = nullptr;
             d.flags = PropsToNimble(cr.props);
-            d.val_handle = &cr.val_handle;
+            d.val_handle = &cr.valHandle;
         }
         // Terminator
-        std::memset(&rec.chr_defs[services[s].charCount], 0, sizeof(ble_gatt_chr_def));
+        std::memset(&rec.chrDefs[services[s].charCount], 0, sizeof(ble_gatt_chr_def));
 
         ble_gatt_svc_def& sd = s_GattSvcDefs[s];
         std::memset(&sd, 0, sizeof(sd));
         sd.type = BLE_GATT_SVC_TYPE_PRIMARY;
-        sd.uuid = (const ble_uuid_t*)&rec.nimble_uuid;
-        sd.characteristics = rec.chr_defs.data();
+        sd.uuid = (const ble_uuid_t*)&rec.nimbleUuid;
+        sd.characteristics = rec.chrDefs.data();
     }
     // Terminator
     std::memset(&s_GattSvcDefs[count], 0, sizeof(ble_gatt_svc_def));
@@ -732,7 +732,7 @@ bool ESPIDFBLE::BuildGattServer(DekiBle::DekiBLEServiceSpec* services, uint8_t c
     {
         for (uint8_t c = 0; c < services[s].charCount; ++c)
         {
-            services[s].chars[c].valueHandle = s_GattServices[s].chars[c].val_handle;
+            services[s].chars[c].valueHandle = s_GattServices[s].chars[c].valHandle;
         }
     }
     return true;
@@ -817,9 +817,9 @@ void ESPIDFBLE::DisconnectClient(DekiBle::DekiBLEConnHandle conn)
 namespace
 {
 
-int DiscChrCb(uint16_t conn_handle, const struct ble_gatt_error* error, const struct ble_gatt_chr* chr, void* /*arg*/)
+int DiscChrCb(uint16_t connHandle, const struct ble_gatt_error* error, const struct ble_gatt_chr* chr, void* /*arg*/)
 {
-    (void)conn_handle;
+    (void)connHandle;
     if (error && error->status == BLE_HS_EDONE)
     {
         if (s_ClientSem)
@@ -830,27 +830,27 @@ int DiscChrCb(uint16_t conn_handle, const struct ble_gatt_error* error, const st
     }
     if (chr)
     {
-        if (s_ClientOp.attr_handle_count == 0)
+        if (s_ClientOp.attrHandleCount == 0)
         {
-            s_ClientOp.attr_handle_first = chr->val_handle;
+            s_ClientOp.attrHandleFirst = chr->val_handle;
         }
-        if (s_ClientOp.attr_handle_count < 0xFF)
+        if (s_ClientOp.attrHandleCount < 0xFF)
         {
-            s_ClientOp.attr_handle_count++;
+            s_ClientOp.attrHandleCount++;
         }
     }
     return 0;
 }
 
-int ReadCb(uint16_t conn_handle, const struct ble_gatt_error* error, struct ble_gatt_attr* attr, void* /*arg*/)
+int ReadCb(uint16_t connHandle, const struct ble_gatt_error* error, struct ble_gatt_attr* attr, void* /*arg*/)
 {
-    (void)conn_handle;
+    (void)connHandle;
     s_ClientOp.status = error ? error->status : 0;
     if (error == nullptr || error->status == 0)
     {
-        uint16_t out_len = 0;
-        ble_hs_mbuf_to_flat(attr->om, s_ClientOp.read_buf, (uint16_t)s_ClientOp.read_buf_max, &out_len);
-        s_ClientOp.read_buf_written = out_len;
+        uint16_t outLen = 0;
+        ble_hs_mbuf_to_flat(attr->om, s_ClientOp.readBuf, (uint16_t)s_ClientOp.readBufMax, &outLen);
+        s_ClientOp.readBufWritten = outLen;
     }
     if (s_ClientSem)
     {
@@ -859,9 +859,9 @@ int ReadCb(uint16_t conn_handle, const struct ble_gatt_error* error, struct ble_
     return 0;
 }
 
-int WriteCb(uint16_t conn_handle, const struct ble_gatt_error* error, struct ble_gatt_attr* /*attr*/, void* /*arg*/)
+int WriteCb(uint16_t connHandle, const struct ble_gatt_error* error, struct ble_gatt_attr* /*attr*/, void* /*arg*/)
 {
-    (void)conn_handle;
+    (void)connHandle;
     s_ClientOp.status = error ? error->status : 0;
     if (s_ClientSem)
     {
@@ -902,13 +902,13 @@ bool ESPIDFBLE::DiscoverService(DekiBle::DekiBLEConnHandle conn, const DekiBle::
     }
     if (outFirstHandle)
     {
-        *outFirstHandle = s_ClientOp.attr_handle_first;
+        *outFirstHandle = s_ClientOp.attrHandleFirst;
     }
     if (outCount)
     {
-        *outCount = s_ClientOp.attr_handle_count;
+        *outCount = s_ClientOp.attrHandleCount;
     }
-    return s_ClientOp.attr_handle_count > 0;
+    return s_ClientOp.attrHandleCount > 0;
 }
 
 bool ESPIDFBLE::ReadRemote(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECharHandle handle, uint8_t* out,
@@ -920,8 +920,8 @@ bool ESPIDFBLE::ReadRemote(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLEChar
     }
     xSemaphoreTake(s_ClientSem, 0);
     s_ClientOp = {};
-    s_ClientOp.read_buf = out;
-    s_ClientOp.read_buf_max = *len;
+    s_ClientOp.readBuf = out;
+    s_ClientOp.readBufMax = *len;
 
     int rc = ble_gattc_read(conn, handle, ReadCb, nullptr);
     if (rc != 0)
@@ -938,18 +938,18 @@ bool ESPIDFBLE::ReadRemote(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLEChar
     {
         return false;
     }
-    *len = s_ClientOp.read_buf_written;
+    *len = s_ClientOp.readBufWritten;
     return true;
 }
 
 bool ESPIDFBLE::WriteRemote(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECharHandle handle, const void* data,
-                            size_t len, bool with_response)
+                            size_t len, bool withResponse)
 {
     if (!s_StackInited)
     {
         return false;
     }
-    if (!with_response)
+    if (!withResponse)
     {
         int rc = ble_gattc_write_no_rsp_flat(conn, handle, data, (uint16_t)len);
         return rc == 0;
@@ -982,9 +982,9 @@ bool ESPIDFBLE::Subscribe(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECharH
         return false;
     }
     // CCCD is the descriptor immediately after the characteristic value handle.
-    uint16_t cccd_handle = handle + 1;
+    uint16_t cccdHandle = handle + 1;
     uint8_t val[2] = { (uint8_t)(enable ? 0x01 : 0x00), 0x00 };
-    int rc = ble_gattc_write_no_rsp_flat(conn, cccd_handle, val, 2);
+    int rc = ble_gattc_write_no_rsp_flat(conn, cccdHandle, val, 2);
     return rc == 0;
 }
 

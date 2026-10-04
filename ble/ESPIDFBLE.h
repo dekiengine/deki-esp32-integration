@@ -61,7 +61,7 @@ public:
     bool ReadRemote(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECharHandle handle, uint8_t* out,
                     size_t* len) override;
     bool WriteRemote(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECharHandle handle, const void* data, size_t len,
-                     bool with_response) override;
+                     bool withResponse) override;
     bool Subscribe(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECharHandle handle, bool enable) override;
     void SetNotifyCallback(DekiBle::DekiBLENotifyCb cb, void* user) override;
 

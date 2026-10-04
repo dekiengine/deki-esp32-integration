@@ -43,7 +43,7 @@ public:
     void SetIdleTimeoutSec(int32_t s) override { m_IdleTimeoutSec = s; }
     void SetIdleSleepMode(SleepMode mode) override { m_IdleSleepMode = mode; }
     void RequestSleep(SleepMode mode) override;
-    void SetWakeGpio(int gpio_num, int level) override;
+    void SetWakeGpio(int gpioNum, int level) override;
 
     void RegisterOnScreenOn(SleepCallback cb) override { m_OnScreenOn.push_back(std::move(cb)); }
     void RegisterOnBeforeSleep(SleepCallback cb) override { m_OnBeforeSleep.push_back(std::move(cb)); }

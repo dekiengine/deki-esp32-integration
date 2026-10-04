@@ -52,9 +52,9 @@ void ESPIDFSDCard::Configure(const Deki::PackageConfig& config)
 
     // Determine mode
     std::string modeStr = config.GetString("mode", "SPI");
-    if (modeStr == "SDMMC_4BIT")
+    if (modeStr == "SDMMC4Bit")
     {
-        m_Mode = DekiSdCard::SDCardMode::SDMMC_4BIT;
+        m_Mode = DekiSdCard::SDCardMode::SDMMC4Bit;
         m_PinCMD = config.GetPin("CMD", -1);
         m_PinD0 = config.GetPin("D0", -1);
         m_PinD1 = config.GetPin("D1", -1);
@@ -65,9 +65,9 @@ void ESPIDFSDCard::Configure(const Deki::PackageConfig& config)
         // door was already in Hz.
         m_SdmmcFrequency = static_cast<uint32_t>(config.GetInt("sdmmcHz", 20000000));
     }
-    else if (modeStr == "SDMMC_1BIT")
+    else if (modeStr == "SDMMC1Bit")
     {
-        m_Mode = DekiSdCard::SDCardMode::SDMMC_1BIT;
+        m_Mode = DekiSdCard::SDCardMode::SDMMC1Bit;
         m_PinCMD = config.GetPin("CMD", -1);
         m_PinD0 = config.GetPin("D0", -1);
         m_SdmmcFrequency = static_cast<uint32_t>(config.GetInt("sdmmcHz", 20000000));
@@ -89,7 +89,7 @@ bool ESPIDFSDCard::Initialize()
     m_LastError.clear();
 
 #if defined(ESP32)
-    if (m_Mode == DekiSdCard::SDCardMode::SDMMC_4BIT)
+    if (m_Mode == DekiSdCard::SDCardMode::SDMMC4Bit)
     {
         ESP_LOGI(TAG, "Initialize SDMMC 4-bit: CLK=%d, CMD=%d, D0=%d, D1=%d, D2=%d, D3=%d, CD=%d", m_PinCLK, m_PinCMD,
                  m_PinD0, m_PinD1, m_PinD2, m_PinD3, m_PinCD);
@@ -101,7 +101,7 @@ bool ESPIDFSDCard::Initialize()
             return false;
         }
     }
-    else if (m_Mode == DekiSdCard::SDCardMode::SDMMC_1BIT)
+    else if (m_Mode == DekiSdCard::SDCardMode::SDMMC1Bit)
     {
         ESP_LOGI(TAG, "Initialize SDMMC 1-bit: CLK=%d, CMD=%d, D0=%d, CD=%d", m_PinCLK, m_PinCMD, m_PinD0, m_PinCD);
 
@@ -310,7 +310,7 @@ bool ESPIDFSDCard::Mount()
 
     esp_err_t ret;
 
-    if (m_Mode == DekiSdCard::SDCardMode::SDMMC_1BIT || m_Mode == DekiSdCard::SDCardMode::SDMMC_4BIT)
+    if (m_Mode == DekiSdCard::SDCardMode::SDMMC1Bit || m_Mode == DekiSdCard::SDCardMode::SDMMC4Bit)
     {
         sdmmc_host_t host = SDMMC_HOST_DEFAULT();
         host.max_freq_khz = static_cast<int>(m_SdmmcFrequency / 1000);
@@ -320,7 +320,7 @@ bool ESPIDFSDCard::Mount()
         slot_config.cmd = static_cast<gpio_num_t>(m_PinCMD);
         slot_config.d0 = static_cast<gpio_num_t>(m_PinD0);
 
-        if (m_Mode == DekiSdCard::SDCardMode::SDMMC_4BIT)
+        if (m_Mode == DekiSdCard::SDCardMode::SDMMC4Bit)
         {
             slot_config.width = 4;
             slot_config.d1 = static_cast<gpio_num_t>(m_PinD1);

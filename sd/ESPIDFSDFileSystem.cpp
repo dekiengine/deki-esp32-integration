@@ -129,10 +129,10 @@ Deki::IFileSystem::FileHandle ESPIDFSDFileSystem::OpenFile(const char* path, Ope
     const char* modeStr;
     switch (mode)
     {
-        case OpenMode::READ_BINARY: modeStr = "rb"; break;
-        case OpenMode::WRITE_BINARY: modeStr = "wb"; break;
-        case OpenMode::READ_TEXT: modeStr = "r"; break;
-        case OpenMode::WRITE_TEXT: modeStr = "w"; break;
+        case OpenMode::ReadBinary: modeStr = "rb"; break;
+        case OpenMode::WriteBinary: modeStr = "wb"; break;
+        case OpenMode::ReadText: modeStr = "r"; break;
+        case OpenMode::WriteText: modeStr = "w"; break;
         default: return nullptr;
     }
 
@@ -184,9 +184,9 @@ long ESPIDFSDFileSystem::SeekFile(FileHandle handle, long offset, SeekOrigin ori
     int whence;
     switch (origin)
     {
-        case SeekOrigin::BEGIN: whence = SEEK_SET; break;
-        case SeekOrigin::CURRENT: whence = SEEK_CUR; break;
-        case SeekOrigin::END: whence = SEEK_END; break;
+        case SeekOrigin::Begin: whence = SEEK_SET; break;
+        case SeekOrigin::Current: whence = SEEK_CUR; break;
+        case SeekOrigin::End: whence = SEEK_END; break;
         default: return -1;
     }
 

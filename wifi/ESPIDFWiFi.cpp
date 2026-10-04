@@ -204,31 +204,31 @@ int ESPIDFWiFi::ScanAPs(DekiWifi::DekiAP* out, int maxCount)
         return -1;
     }
 
-    uint16_t ap_count = 0;
-    esp_wifi_scan_get_ap_num(&ap_count);
-    if (ap_count == 0)
+    uint16_t apCount = 0;
+    esp_wifi_scan_get_ap_num(&apCount);
+    if (apCount == 0)
     {
         return 0;
     }
 
-    if (ap_count > static_cast<uint16_t>(maxCount))
+    if (apCount > static_cast<uint16_t>(maxCount))
     {
-        ap_count = static_cast<uint16_t>(maxCount);
+        apCount = static_cast<uint16_t>(maxCount);
     }
 
     wifi_ap_record_t records[64];
-    if (ap_count > 64)
+    if (apCount > 64)
     {
-        ap_count = 64;
+        apCount = 64;
     }
-    if (esp_wifi_scan_get_ap_records(&ap_count, records) != ESP_OK)
+    if (esp_wifi_scan_get_ap_records(&apCount, records) != ESP_OK)
     {
         DEKI_LOG_ERROR("[wifi] esp_wifi_scan_get_ap_records failed");
         return -1;
     }
 
     int written = 0;
-    for (int i = 0; i < ap_count && written < maxCount; ++i)
+    for (int i = 0; i < apCount && written < maxCount; ++i)
     {
         DekiWifi::DekiAP& a = out[written++];
         std::memcpy(a.bssid, records[i].bssid, 6);

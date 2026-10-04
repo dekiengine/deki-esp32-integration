@@ -137,18 +137,18 @@ IFileSystem::FileHandle ESP32FileSystem::OpenFile(const char* path, OpenMode mod
         return nullptr;
     }
 
-    std::string real_path = ConvertPathInternal(path);
-    const char* mode_str = "";
+    std::string realPath = ConvertPathInternal(path);
+    const char* modeStr = "";
 
     switch (mode)
     {
-        case OpenMode::READ_BINARY:
-        case OpenMode::READ_TEXT: mode_str = "r"; break;
-        case OpenMode::WRITE_BINARY:
-        case OpenMode::WRITE_TEXT: mode_str = "w"; break;
+        case OpenMode::ReadBinary:
+        case OpenMode::ReadText: modeStr = "r"; break;
+        case OpenMode::WriteBinary:
+        case OpenMode::WriteText: modeStr = "w"; break;
     }
 
-    FILE* f = fopen(real_path.c_str(), mode_str);
+    FILE* f = fopen(realPath.c_str(), modeStr);
     if (!f)
     {
         return nullptr;
@@ -193,9 +193,9 @@ long ESP32FileSystem::SeekFile(FileHandle handle, long offset, SeekOrigin origin
     int whence = SEEK_SET;
     switch (origin)
     {
-        case SeekOrigin::BEGIN: whence = SEEK_SET; break;
-        case SeekOrigin::CURRENT: whence = SEEK_CUR; break;
-        case SeekOrigin::END: whence = SEEK_END; break;
+        case SeekOrigin::Begin: whence = SEEK_SET; break;
+        case SeekOrigin::Current: whence = SEEK_CUR; break;
+        case SeekOrigin::End: whence = SEEK_END; break;
     }
 
     if (fseek(static_cast<FILE*>(handle), offset, whence) != 0)
@@ -237,9 +237,9 @@ bool ESP32FileSystem::FileExists(const char* path)
         return false;
     }
 
-    std::string real_path = ConvertPathInternal(path);
+    std::string realPath = ConvertPathInternal(path);
     struct stat st;
-    return stat(real_path.c_str(), &st) == 0;
+    return stat(realPath.c_str(), &st) == 0;
 }
 
 bool ESP32FileSystem::ConvertPath(const char* virtualPath, char* outBuffer, size_t bufferSize)

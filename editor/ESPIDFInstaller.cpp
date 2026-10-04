@@ -379,18 +379,18 @@ void ESPIDFInstaller::Remove(const std::string& projectPath, const PackageEntry&
 // These are now bundled in toolchains/esp-idf-components/ and copied to project's
 // builders/esp-idf/components/ folder during project creation.
 // Empty list since we no longer manage dependencies via idf_component.yml.
-static const std::vector<CoreDependency> s_EspressifCoreDeps = {
+static const std::vector<CoreDependency> kEspressifCoreDeps = {
     // Components are bundled - no managed dependencies needed
 };
 
 std::vector<CoreDependency> ESPIDFInstaller::GetCoreDependencies() const
 {
-    return s_EspressifCoreDeps;
+    return kEspressifCoreDeps;
 }
 
 bool ESPIDFInstaller::IsCoreDependency(const std::string& name) const
 {
-    for (const auto& coreDep : s_EspressifCoreDeps)
+    for (const auto& coreDep : kEspressifCoreDeps)
     {
         // Match exact name
         if (coreDep.name == name)
@@ -453,7 +453,7 @@ void ESPIDFInstaller::EnsureCoreDependencies(const std::string& projectPath)
     bool modified = false;
 
     // Check each core dependency
-    for (const auto& coreDep : s_EspressifCoreDeps)
+    for (const auto& coreDep : kEspressifCoreDeps)
     {
         // Determine the name to match (repo name for GitHub, full name for registry)
         std::string matchName = coreDep.name;
@@ -745,17 +745,17 @@ void ESPIDFInstaller::MergeDeps(const std::string& projectPath, const std::vecto
 
 extern "C"
 {
-    DEKI_INSTALLER_API int DekiInstaller_GetCount(void)
+    DEKI_INSTALLER_API int DekiInstallerGetCount(void)
     {
         return 1;
     }
 
-    DEKI_INSTALLER_API IPackageInstaller* DekiInstaller_Create(int index)
+    DEKI_INSTALLER_API IPackageInstaller* DekiInstallerCreate(int index)
     {
         return index == 0 ? new ESPIDFInstaller() : nullptr;
     }
 
-    DEKI_INSTALLER_API void DekiInstaller_Destroy(IPackageInstaller* installer)
+    DEKI_INSTALLER_API void DekiInstallerDestroy(IPackageInstaller* installer)
     {
         delete installer;  // in THIS module
     }

@@ -54,9 +54,9 @@ void ESPIDFPower::NotifyActivity()
     m_LastActivityUs = esp_timer_get_time();
 }
 
-void ESPIDFPower::SetWakeGpio(int gpio_num, int level)
+void ESPIDFPower::SetWakeGpio(int gpioNum, int level)
 {
-    m_WakeGpio = gpio_num;
+    m_WakeGpio = gpioNum;
     m_WakeLevel = level ? 1 : 0;
 }
 
@@ -89,9 +89,9 @@ void ESPIDFPower::Tick()
         return;
     }
 
-    const int64_t now_us = esp_timer_get_time();
-    const int64_t timeout_us = (int64_t)m_IdleTimeoutSec * 1000000;
-    if (now_us - m_LastActivityUs < timeout_us)
+    const int64_t nowUs = esp_timer_get_time();
+    const int64_t timeoutUs = (int64_t)m_IdleTimeoutSec * 1000000;
+    if (nowUs - m_LastActivityUs < timeoutUs)
     {
         return;
     }

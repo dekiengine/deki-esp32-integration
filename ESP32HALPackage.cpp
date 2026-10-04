@@ -44,9 +44,9 @@
 #include <deki/Main.h>
 #endif
 
-extern void DekiESP32HAL_RegisterComponents();
-extern int DekiESP32HAL_GetAutoComponentCount();
-extern const Deki::ComponentMeta* DekiESP32HAL_GetAutoComponentMeta(int index);
+extern void DekiESP32HALRegisterComponents();
+extern int DekiESP32HALGetAutoComponentCount();
+extern const Deki::ComponentMeta* DekiESP32HALGetAutoComponentMeta(int index);
 
 namespace DekiEsp32
 {
@@ -100,11 +100,11 @@ struct ESP32BackendInit
         // S3 PIE SIMD blit kernels. Only kernels with verified implementations
         // are registered; the dispatcher in QuadBlit runs its scalar inner
         // loop for unregistered ops. See blit/S3PIEBlitKernels.cpp.
-        QuadBlit::RegisterKernel(QuadBlit::KernelOp::RGB565_Copy_Row, &DekiEsp32::Blit::S3PIE_RGB565_Copy_Row);
+        QuadBlit::RegisterKernel(QuadBlit::KernelOp::RGB565CopyRow, &DekiEsp32::Blit::S3PIERGB565CopyRow);
 #endif
     }
 };
-static ESP32BackendInit s_esp32_init;
+static ESP32BackendInit s_Esp32Init;
 }  // namespace
 
 // The exports below are C symbols at global scope; the package's own
@@ -131,30 +131,30 @@ extern "C"
     /**
      * @brief Ensure deki-esp32-hal package is loaded and components are registered
      */
-    DEKI_ESP32_HAL_API int DekiESP32HAL_EnsureRegistered(void)
+    DEKI_ESP32_HAL_API int DekiESP32HALEnsureRegistered(void)
     {
         if (s_ESP32HALRegistered)
         {
-            return ::DekiESP32HAL_GetAutoComponentCount();
+            return ::DekiESP32HALGetAutoComponentCount();
         }
         s_ESP32HALRegistered = true;
 
         // Auto-generated: registers all ESP32 HAL components with ComponentRegistry + ComponentFactory
-        ::DekiESP32HAL_RegisterComponents();
+        ::DekiESP32HALRegisterComponents();
 
-        return ::DekiESP32HAL_GetAutoComponentCount();
+        return ::DekiESP32HALGetAutoComponentCount();
     }
 
     // =============================================================================
     // Plugin metadata (for dynamic loading compatibility)
     // =============================================================================
 
-    DEKI_PLUGIN_API const char* DekiPlugin_GetName(void)
+    DEKI_PLUGIN_API const char* DekiPluginGetName(void)
     {
         return "Deki ESP32 HAL Package";
     }
 
-    DEKI_PLUGIN_API const char* DekiPlugin_GetVersion(void)
+    DEKI_PLUGIN_API const char* DekiPluginGetVersion(void)
     {
 #ifdef DEKI_PACKAGE_VERSION
         return DEKI_PACKAGE_VERSION;
@@ -163,36 +163,36 @@ extern "C"
 #endif
     }
 
-    DEKI_PLUGIN_API int DekiPlugin_Init(void)
+    DEKI_PLUGIN_API int DekiPluginInit(void)
     {
         return 0;
     }
 
-    DEKI_PLUGIN_API void DekiPlugin_Shutdown(void)
+    DEKI_PLUGIN_API void DekiPluginShutdown(void)
     {
         s_ESP32HALRegistered = false;
     }
 
-    DEKI_PLUGIN_API int DekiPlugin_GetComponentCount(void)
+    DEKI_PLUGIN_API int DekiPluginGetComponentCount(void)
     {
-        return ::DekiESP32HAL_GetAutoComponentCount();
+        return ::DekiESP32HALGetAutoComponentCount();
     }
 
-    DEKI_PLUGIN_API const Deki::ComponentMeta* DekiPlugin_GetComponentMeta(int index)
+    DEKI_PLUGIN_API const Deki::ComponentMeta* DekiPluginGetComponentMeta(int index)
     {
-        return ::DekiESP32HAL_GetAutoComponentMeta(index);
+        return ::DekiESP32HALGetAutoComponentMeta(index);
     }
 
-    DEKI_PLUGIN_API void DekiPlugin_RegisterComponents(void)
+    DEKI_PLUGIN_API void DekiPluginRegisterComponents(void)
     {
-        DekiESP32HAL_EnsureRegistered();
+        DekiESP32HALEnsureRegistered();
     }
 
     // =============================================================================
     // Package-specific feature API (for linked DLL access without name conflicts)
     // =============================================================================
 
-    DEKI_ESP32_HAL_API const char* DekiESP32HAL_GetName(void)
+    DEKI_ESP32_HAL_API const char* DekiESP32HALGetName(void)
     {
         return "ESP32 HAL";
     }

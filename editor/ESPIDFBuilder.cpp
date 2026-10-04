@@ -296,7 +296,7 @@ bool ESPIDFBuilder::MakeSimulationBootScene(std::string& scene, const PlatformCo
                          }
                          const int cmd = props.value("mosiPin", 23);
                          const int d0 = props.value("misoPin", 19);
-                         props["mode"] = "SDMMC_1BIT";
+                         props["mode"] = "SDMMC1Bit";
                          props["cmdPin"] = cmd;
                          props["d0Pin"] = d0;
                          notes.push_back(object.value("name", std::string("SD card")) +
@@ -338,10 +338,10 @@ static std::string GetIdfTarget(const PlatformConfig& config)
     {
         return config.Option("mcuChip");
     }
-    static const std::vector<std::string> knownChips = {
+    static const std::vector<std::string> kKnownChips = {
         "esp32s3", "esp32s2", "esp32c3", "esp32c6", "esp32h2", "esp32"
     };
-    for (const auto& chip : knownChips)
+    for (const auto& chip : kKnownChips)
     {
         if (config.id.find(chip) != std::string::npos)
         {
@@ -575,7 +575,7 @@ void ESPIDFBuilder::DoBuild(const std::string& projectPath, BuildOutputCallback 
 // room to map the flash). The SD card is made fresh from the build's
 // simulation/sd_card: FAT16, written here because ESP-IDF's fatfsgen sizes
 // its FAT as if every sector were a cluster and stops at 16 MB.
-static const char* kRunQemuScript = R"PY(import os, shutil, struct, subprocess, sys, time
+static const char* const kRunQemuScript = R"PY(import os, shutil, struct, subprocess, sys, time
 chip, flash_size, psram_mb, card_dir = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4]
 
 # The simulated SD card: a FAT16 image of card_dir (long names, 512-byte
@@ -1790,9 +1790,9 @@ public:
             if (m_PsramSizeMB > 0)
             {
                 ui.PropertyRow("PSRAM Mode");
-                static const char* psramModes[] = { "Quad SPI", "Octal SPI" };
+                static const char* s_PsramModes[] = { "Quad SPI", "Octal SPI" };
                 ImGui::SetNextItemWidth(-FLT_MIN);
-                DekiEditor::SchematicCombo("##PsramMode", &m_PsramModeIndex, psramModes, 2);
+                DekiEditor::SchematicCombo("##PsramMode", &m_PsramModeIndex, s_PsramModes, 2);
             }
             presetRow("CPU (MHz)", "cpu", &m_CpuFreqMHz, { 80, 160, 240 });
             DekiEditor::EndPropertyContext();
@@ -1871,32 +1871,32 @@ std::unique_ptr<IPlatformEditorUI> ESPIDFBuilder::CreateEditorUI(const PlatformC
 
 extern "C"
 {
-    DEKI_BUILDER_API const DekiBuilderAbi* DekiBuilder_GetAbi(void)
+    DEKI_BUILDER_API const DekiBuilderAbi* DekiBuilderGetAbi(void)
     {
-        static const DekiBuilderAbi abi = DekiBuilder_ThisAbi((uint32_t)sizeof(DekiEditor::PlatformConfig),
+        static const DekiBuilderAbi kAbi = DekiBuilderThisAbi((uint32_t)sizeof(DekiEditor::PlatformConfig),
                                                               (uint32_t)sizeof(DekiEditor::CMakeGen::PackageEntry));
-        return &abi;
+        return &kAbi;
     }
 
-    DEKI_BUILDER_API const char* DekiBuilder_GetName(void)
+    DEKI_BUILDER_API const char* DekiBuilderGetName(void)
     {
         return "ESP-IDF Builder";
     }
-    DEKI_BUILDER_API const char* DekiBuilder_GetVersion(void)
+    DEKI_BUILDER_API const char* DekiBuilderGetVersion(void)
     {
         return "1.0.0";
     }
-    DEKI_BUILDER_API int DekiBuilder_GetBuilderCount(void)
+    DEKI_BUILDER_API int DekiBuilderGetBuilderCount(void)
     {
         return 1;
     }
 
-    DEKI_BUILDER_API DekiEditor::ITargetBuilder* DekiBuilder_CreateBuilder(int index)
+    DEKI_BUILDER_API DekiEditor::ITargetBuilder* DekiBuilderCreateBuilder(int index)
     {
         return index == 0 ? new DekiEditor::ESPIDFBuilder() : nullptr;
     }
 
-    DEKI_BUILDER_API void DekiBuilder_DestroyBuilder(DekiEditor::ITargetBuilder* builder)
+    DEKI_BUILDER_API void DekiBuilderDestroyBuilder(DekiEditor::ITargetBuilder* builder)
     {
         delete builder;  // in THIS module: its vtable and operator delete live here
     }
