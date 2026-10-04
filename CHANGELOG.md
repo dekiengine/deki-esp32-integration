@@ -16,6 +16,8 @@ alongside one that has them.
 - Renamed: the S3 PIE blit kernels (`S3PIERGB565CopyRow`, ...); `SetWakeGpio(gpioNum, level)`.
 
 ### Fixed
+- WiFi: a connect fails at once, with the reason, when the WiFi driver does
+  not start. It waited out the whole connect timeout first.
 - **A flash partition that fails to mount is no longer formatted.** It holds
   the boot payload, the assets and anything the game saved there, and any
   mount fault wiped all of it. Only a partition that was never written is

@@ -141,8 +141,15 @@ bool ESPIDFWiFi::Connect(const char* ssid, const char* password, uint32_t timeou
         return false;
     }
 
-    // Safe to call when already started, so its result is ignored.
-    esp_wifi_start();
+    // Returns ESP_OK when WiFi is already running; anything else is a real
+    // failure, and waiting for a connection would only run out the timeout.
+    const esp_err_t startErr = esp_wifi_start();
+    if (startErr != ESP_OK)
+    {
+        m_LastError = std::string("esp_wifi_start failed: ") + esp_err_to_name(startErr);
+        DEKI_LOG_ERROR("[wifi] esp_wifi_start failed: %s", esp_err_to_name(startErr));
+        return false;
+    }
 
     xEventGroupClearBits(s_WifiEvents, BIT_CONNECTED | BIT_DISCONNECT);
     EventBits_t bits = xEventGroupWaitBits(s_WifiEvents, BIT_CONNECTED, pdFALSE, pdFALSE, pdMS_TO_TICKS(timeoutMs));
