@@ -25,7 +25,6 @@ DEKI_FORMER_NAME("ESP32SerialSetup")
 class DEKI_ESP32_HAL_API ESP32SerialSetup : public Deki::SetupComponent
 {
 public:
-
     DEKI_EXPORT
     DEKI_TOOLTIP("Serial baud rate")
     DEKI_RANGE(9600, 921600)

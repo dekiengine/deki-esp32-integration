@@ -16,11 +16,11 @@
 
 // DLL export macro
 #ifdef _WIN32
-    #ifdef DEKI_ESP32_HAL_EXPORTS
-        #define DEKI_ESP32_HAL_API __declspec(dllexport)
-    #else
-        #define DEKI_ESP32_HAL_API __declspec(dllimport)
-    #endif
+#ifdef DEKI_ESP32_HAL_EXPORTS
+#define DEKI_ESP32_HAL_API __declspec(dllexport)
 #else
-    #define DEKI_ESP32_HAL_API __attribute__((visibility("default")))
+#define DEKI_ESP32_HAL_API __declspec(dllimport)
+#endif
+#else
+#define DEKI_ESP32_HAL_API __attribute__((visibility("default")))
 #endif

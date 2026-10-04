@@ -57,9 +57,8 @@ public:
     std::string ReadEngineVersion(const std::string& projectPath) const;
 
     // Execute IDF command (sources export.bat/export.sh, sets env vars)
-    int ExecuteIDF(const std::string& command, const std::string& workDir,
-                   const std::string& enginePath, BuildOutputCallback outputCallback,
-                   const ESPIDFExecContext& ctx);
+    int ExecuteIDF(const std::string& command, const std::string& workDir, const std::string& enginePath,
+                   BuildOutputCallback outputCallback, const ESPIDFExecContext& ctx);
 
     // Build preparation — delete obj to refresh timestamp
     void PrepareForBuild(BuildOutputCallback outputCallback, const std::string& buildDir);

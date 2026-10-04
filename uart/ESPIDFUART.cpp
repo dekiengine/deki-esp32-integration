@@ -8,13 +8,12 @@
 namespace DekiEsp32
 {
 
-
 void ESPIDFUART::Configure(const Deki::PackageConfig& config)
 {
     m_PinTX = config.GetPin("TX", -1);
     m_PinRX = config.GetPin("RX", -1);
-    m_Port  = config.GetInt("uartPort", 1);
-    m_Baud  = (uint32_t)config.GetInt("baud", 9600);
+    m_Port = config.GetInt("uartPort", 1);
+    m_Baud = (uint32_t)config.GetInt("baud", 9600);
     m_RxBufSize = (size_t)config.GetInt("rx_buf_size", 1024);
 }
 
@@ -29,11 +28,11 @@ bool ESPIDFUART::Initialize()
     }
 
     uart_config_t cfg = {};
-    cfg.baud_rate  = (int)m_Baud;
-    cfg.data_bits  = UART_DATA_8_BITS;
-    cfg.parity     = UART_PARITY_DISABLE;
-    cfg.stop_bits  = UART_STOP_BITS_1;
-    cfg.flow_ctrl  = UART_HW_FLOWCTRL_DISABLE;
+    cfg.baud_rate = (int)m_Baud;
+    cfg.data_bits = UART_DATA_8_BITS;
+    cfg.parity = UART_PARITY_DISABLE;
+    cfg.stop_bits = UART_STOP_BITS_1;
+    cfg.flow_ctrl = UART_HW_FLOWCTRL_DISABLE;
     cfg.source_clk = UART_SCLK_DEFAULT;
 
     if (uart_param_config((uart_port_t)m_Port, &cfg) != ESP_OK ||
@@ -65,20 +64,31 @@ void ESPIDFUART::Shutdown()
 int ESPIDFUART::Read(uint8_t* dst, size_t maxLen, uint32_t timeoutMs)
 {
 #if defined(ESP32)
-    if (!dst || maxLen == 0) return 0;
+    if (!dst || maxLen == 0)
+    {
+        return 0;
+    }
     return uart_read_bytes((uart_port_t)m_Port, dst, maxLen, pdMS_TO_TICKS(timeoutMs));
 #else
-    (void)dst; (void)maxLen; (void)timeoutMs; return 0;
+    (void)dst;
+    (void)maxLen;
+    (void)timeoutMs;
+    return 0;
 #endif
 }
 
 int ESPIDFUART::Write(const uint8_t* src, size_t len)
 {
 #if defined(ESP32)
-    if (!src || len == 0) return 0;
+    if (!src || len == 0)
+    {
+        return 0;
+    }
     return uart_write_bytes((uart_port_t)m_Port, (const char*)src, len);
 #else
-    (void)src; (void)len; return 0;
+    (void)src;
+    (void)len;
+    return 0;
 #endif
 }
 

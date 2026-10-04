@@ -69,7 +69,11 @@ public:
 
     // Storage mode (USB MSC) - not supported on pure ESP-IDF
     bool SupportsStorageMode() const override { return false; }
-    bool SetStorageMode(bool enabled) override { (void)enabled; return false; }
+    bool SetStorageMode(bool enabled) override
+    {
+        (void)enabled;
+        return false;
+    }
     bool IsStorageMode() const override { return false; }
 
 private:
@@ -78,16 +82,16 @@ private:
     int m_PinMISO = -1;
     int m_PinCLK = -1;
     int m_PinCS = -1;
-    int m_PinCD = -1;  // Card detect (optional, -1 if not used)
-    int m_PinCMD = -1; // SDMMC CMD pin
-    int m_PinD0 = -1;  // SDMMC D0 pin
-    int m_PinD1 = -1;  // SDMMC D1 pin (4-bit only)
-    int m_PinD2 = -1;  // SDMMC D2 pin (4-bit only)
-    int m_PinD3 = -1;  // SDMMC D3 pin (4-bit only)
+    int m_PinCD = -1;   // Card detect (optional, -1 if not used)
+    int m_PinCMD = -1;  // SDMMC CMD pin
+    int m_PinD0 = -1;   // SDMMC D0 pin
+    int m_PinD1 = -1;   // SDMMC D1 pin (4-bit only)
+    int m_PinD2 = -1;   // SDMMC D2 pin (4-bit only)
+    int m_PinD3 = -1;   // SDMMC D3 pin (4-bit only)
     bool m_AutoMount = true;
     DekiSdCard::SDCardMode m_Mode = DekiSdCard::SDCardMode::SPI;
-    uint32_t m_SpiFrequency = 20000000;  // SPI frequency in Hz (default 20 MHz)
-    uint32_t m_SdmmcFrequency = 20000000; // SDMMC frequency in Hz (default 20 MHz)
+    uint32_t m_SpiFrequency = 20000000;    // SPI frequency in Hz (default 20 MHz)
+    uint32_t m_SdmmcFrequency = 20000000;  // SDMMC frequency in Hz (default 20 MHz)
     std::string m_MountPoint = "/sdcard";
 
     // Runtime state
@@ -109,4 +113,3 @@ private:
 };
 
 }  // namespace DekiEsp32
-

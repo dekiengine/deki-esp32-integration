@@ -23,7 +23,7 @@ void ESP32QemuDisplaySetup::Setup(SetupCallback onComplete)
 {
     s_QemuDisplay = std::make_unique<ESP32QemuDisplay>();
     s_QemuDisplay->SetColorFormat(format == QemuPanelFormat::ARGB8888 ? Deki::ColorFormat::ARGB8888
-                                                                       : Deki::ColorFormat::RGB565);
+                                                                      : Deki::ColorFormat::RGB565);
     if (!s_QemuDisplay->Initialize(width, height))
     {
         s_QemuDisplay.reset();

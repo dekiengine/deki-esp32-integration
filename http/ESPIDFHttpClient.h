@@ -18,19 +18,17 @@ namespace DekiEsp32
 class ESPIDFHttpClient : public DekiHttp::IDekiHttpClient
 {
 public:
-    ESPIDFHttpClient()           = default;
+    ESPIDFHttpClient() = default;
     ~ESPIDFHttpClient() override = default;
 
     std::string FetchUrl(const std::string& url) override;
 
-    DekiHttp::IDekiHttpClient::Response Get(const std::string& url,
-                 const DekiHttp::IDekiHttpClient::HeaderList&  headers,
-                 uint32_t           timeoutMs) override;
+    DekiHttp::IDekiHttpClient::Response
+    Get(const std::string& url, const DekiHttp::IDekiHttpClient::HeaderList& headers, uint32_t timeoutMs) override;
 
-    DekiHttp::IDekiHttpClient::Response PostJson(const std::string& url,
-                      const std::string& body,
-                      const DekiHttp::IDekiHttpClient::HeaderList&  headers,
-                      uint32_t           timeoutMs) override;
+    DekiHttp::IDekiHttpClient::Response PostJson(const std::string& url, const std::string& body,
+                                                 const DekiHttp::IDekiHttpClient::HeaderList& headers,
+                                                 uint32_t timeoutMs) override;
 };
 
 }  // namespace DekiEsp32

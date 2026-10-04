@@ -42,19 +42,24 @@ namespace DekiEditor
 // should be a change to this builder, not an editor release.
 const std::vector<std::string>& SupportedIdfTargets()
 {
-    static const std::vector<std::string> kTargets = { "esp32",   "esp32s2", "esp32s3",
-                                                       "esp32c3", "esp32c6", "esp32h2" };
+    static const std::vector<std::string> kTargets = { "esp32", "esp32s2", "esp32s3", "esp32c3", "esp32c6", "esp32h2" };
     return kTargets;
 }
 
 // "SPI", "PARALLEL_8BIT", "SOFTWARE".
 bool IsValidDisplayBus(const std::string& bus)
 {
-    if (bus.empty() || bus.size() > 32) return false;
+    if (bus.empty() || bus.size() > 32)
+    {
+        return false;
+    }
     for (unsigned char c : bus)
     {
         const bool ok = (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
-        if (!ok) return false;
+        if (!ok)
+        {
+            return false;
+        }
     }
     return true;
 }
@@ -78,7 +83,9 @@ std::vector<std::string> ESPIDFBuilder::ValidatePlatform(const PlatformConfig& c
         {
             std::string known;
             for (const auto& t : targets)
+            {
                 known += (known.empty() ? "" : ", ") + t;
+            }
             problems.push_back("idfTarget '" + config.Option("idfTarget") +
                                "' is not a supported ESP-IDF target; use one of: " + known);
         }
@@ -90,7 +97,9 @@ std::vector<std::string> ESPIDFBuilder::ValidatePlatform(const PlatformConfig& c
     // has a display bus; the setting and its rule are this backend's now.
     const std::string displayBus = config.Option("displayBus");
     if (!displayBus.empty() && !IsValidDisplayBus(displayBus))
+    {
         problems.push_back("displayBus '" + displayBus + "' is not an identifier (A-Z, 0-9, '_')");
+    }
 
     return problems;
 }
@@ -107,20 +116,28 @@ ESPIDFBuilder::ESPIDFBuilder()
     {
         m_ToolchainMgr.Initialize(def);
         for (const auto& comp : def.components)
+        {
             if (comp.id == "esp-idf")
+            {
                 m_Toolchain.SetRequiredVersion(comp.fallback.version);
+            }
+        }
     }
     else
+    {
         DEKI_LOG_ERROR("ESP-IDF backend: its own toolchain definition does not parse (%s); "
                        "no toolchain component can be installed or detected",
                        error.c_str());
+    }
 }
 
 ESPIDFBuilder::~ESPIDFBuilder()
 {
     Cancel();
     if (m_BuildThread.joinable())
+    {
         m_BuildThread.join();
+    }
 }
 
 // ============================================================================
@@ -142,9 +159,12 @@ std::string ESPIDFBuilder::GetToolchainStatus() const
 
 ESPIDFExecContext ESPIDFBuilder::MakeExecContext()
 {
-    return { m_BuildOptions.enableLogging, m_BuildOptions.enableInternalLogging,
-             m_HasPlatformConfig, &m_PlatformConfig,
-             &m_PackageDefines, m_CancelRequested };
+    return { m_BuildOptions.enableLogging,
+             m_BuildOptions.enableInternalLogging,
+             m_HasPlatformConfig,
+             &m_PlatformConfig,
+             &m_PackageDefines,
+             m_CancelRequested };
 }
 
 // ============================================================================
@@ -155,9 +175,13 @@ std::vector<DeployTarget> ESPIDFBuilder::EnumerateDeployTargets() const
 {
     std::vector<DeployTarget> targets;
     if (m_BuildOptions.simulate)
+    {
         return targets;  // runs on this machine, in QEMU
+    }
     for (const std::string& port : EnumerateSerialPorts())
+    {
         targets.push_back({ port, port });
+    }
     return targets;
 }
 
@@ -165,13 +189,21 @@ std::vector<std::pair<std::string, std::string>> ESPIDFBuilder::DescribePlatform
 {
     std::vector<std::pair<std::string, std::string>> rows;
     if (!config.Option("mcuChip").empty())
+    {
         rows.emplace_back("Chip", config.Option("mcuChip"));
+    }
     if (config.OptionU32("flashSize") > 0)
+    {
         rows.emplace_back("Flash", std::to_string(config.OptionU32("flashSize") / (1024 * 1024)) + " MB");
+    }
     if (config.externalMemorySize > 0)
+    {
         rows.emplace_back("PSRAM", std::to_string(config.externalMemorySize / (1024 * 1024)) + " MB");
+    }
     if (!config.Option("displayDriver").empty())
+    {
         rows.emplace_back("Driver", config.Option("displayDriver"));
+    }
     return rows;
 }
 
@@ -184,7 +216,9 @@ static bool QemuHasScreen(const std::string& idfTarget)
 bool ESPIDFBuilder::SupportsSimulation() const
 {
     if (!m_HasPlatformConfig)
+    {
         return false;
+    }
     const std::string chip = !m_PlatformConfig.Option("idfTarget").empty() ? m_PlatformConfig.Option("idfTarget")
                                                                            : m_PlatformConfig.Option("mcuChip");
     return QemuHasScreen(chip);
@@ -195,15 +229,25 @@ static void ForEachComponent(nlohmann::json& objects, const char* type,
                              const std::function<void(nlohmann::json& object, nlohmann::json& component)>& fn)
 {
     if (!objects.is_array())
+    {
         return;
+    }
     for (nlohmann::json& object : objects)
     {
         if (object.contains("components") && object["components"].is_array())
+        {
             for (nlohmann::json& component : object["components"])
+            {
                 if (component.value("type", std::string()) == type)
+                {
                     fn(object, component);
+                }
+            }
+        }
         if (object.contains("children"))
+        {
             ForEachComponent(object["children"], type, fn);
+        }
     }
 }
 
@@ -227,14 +271,17 @@ bool ESPIDFBuilder::MakeSimulationBootScene(std::string& scene, const PlatformCo
     const bool wide = config.colorFormat == "ARGB8888" || config.colorFormat == "RGB888";
     const char* format = wide ? "ARGB8888" : "RGB565";
     nlohmann::json steps = nlohmann::json::array();
-    steps.push_back({ { "name", "QEMU Display" },
-                      { "type", "DekiEsp32::ESP32QemuDisplaySetup" },
-                      { "properties",
-                        { { "width", config.screenWidth }, { "height", config.screenHeight }, { "format", format } } } });
+    steps.push_back(
+        { { "name", "QEMU Display" },
+          { "type", "DekiEsp32::ESP32QemuDisplaySetup" },
+          { "properties",
+            { { "width", config.screenWidth }, { "height", config.screenHeight }, { "format", format } } } });
     if (!AddSimulationSteps(json, steps, error))
+    {
         return false;
-    notes.push_back("QEMU Display (" + std::to_string(config.screenWidth) + "x" +
-                    std::to_string(config.screenHeight) + " " + format + ") added after the board's steps");
+    }
+    notes.push_back("QEMU Display (" + std::to_string(config.screenWidth) + "x" + std::to_string(config.screenHeight) +
+                    " " + format + ") added after the board's steps");
 
     // QEMU has no SPI controller for a card, but it has the SD host. A card
     // wired for SPI is moved to the SD host in 1-bit mode, the SD pinout of
@@ -244,7 +291,9 @@ bool ESPIDFBuilder::MakeSimulationBootScene(std::string& scene, const PlatformCo
                      {
                          nlohmann::json& props = component["properties"];
                          if (props.value("mode", std::string("SPI")) != "SPI")
+                         {
                              return;
+                         }
                          const int cmd = props.value("mosiPin", 23);
                          const int d0 = props.value("misoPin", 19);
                          props["mode"] = "SDMMC_1BIT";
@@ -264,9 +313,13 @@ std::string ESPIDFBuilder::GetBuildDirectory(const std::string& projectPath) con
     // A simulated build beside the board's, never in it. Still one level under
     // generated/build: the generated CMake finds the project three levels up.
     if (m_HasPlatformConfig && !m_PlatformConfig.id.empty() && m_BuildOptions.simulate)
+    {
         return (ProjectPaths::Build(projectPath) / (m_PlatformConfig.id + "_qemu")).string();
+    }
     if (m_HasPlatformConfig && !m_PlatformConfig.id.empty())
+    {
         return (ProjectPaths::Build(projectPath) / m_PlatformConfig.id).string();
+    }
     return (ProjectPaths::Build(projectPath) / "esp-idf").string();
 }
 
@@ -277,13 +330,24 @@ std::string ESPIDFBuilder::GetBuildDirectory(const std::string& projectPath) con
 // Determine the ESP-IDF target chip from the platform config.
 static std::string GetIdfTarget(const PlatformConfig& config)
 {
-    if (!config.Option("idfTarget").empty()) return config.Option("idfTarget");
-    if (!config.Option("mcuChip").empty()) return config.Option("mcuChip");
+    if (!config.Option("idfTarget").empty())
+    {
+        return config.Option("idfTarget");
+    }
+    if (!config.Option("mcuChip").empty())
+    {
+        return config.Option("mcuChip");
+    }
     static const std::vector<std::string> knownChips = {
         "esp32s3", "esp32s2", "esp32c3", "esp32c6", "esp32h2", "esp32"
     };
     for (const auto& chip : knownChips)
-        if (config.id.find(chip) != std::string::npos) return chip;
+    {
+        if (config.id.find(chip) != std::string::npos)
+        {
+            return chip;
+        }
+    }
     return "";
 }
 
@@ -298,7 +362,9 @@ static std::string ReadSdkConfigTarget(const std::string& buildDir)
         {
             std::string val = line.substr(18);
             if (val.size() >= 2 && val.front() == '"')
+            {
                 val = val.substr(1, val.size() - 2);
+            }
             return val;
         }
     }
@@ -316,8 +382,8 @@ void ESPIDFBuilder::Build(const std::string& projectPath, BuildOutputCallback ou
                      { DoBuild(projectPath, outputCallback, progressCallback); });
 }
 
-void ESPIDFBuilder::Deploy(const std::string& projectPath, const std::string& port,
-                           BuildOutputCallback outputCallback, BuildProgressCallback progressCallback)
+void ESPIDFBuilder::Deploy(const std::string& projectPath, const std::string& port, BuildOutputCallback outputCallback,
+                           BuildProgressCallback progressCallback)
 {
     if (m_BuildOptions.simulate)
     {
@@ -336,7 +402,6 @@ void ESPIDFBuilder::Clean(const std::string& projectPath, BuildOutputCallback ou
                      { DoClean(projectPath, outputCallback, progressCallback); });
 }
 
-
 // ============================================================================
 // Internal worker functions
 // ============================================================================
@@ -345,20 +410,35 @@ void ESPIDFBuilder::DoBuild(const std::string& projectPath, BuildOutputCallback 
                             BuildProgressCallback progressCallback)
 {
     SetProgress(BuildState::Building, "Starting build...", 0.0f);
-    if (progressCallback) progressCallback(GetProgress());
+    if (progressCallback)
+    {
+        progressCallback(GetProgress());
+    }
 
     if (!IsToolchainInstalled())
     {
         SetError("ESP-IDF is not installed. Please download and install it first.");
-        if (progressCallback) progressCallback(GetProgress());
+        if (progressCallback)
+        {
+            progressCallback(GetProgress());
+        }
         return;
     }
 
     std::string buildDir = GetBuildDirectory(projectPath);
     std::string enginePath = GetEnginePath(projectPath);
-    if (outputCallback) outputCallback("Building firmware with ESP-IDF...", false);
-    if (outputCallback) outputCallback("Build directory: " + buildDir, false);
-    if (outputCallback) outputCallback("Engine path: " + enginePath, false);
+    if (outputCallback)
+    {
+        outputCallback("Building firmware with ESP-IDF...", false);
+    }
+    if (outputCallback)
+    {
+        outputCallback("Build directory: " + buildDir, false);
+    }
+    if (outputCallback)
+    {
+        outputCallback("Engine path: " + enginePath, false);
+    }
 
     // Regenerate build files before every build so platform config changes are always applied
     if (m_HasPlatformConfig)
@@ -366,7 +446,10 @@ void ESPIDFBuilder::DoBuild(const std::string& projectPath, BuildOutputCallback 
         if (!GenerateBuildFiles(projectPath, m_PlatformConfig, m_PackageDefines))
         {
             SetError("Failed to generate build files.");
-            if (progressCallback) progressCallback(GetProgress());
+            if (progressCallback)
+            {
+                progressCallback(GetProgress());
+            }
             return;
         }
     }
@@ -382,7 +465,9 @@ void ESPIDFBuilder::DoBuild(const std::string& projectPath, BuildOutputCallback 
         {
             auto engineDeps = ReadEnginePackageDeps(enginePath, projectPath, GetPlatformKey());
             if (!engineDeps.empty())
+            {
                 installer.MergeDeps(projectPath, engineDeps);
+            }
         }
     }
 
@@ -393,7 +478,8 @@ void ESPIDFBuilder::DoBuild(const std::string& projectPath, BuildOutputCallback 
         bool sdkconfigExists = fs::exists(fs::path(buildDir) / "sdkconfig");
         std::string currentTarget = sdkconfigExists ? ReadSdkConfigTarget(buildDir) : "";
 
-        bool needsReconfigure = !cmakeCacheExists || !sdkconfigExists || (!expectedTarget.empty() && currentTarget != expectedTarget);
+        bool needsReconfigure =
+            !cmakeCacheExists || !sdkconfigExists || (!expectedTarget.empty() && currentTarget != expectedTarget);
 
         if (needsReconfigure)
         {
@@ -410,25 +496,39 @@ void ESPIDFBuilder::DoBuild(const std::string& projectPath, BuildOutputCallback 
                 catch (...)
                 { /* best effort: a stale build dir is rebuilt anyway, and a failed remove is not fatal */
                 }
-                if (outputCallback) outputCallback(
-                    "Target changed (" + currentTarget + " -> " + expectedTarget + "), cleaning stale config...", false);
+                if (outputCallback)
+                {
+                    outputCallback("Target changed (" + currentTarget + " -> " + expectedTarget +
+                                       "), cleaning stale config...",
+                                   false);
+                }
             }
             else
             {
-                if (outputCallback) outputCallback("Reconfiguring CMake...", false);
+                if (outputCallback)
+                {
+                    outputCallback("Reconfiguring CMake...", false);
+                }
             }
 
-            int reconfigureCode = m_Toolchain.ExecuteIDF("idf.py reconfigure", buildDir, enginePath, outputCallback, MakeExecContext());
+            int reconfigureCode =
+                m_Toolchain.ExecuteIDF("idf.py reconfigure", buildDir, enginePath, outputCallback, MakeExecContext());
             if (reconfigureCode != 0)
             {
                 SetError("CMake reconfigure failed with exit code " + std::to_string(reconfigureCode));
-                if (progressCallback) progressCallback(GetProgress());
+                if (progressCallback)
+                {
+                    progressCallback(GetProgress());
+                }
                 return;
             }
         }
         else
         {
-            if (outputCallback) outputCallback("Build config up to date, skipping reconfigure.", false);
+            if (outputCallback)
+            {
+                outputCallback("Build config up to date, skipping reconfigure.", false);
+            }
         }
     }
 
@@ -437,20 +537,32 @@ void ESPIDFBuilder::DoBuild(const std::string& projectPath, BuildOutputCallback 
     if (m_CancelRequested)
     {
         SetProgress(BuildState::Idle, "Build cancelled", 0.0f);
-        if (outputCallback) outputCallback("Build cancelled by user.", true);
+        if (outputCallback)
+        {
+            outputCallback("Build cancelled by user.", true);
+        }
     }
     else if (exitCode == 0)
     {
         SetProgress(BuildState::Completed, "Build successful!", 1.0f);
-        if (outputCallback) outputCallback("Build completed successfully!", false);
+        if (outputCallback)
+        {
+            outputCallback("Build completed successfully!", false);
+        }
     }
     else
     {
         SetError("Build failed with exit code " + std::to_string(exitCode));
-        if (outputCallback) outputCallback("Build failed!", true);
+        if (outputCallback)
+        {
+            outputCallback("Build failed!", true);
+        }
     }
 
-    if (progressCallback) progressCallback(GetProgress());
+    if (progressCallback)
+    {
+        progressCallback(GetProgress());
+    }
 }
 
 // Makes QEMU's flash and efuse images for the build and runs QEMU with a
@@ -640,12 +752,18 @@ void ESPIDFBuilder::DoRunQemu(const std::string& projectPath, BuildOutputCallbac
                               BuildProgressCallback progressCallback)
 {
     SetProgress(BuildState::Deploying, "Starting QEMU...", 0.0f);
-    if (progressCallback) progressCallback(GetProgress());
+    if (progressCallback)
+    {
+        progressCallback(GetProgress());
+    }
 
     if (!IsToolchainInstalled())
     {
         SetError("ESP-IDF is not installed. Please download and install it first.");
-        if (progressCallback) progressCallback(GetProgress());
+        if (progressCallback)
+        {
+            progressCallback(GetProgress());
+        }
         return;
     }
 
@@ -654,20 +772,29 @@ void ESPIDFBuilder::DoRunQemu(const std::string& projectPath, BuildOutputCallbac
     if (!fs::exists(imageDir / "flash_args", ec))
     {
         SetError("No simulated build to run: build with Simulate in QEMU first");
-        if (outputCallback) outputCallback("No simulated build in " + imageDir.string(), true);
-        if (progressCallback) progressCallback(GetProgress());
+        if (outputCallback)
+        {
+            outputCallback("No simulated build in " + imageDir.string(), true);
+        }
+        if (progressCallback)
+        {
+            progressCallback(GetProgress());
+        }
         return;
     }
 
     const std::string chip = !m_PlatformConfig.Option("idfTarget").empty() ? m_PlatformConfig.Option("idfTarget")
-                                                                          : m_PlatformConfig.Option("mcuChip");
+                                                                           : m_PlatformConfig.Option("mcuChip");
     const uint32_t flashMB = std::max<uint32_t>(4, m_PlatformConfig.OptionU32("flashSize") / (1024 * 1024));
     const uint32_t configuredFlash = flashMB >= 16 ? 16 : (flashMB >= 8 ? 8 : 4);
     const uint32_t psramMB = m_PlatformConfig.externalMemorySize / (1024 * 1024);
     if (psramMB != 0 && psramMB != 2 && psramMB != 4 && psramMB != 8 && psramMB != 16)
     {
         SetError("QEMU simulates 2, 4, 8 or 16 MB of PSRAM; this board has " + std::to_string(psramMB) + " MB");
-        if (progressCallback) progressCallback(GetProgress());
+        if (progressCallback)
+        {
+            progressCallback(GetProgress());
+        }
         return;
     }
 
@@ -680,32 +807,50 @@ void ESPIDFBuilder::DoRunQemu(const std::string& projectPath, BuildOutputCallbac
     const std::string command = "python run_qemu.py " + chip + " " + std::to_string(configuredFlash) + "MB " +
                                 std::to_string(psramMB) + " \"" + cardDir + "\"";
     SetProgress(BuildState::Deploying, "Running in QEMU", 0.5f);
-    if (progressCallback) progressCallback(GetProgress());
-    const int exitCode =
-        m_Toolchain.ExecuteIDF(command, imageDir.string(), GetEnginePath(projectPath), outputCallback, MakeExecContext());
+    if (progressCallback)
+    {
+        progressCallback(GetProgress());
+    }
+    const int exitCode = m_Toolchain.ExecuteIDF(command, imageDir.string(), GetEnginePath(projectPath), outputCallback,
+                                                MakeExecContext());
     if (exitCode == 0)
     {
         SetProgress(BuildState::Completed, "QEMU closed", 1.0f);
-        if (outputCallback) outputCallback("QEMU closed.", false);
+        if (outputCallback)
+        {
+            outputCallback("QEMU closed.", false);
+        }
     }
     else
     {
         SetError("QEMU stopped with exit code " + std::to_string(exitCode));
-        if (outputCallback) outputCallback("QEMU stopped with exit code " + std::to_string(exitCode) + ".", true);
+        if (outputCallback)
+        {
+            outputCallback("QEMU stopped with exit code " + std::to_string(exitCode) + ".", true);
+        }
     }
-    if (progressCallback) progressCallback(GetProgress());
+    if (progressCallback)
+    {
+        progressCallback(GetProgress());
+    }
 }
 
-void ESPIDFBuilder::DoFlash(const std::string& projectPath, const std::string& port,
-                            BuildOutputCallback outputCallback, BuildProgressCallback progressCallback)
+void ESPIDFBuilder::DoFlash(const std::string& projectPath, const std::string& port, BuildOutputCallback outputCallback,
+                            BuildProgressCallback progressCallback)
 {
     SetProgress(BuildState::Deploying, "Flashing firmware...", 0.0f);
-    if (progressCallback) progressCallback(GetProgress());
+    if (progressCallback)
+    {
+        progressCallback(GetProgress());
+    }
 
     if (!IsToolchainInstalled())
     {
         SetError("ESP-IDF is not installed. Please download and install it first.");
-        if (progressCallback) progressCallback(GetProgress());
+        if (progressCallback)
+        {
+            progressCallback(GetProgress());
+        }
         return;
     }
 
@@ -717,65 +862,101 @@ void ESPIDFBuilder::DoFlash(const std::string& projectPath, const std::string& p
         std::string reason;
         if (!SafeNames::IsSafeSerialPort(port, reason))
         {
-            if (outputCallback) outputCallback("Refusing to flash: " + reason + " ('" + port + "')", true);
+            if (outputCallback)
+            {
+                outputCallback("Refusing to flash: " + reason + " ('" + port + "')", true);
+            }
             return;
         }
     }
     std::string command = "idf.py -p " + port + " flash";
-    if (outputCallback) outputCallback("Flashing to " + port + "...", false);
+    if (outputCallback)
+    {
+        outputCallback("Flashing to " + port + "...", false);
+    }
 
     int exitCode = m_Toolchain.ExecuteIDF(command, buildDir, enginePath, outputCallback, MakeExecContext());
 
     if (m_CancelRequested)
     {
         SetProgress(BuildState::Idle, "Flash cancelled", 0.0f);
-        if (outputCallback) outputCallback("Flash cancelled by user.", true);
+        if (outputCallback)
+        {
+            outputCallback("Flash cancelled by user.", true);
+        }
     }
     else if (exitCode == 0)
     {
         SetProgress(BuildState::Completed, "Flash successful!", 1.0f);
-        if (outputCallback) outputCallback("Flash completed successfully!", false);
+        if (outputCallback)
+        {
+            outputCallback("Flash completed successfully!", false);
+        }
     }
     else
     {
         SetError("Flash failed with exit code " + std::to_string(exitCode));
-        if (outputCallback) outputCallback("Flash failed!", true);
+        if (outputCallback)
+        {
+            outputCallback("Flash failed!", true);
+        }
     }
 
-    if (progressCallback) progressCallback(GetProgress());
+    if (progressCallback)
+    {
+        progressCallback(GetProgress());
+    }
 }
 
 void ESPIDFBuilder::DoClean(const std::string& projectPath, BuildOutputCallback outputCallback,
                             BuildProgressCallback progressCallback)
 {
     SetProgress(BuildState::Building, "Cleaning build...", 0.0f);
-    if (progressCallback) progressCallback(GetProgress());
+    if (progressCallback)
+    {
+        progressCallback(GetProgress());
+    }
 
     if (!IsToolchainInstalled())
     {
         SetError("ESP-IDF is not installed. Please download and install it first.");
-        if (progressCallback) progressCallback(GetProgress());
+        if (progressCallback)
+        {
+            progressCallback(GetProgress());
+        }
         return;
     }
 
     std::string buildDir = GetBuildDirectory(projectPath);
     std::string enginePath = GetEnginePath(projectPath);
-    if (outputCallback) outputCallback("Cleaning build directory...", false);
+    if (outputCallback)
+    {
+        outputCallback("Cleaning build directory...", false);
+    }
 
     int exitCode = m_Toolchain.ExecuteIDF("idf.py fullclean", buildDir, enginePath, outputCallback, MakeExecContext());
 
     if (exitCode == 0)
     {
         SetProgress(BuildState::Completed, "Clean successful!", 1.0f);
-        if (outputCallback) outputCallback("Clean completed!", false);
+        if (outputCallback)
+        {
+            outputCallback("Clean completed!", false);
+        }
     }
     else
     {
         SetError("Clean failed with exit code " + std::to_string(exitCode));
-        if (outputCallback) outputCallback("Clean failed!", true);
+        if (outputCallback)
+        {
+            outputCallback("Clean failed!", true);
+        }
     }
 
-    if (progressCallback) progressCallback(GetProgress());
+    if (progressCallback)
+    {
+        progressCallback(GetProgress());
+    }
 }
 
 // ============================================================================
@@ -803,15 +984,16 @@ static uint64_t LittleFsFootprint(const fs::path& dir)
     for (fs::recursive_directory_iterator it(dir, ec), end; !ec && it != end; it.increment(ec))
     {
         if (!it->is_regular_file(ec))
+        {
             continue;
+        }
         const uint64_t size = it->file_size(ec);
         total += (size + kBlock - 1) / kBlock * kBlock + kBlock;
     }
     return total;
 }
 
-bool ESPIDFBuilder::GenerateBuildFiles(const std::string& projectPath,
-                                       const PlatformConfig& config,
+bool ESPIDFBuilder::GenerateBuildFiles(const std::string& projectPath, const PlatformConfig& config,
                                        const std::vector<std::string>& packageDefines)
 {
     fs::path buildersPath = fs::path(GetBuildDirectory(projectPath));
@@ -831,10 +1013,14 @@ bool ESPIDFBuilder::GenerateBuildFiles(const std::string& projectPath,
 
     // Generate build files (always overwrite — these are managed by the editor)
     if (!GenerateRootCMakeLists(buildersPath.string(), config))
+    {
         return false;
+    }
 
     if (!GenerateMainCMakeLists(mainPath.string(), projectPath, config, packageDefines))
+    {
         return false;
+    }
 
     // Snapshot sdkconfig.defaults before regeneration to detect changes
     fs::path sdkDefaultsPath = fs::path(boardPath) / "sdkconfig.defaults";
@@ -846,7 +1032,9 @@ bool ESPIDFBuilder::GenerateBuildFiles(const std::string& projectPath,
     }
 
     if (!GenerateSdkConfigDefaults(boardPath.string(), config))
+    {
         return false;
+    }
 
     // ESP-IDF ignores sdkconfig.defaults once sdkconfig exists.
     // If defaults changed, delete stale sdkconfig so it gets regenerated.
@@ -861,12 +1049,16 @@ bool ESPIDFBuilder::GenerateBuildFiles(const std::string& projectPath,
         {
             fs::path sdkconfigPath = buildersPath / "sdkconfig";
             if (fs::exists(sdkconfigPath))
+            {
                 fs::remove(sdkconfigPath);
+            }
         }
     }
 
     if (!GeneratePartitionsCsv(boardPath.string(), config))
+    {
         return false;
+    }
 
     // What goes into the data partition has to fit it: the boot payload, and
     // on internal storage every asset. A board's own partitionTable is its
@@ -896,8 +1088,12 @@ bool ESPIDFBuilder::GenerateBuildFiles(const std::string& projectPath,
                 nlohmann::json jd;
                 f >> jd;
                 if (jd.contains("dependencies") && jd["dependencies"].is_object())
+                {
                     for (auto& [n, v] : jd["dependencies"].items())
+                    {
                         depOverrides[n] = v.get<std::string>();
+                    }
+                }
             }
             catch (const std::exception& e)
             {
@@ -921,9 +1117,13 @@ bool ESPIDFBuilder::GenerateBuildFiles(const std::string& projectPath,
         {
             file << "  " << dep.name << ":\n";
             if (!dep.gitUrl.empty())
+            {
                 file << "    git: " << dep.gitUrl << "\n";
+            }
             if (!dep.version.empty())
+            {
                 file << "    version: \"" << dep.version << "\"\n";
+            }
         }
 
         const fs::path manifest = mainPath / "idf_component.yml";
@@ -937,7 +1137,9 @@ bool ESPIDFBuilder::GenerateBuildFiles(const std::string& projectPath,
         {
             std::ofstream out(manifest, std::ios::binary | std::ios::trunc);
             if (!out.is_open())
+            {
                 return false;
+            }
             out << file.str();
 
             // A changed manifest invalidates the component manager's lock. It
@@ -965,13 +1167,14 @@ bool ESPIDFBuilder::GenerateBuildFiles(const std::string& projectPath,
                 d.name = dep.name;
                 d.version = dep.version;
                 d.gitUrl = dep.gitUrl;
-                d.source = dep.gitUrl.empty() ? PackageSourceType::FrameworkRegistry
-                                              : PackageSourceType::Custom;
+                d.source = dep.gitUrl.empty() ? PackageSourceType::FrameworkRegistry : PackageSourceType::Custom;
                 overrideDeps.push_back(d);
             }
         }
         if (!overrideDeps.empty())
+        {
             installer.MergeDeps(projectPath, overrideDeps);
+        }
     }
 
     return true;
@@ -999,8 +1202,7 @@ bool ESPIDFBuilder::GenerateRootCMakeLists(const std::string& espIdfPath, const 
 }
 
 bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const std::string& projectPath,
-                                           const PlatformConfig& config,
-                                           const std::vector<std::string>& packageDefines)
+                                           const PlatformConfig& config, const std::vector<std::string>& packageDefines)
 {
     // Scan packages and resolve active set (needed before REQUIRES generation)
     std::string enginePath = GetEnginePath(projectPath);
@@ -1015,25 +1217,31 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
     {
         std::string define;
         for (const auto& pkg : allPackages)
+        {
             if (pkg.id == id || pkg.dirName == id)
+            {
                 define = pkg.buildDefine;
+            }
+        }
 
         if (define.empty())
         {
-            DEKI_LOG_WARNING("Platform '%s' requires package '%s', which is not installed",
-                             config.id.c_str(), id.c_str());
+            DEKI_LOG_WARNING("Platform '%s' requires package '%s', which is not installed", config.id.c_str(),
+                             id.c_str());
             continue;
         }
         if (std::find(allDefines.begin(), allDefines.end(), define) == allDefines.end())
+        {
             allDefines.push_back(define);
+        }
     }
     auto activeIds = CMakeGen::ResolveActivePackages(allPackages, allDefines, config.Capabilities());
 
     // The transform width: the widest any active package or the project
     // declares (CMakeGenUtils, COMPATIBILITY.md).
     std::string transformWhy;
-    const std::vector<std::string> transformDefines = CMakeGen::TransformDefines(CMakeGen::ResolveProjectTransformWidth(
-        allPackages, CMakeGen::ReadProjectTags(projectPath), &transformWhy));
+    const std::vector<std::string> transformDefines = CMakeGen::TransformDefines(
+        CMakeGen::ResolveProjectTransformWidth(allPackages, CMakeGen::ReadProjectTags(projectPath), &transformWhy));
 
     // Content this target needs but cannot have. Packages left out because
     // nothing here uses them are normal and silent; a scene on THIS target
@@ -1044,7 +1252,9 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
     {
         DEKI_LOG_ERROR("Cannot build for '%s':", config.id.c_str());
         for (const auto& c : conflicts)
+        {
             DEKI_LOG_ERROR("  %s", c.Describe().c_str());
+        }
         DEKI_LOG_ERROR("  Remove it from this target's content, or use a platform that provides "
                        "what it needs (set_platform_provides).");
         return false;
@@ -1055,10 +1265,14 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
     // screen (the editor writes it there; the board's is not changed).
     std::vector<std::string> simulationScenes;
     if (m_BuildOptions.simulate)
+    {
         simulationScenes.push_back((fs::path(GetBuildDirectory(projectPath)) / kSimulationSceneDir).string());
+    }
     const StripPlan strip = ComputeStripPlan(projectPath, config.id, simulationScenes);
     for (const auto& w : strip.warnings)
+    {
         DEKI_LOG_WARNING("%s", w.c_str());
+    }
 
     // Build REQUIRES list from platform config + active package ESP-IDF deps.
     // Not named `requires`: that is a keyword since C++20, and the firmware
@@ -1067,17 +1281,27 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
     for (const auto& lib : config.OptionList("requiredLibraries"))
     {
         if (idfRequires.find(lib) == std::string::npos)
+        {
             idfRequires += " " + lib;
+        }
     }
     for (const auto& pkg : allPackages)
     {
-        if (activeIds.count(pkg.id) == 0) continue;
+        if (activeIds.count(pkg.id) == 0)
+        {
+            continue;
+        }
         const auto mine = pkg.frameworkDeps.find(GetFrameworkId());
-        if (mine == pkg.frameworkDeps.end()) continue;
+        if (mine == pkg.frameworkDeps.end())
+        {
+            continue;
+        }
         for (const auto& dep : mine->second)
         {
             if (idfRequires.find(dep.name) == std::string::npos)
+            {
                 idfRequires += " " + dep.name;
+            }
         }
     }
 
@@ -1121,7 +1345,9 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
         for (const auto& pkg : allPackages)
         {
             if (activeIds.count(pkg.id) == 0 || pkg.packagePrefix.empty())
+            {
                 continue;
+            }
             dirs += " \"${DEKI_PROJECT_PATH}/packages/" + pkg.dirName + "\"";
             tags += " \"" + pkg.dirName + "\"";
             prefixes += " \"" + pkg.packagePrefix + "\"";
@@ -1150,7 +1376,9 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
             {
                 file << "    EXCLUDE_REGEX";
                 for (const auto& rx : codegenExcludes)
+                {
                     file << " \"" << CMakeGen::EscapeCMakeString(rx) << "\"";
+                }
                 file << "\n";
             }
         }
@@ -1158,9 +1386,13 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
         // configuration's defines, none of the ESP-IDF ones.
         file << "    DEFINES \"DEKI_FAST_ATTR=\"";
         for (const auto& define : transformDefines)
+        {
             file << " " << define;
+        }
         for (const auto& define : allDefines)
+        {
             file << " " << define;
+        }
         file << ")\n";
         file << "set(_DEKI_FW_GEN_SRCS \"\")\n";
         file << "foreach(_OUTDIR" << outdirs << ")\n";
@@ -1186,16 +1418,15 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
     // Generate package init file that calls each package's RegisterComponents()
     // and registers project game components with ComponentFactory
     fs::path projectSrcPath = fs::path(GetSourceDirectory(projectPath));
-    std::string packageInitPath = CMakeGen::GeneratePackageInitFile(
-        mainPath, allPackages, activeIds, projectSrcPath);
+    std::string packageInitPath = CMakeGen::GeneratePackageInitFile(mainPath, allPackages, activeIds, projectSrcPath);
     file << "\n# Package registration (calls each package's RegisterComponents for firmware builds)\n";
-    file << "list(APPEND DEKI_ENGINE_SOURCES \"" << std::filesystem::path(packageInitPath).filename().string() << "\")\n";
+    file << "list(APPEND DEKI_ENGINE_SOURCES \"" << std::filesystem::path(packageInitPath).filename().string()
+         << "\")\n";
 
     file << "\n";
     file << "target_sources(${COMPONENT_LIB} PRIVATE ${DEKI_ENGINE_SOURCES})\n";
 
-    CMakeGen::EmitIncludePaths(file, "${COMPONENT_LIB}",
-                               "${DEKI_PROJECT_PATH}/src");
+    CMakeGen::EmitIncludePaths(file, "${COMPONENT_LIB}", "${DEKI_PROJECT_PATH}/src");
 
     // Project sources
     file << "\n";
@@ -1219,7 +1450,9 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
     file << "\ntarget_compile_definitions(${COMPONENT_LIB} PRIVATE ESP32)\n";
     file << "message(STATUS \"Deki transform: " << CMakeGen::EscapeCMakeString(transformWhy) << "\")\n";
     for (const auto& define : transformDefines)
+    {
         file << "target_compile_definitions(${COMPONENT_LIB} PRIVATE " << define << ")\n";
+    }
 
     // Enable logging when requested by build options (DEKI_LOG_ENABLED env var set by ExecuteIDF)
     file << "\nif(DEFINED ENV{DEKI_LOG_ENABLED} AND NOT \"$ENV{DEKI_LOG_ENABLED}\" STREQUAL \"\")\n";
@@ -1262,7 +1495,9 @@ bool ESPIDFBuilder::GenerateSdkConfigDefaults(const std::string& boardPath, cons
 
     std::string idfTarget = config.Option("idfTarget");
     if (idfTarget.empty())
+    {
         idfTarget = config.Option("mcuChip");
+    }
 
     file << "# Generated by Deki Editor — do not edit\n";
     file << "# Platform: " << config.displayName << "\n";
@@ -1290,15 +1525,24 @@ bool ESPIDFBuilder::GenerateSdkConfigDefaults(const std::string& boardPath, cons
 
     // CPU frequency
     uint32_t cpuMhz = config.OptionU32("cpuFreqHz") / 1000000;
-    if (cpuMhz == 0) cpuMhz = 240;  // Default
+    if (cpuMhz == 0)
+    {
+        cpuMhz = 240;  // Default
+    }
 
     file << "# CPU Configuration\n";
     if (cpuMhz >= 240)
+    {
         file << "CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y\n";
+    }
     else if (cpuMhz >= 160)
+    {
         file << "CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y\n";
+    }
     else if (cpuMhz >= 80)
+    {
         file << "CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_80=y\n";
+    }
     file << "\n";
 
     // FreeRTOS
@@ -1308,7 +1552,10 @@ bool ESPIDFBuilder::GenerateSdkConfigDefaults(const std::string& boardPath, cons
 
     // Flash size
     uint32_t flashMB = config.OptionU32("flashSize") / (1024 * 1024);
-    if (flashMB == 0) flashMB = 4;  // Default
+    if (flashMB == 0)
+    {
+        flashMB = 4;  // Default
+    }
 
     file << "# Flash Configuration\n";
     if (flashMB >= 16)
@@ -1355,7 +1602,9 @@ bool ESPIDFBuilder::GenerateSdkConfigDefaults(const std::string& boardPath, cons
     {
         file << "\n# From the platform's \"sdkconfig\"\n";
         for (const auto& line : extraSdkconfig)
+        {
             file << line << "\n";
+        }
     }
 
     // A simulated build runs in QEMU, which reads the flash in DIO at 40 MHz:
@@ -1372,7 +1621,9 @@ bool ESPIDFBuilder::GenerateSdkConfigDefaults(const std::string& boardPath, cons
         file << "CONFIG_ESPTOOLPY_FLASHFREQ_40M=y\n";
         file << "CONFIG_ESP_CONSOLE_UART_DEFAULT=y\n";
         if (config.externalMemorySize > 0)
+        {
             file << "CONFIG_SPIRAM_MODE_QUAD=y\n";
+        }
     }
 
     return CMakeGen::WriteIfChanged(filePath, file.str());
@@ -1458,11 +1709,13 @@ public:
             ui.PropertyRow("MCU Chip");
             std::vector<const char*> chips;
             for (const std::string& t : m_Targets)
+            {
                 chips.push_back(t.c_str());
+            }
             int chip = m_ChipIndex;
             ImGui::SetNextItemWidth(-FLT_MIN);
-            if (DekiEditor::SchematicCombo("##McuChip", &chip, chips.data(), (int)chips.size()) &&
-                chip >= 0 && chip < (int)m_Targets.size())
+            if (DekiEditor::SchematicCombo("##McuChip", &chip, chips.data(), (int)chips.size()) && chip >= 0 &&
+                chip < (int)m_Targets.size())
             {
                 m_ChipIndex = chip;
                 strncpy(m_McuChip, m_Targets[chip].c_str(), sizeof(m_McuChip) - 1);
@@ -1486,8 +1739,14 @@ public:
             ImGui::SameLine(0.0f, gap);
             ImGui::SetNextItemWidth(fieldW);
             DekiEditor::SchematicDragInt("##ScreenHeight", &m_ScreenHeight, 1.0f, 1, 16384);
-            if (m_ScreenWidth < 1) m_ScreenWidth = 1;
-            if (m_ScreenHeight < 1) m_ScreenHeight = 1;
+            if (m_ScreenWidth < 1)
+            {
+                m_ScreenWidth = 1;
+            }
+            if (m_ScreenHeight < 1)
+            {
+                m_ScreenHeight = 1;
+            }
             DekiEditor::EndPropertyContext();
             DekiEditor::SchematicSectionEnd();
         }
@@ -1504,16 +1763,25 @@ public:
                 const float gap = ImGui::GetStyle().ItemSpacing.x * 0.5f;
                 float presetsW = 0.0f;
                 for (int p : presets)
-                    presetsW += ImGui::CalcTextSize(std::to_string(p).c_str()).x + ImGui::GetStyle().FramePadding.x * 2.0f + gap;
-                ImGui::SetNextItemWidth(std::max(ImGui::GetFrameHeight() * 2.0f, ImGui::GetContentRegionAvail().x - presetsW));
+                {
+                    presetsW += ImGui::CalcTextSize(std::to_string(p).c_str()).x +
+                                ImGui::GetStyle().FramePadding.x * 2.0f + gap;
+                }
+                ImGui::SetNextItemWidth(
+                    std::max(ImGui::GetFrameHeight() * 2.0f, ImGui::GetContentRegionAvail().x - presetsW));
                 DekiEditor::SchematicDragInt("##v", v, 0.1f, 0, 4096);
-                if (*v < 0) *v = 0;
+                if (*v < 0)
+                {
+                    *v = 0;
+                }
                 for (int p : presets)
                 {
                     ImGui::SameLine(0.0f, gap);
                     const std::string text = std::to_string(p);
                     if (ImGui::Button(text.c_str()))
+                    {
                         *v = p;
+                    }
                 }
                 ImGui::PopID();
             };
@@ -1601,28 +1869,36 @@ std::unique_ptr<IPlatformEditorUI> ESPIDFBuilder::CreateEditorUI(const PlatformC
 
 #include <deki-editor/build/BuilderPlugin.h>
 
-extern "C" {
-
-DEKI_BUILDER_API const DekiBuilderAbi* DekiBuilder_GetAbi(void)
+extern "C"
 {
-    static const DekiBuilderAbi abi =
-        DekiBuilder_ThisAbi((uint32_t)sizeof(DekiEditor::PlatformConfig),
-                            (uint32_t)sizeof(DekiEditor::CMakeGen::PackageEntry));
-    return &abi;
-}
+    DEKI_BUILDER_API const DekiBuilderAbi* DekiBuilder_GetAbi(void)
+    {
+        static const DekiBuilderAbi abi = DekiBuilder_ThisAbi((uint32_t)sizeof(DekiEditor::PlatformConfig),
+                                                              (uint32_t)sizeof(DekiEditor::CMakeGen::PackageEntry));
+        return &abi;
+    }
 
-DEKI_BUILDER_API const char* DekiBuilder_GetName(void) { return "ESP-IDF Builder"; }
-DEKI_BUILDER_API const char* DekiBuilder_GetVersion(void) { return "1.0.0"; }
-DEKI_BUILDER_API int DekiBuilder_GetBuilderCount(void) { return 1; }
+    DEKI_BUILDER_API const char* DekiBuilder_GetName(void)
+    {
+        return "ESP-IDF Builder";
+    }
+    DEKI_BUILDER_API const char* DekiBuilder_GetVersion(void)
+    {
+        return "1.0.0";
+    }
+    DEKI_BUILDER_API int DekiBuilder_GetBuilderCount(void)
+    {
+        return 1;
+    }
 
-DEKI_BUILDER_API DekiEditor::ITargetBuilder* DekiBuilder_CreateBuilder(int index)
-{
-    return index == 0 ? new DekiEditor::ESPIDFBuilder() : nullptr;
-}
+    DEKI_BUILDER_API DekiEditor::ITargetBuilder* DekiBuilder_CreateBuilder(int index)
+    {
+        return index == 0 ? new DekiEditor::ESPIDFBuilder() : nullptr;
+    }
 
-DEKI_BUILDER_API void DekiBuilder_DestroyBuilder(DekiEditor::ITargetBuilder* builder)
-{
-    delete builder;  // in THIS module: its vtable and operator delete live here
-}
+    DEKI_BUILDER_API void DekiBuilder_DestroyBuilder(DekiEditor::ITargetBuilder* builder)
+    {
+        delete builder;  // in THIS module: its vtable and operator delete live here
+    }
 
 }  // extern "C"

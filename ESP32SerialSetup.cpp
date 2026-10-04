@@ -20,9 +20,7 @@ void ESP32SerialSetup::Setup(SetupCallback onComplete)
 
     ESP32SerialCommands::Initialize(static_cast<unsigned long>(baudRate));
 
-    Deki::Engine::GetInstance().RegisterUpdate([](uint32_t) {
-        ESP32SerialCommands::ProcessCommands();
-    });
+    Deki::Engine::GetInstance().RegisterUpdate([](uint32_t) { ESP32SerialCommands::ProcessCommands(); });
 
     ESP_LOGI(TAG, "Serial OK");
     onComplete(true);

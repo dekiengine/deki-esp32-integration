@@ -44,7 +44,9 @@ void ESPIDFSDFileSystem::Shutdown()
 std::string ESPIDFSDFileSystem::ConvertVirtualPath(const char* virtualPath)
 {
     if (!virtualPath)
+    {
         return "";
+    }
 
     std::string path(virtualPath);
 
@@ -64,7 +66,9 @@ std::string ESPIDFSDFileSystem::ConvertVirtualPath(const char* virtualPath)
     for (char& c : path)
     {
         if (c == '\\')
+        {
             c = '/';
+        }
     }
 
     return path;
@@ -73,7 +77,9 @@ std::string ESPIDFSDFileSystem::ConvertVirtualPath(const char* virtualPath)
 bool ESPIDFSDFileSystem::ConvertVirtualPathTo(const char* virtualPath, char* outBuffer, size_t bufSize)
 {
     if (!virtualPath || !outBuffer || bufSize == 0)
+    {
         return false;
+    }
 
     const char* suffix = virtualPath;
     bool hasPrefix = false;
@@ -90,13 +96,17 @@ bool ESPIDFSDFileSystem::ConvertVirtualPathTo(const char* virtualPath, char* out
     {
         int written = snprintf(outBuffer, bufSize, "%s/%s", m_MountPoint.c_str(), suffix);
         if (written < 0 || static_cast<size_t>(written) >= bufSize)
+        {
             return false;
+        }
     }
     else
     {
         size_t len = strlen(virtualPath);
         if (len + 1 > bufSize)
+        {
             return false;
+        }
         memcpy(outBuffer, virtualPath, len + 1);
     }
 
@@ -112,25 +122,18 @@ Deki::IFileSystem::FileHandle ESPIDFSDFileSystem::OpenFile(const char* path, Ope
 {
     char realPath[128];
     if (!ConvertVirtualPathTo(path, realPath, sizeof(realPath)))
+    {
         return nullptr;
+    }
 
     const char* modeStr;
     switch (mode)
     {
-        case OpenMode::READ_BINARY:
-            modeStr = "rb";
-            break;
-        case OpenMode::WRITE_BINARY:
-            modeStr = "wb";
-            break;
-        case OpenMode::READ_TEXT:
-            modeStr = "r";
-            break;
-        case OpenMode::WRITE_TEXT:
-            modeStr = "w";
-            break;
-        default:
-            return nullptr;
+        case OpenMode::READ_BINARY: modeStr = "rb"; break;
+        case OpenMode::WRITE_BINARY: modeStr = "wb"; break;
+        case OpenMode::READ_TEXT: modeStr = "r"; break;
+        case OpenMode::WRITE_TEXT: modeStr = "w"; break;
+        default: return nullptr;
     }
 
     FILE* file = std::fopen(realPath, modeStr);
@@ -140,7 +143,9 @@ Deki::IFileSystem::FileHandle ESPIDFSDFileSystem::OpenFile(const char* path, Ope
 void ESPIDFSDFileSystem::CloseFile(FileHandle handle)
 {
     if (!handle)
+    {
         return;
+    }
 
     FILE* file = static_cast<FILE*>(handle);
     std::fclose(file);
@@ -149,7 +154,9 @@ void ESPIDFSDFileSystem::CloseFile(FileHandle handle)
 size_t ESPIDFSDFileSystem::ReadFile(FileHandle handle, void* buffer, size_t size)
 {
     if (!handle || !buffer)
+    {
         return 0;
+    }
 
     FILE* file = static_cast<FILE*>(handle);
     return std::fread(buffer, 1, size, file);
@@ -158,7 +165,9 @@ size_t ESPIDFSDFileSystem::ReadFile(FileHandle handle, void* buffer, size_t size
 size_t ESPIDFSDFileSystem::WriteFile(FileHandle handle, const void* buffer, size_t size)
 {
     if (!handle || !buffer)
+    {
         return 0;
+    }
 
     FILE* file = static_cast<FILE*>(handle);
     return std::fwrite(buffer, 1, size, file);
@@ -167,27 +176,24 @@ size_t ESPIDFSDFileSystem::WriteFile(FileHandle handle, const void* buffer, size
 long ESPIDFSDFileSystem::SeekFile(FileHandle handle, long offset, SeekOrigin origin)
 {
     if (!handle)
+    {
         return -1;
+    }
 
     FILE* file = static_cast<FILE*>(handle);
     int whence;
     switch (origin)
     {
-        case SeekOrigin::BEGIN:
-            whence = SEEK_SET;
-            break;
-        case SeekOrigin::CURRENT:
-            whence = SEEK_CUR;
-            break;
-        case SeekOrigin::END:
-            whence = SEEK_END;
-            break;
-        default:
-            return -1;
+        case SeekOrigin::BEGIN: whence = SEEK_SET; break;
+        case SeekOrigin::CURRENT: whence = SEEK_CUR; break;
+        case SeekOrigin::END: whence = SEEK_END; break;
+        default: return -1;
     }
 
     if (std::fseek(file, offset, whence) != 0)
+    {
         return -1;
+    }
 
     return std::ftell(file);
 }
@@ -195,7 +201,9 @@ long ESPIDFSDFileSystem::SeekFile(FileHandle handle, long offset, SeekOrigin ori
 long ESPIDFSDFileSystem::TellFile(FileHandle handle)
 {
     if (!handle)
+    {
         return -1;
+    }
 
     FILE* file = static_cast<FILE*>(handle);
     return std::ftell(file);
@@ -204,13 +212,17 @@ long ESPIDFSDFileSystem::TellFile(FileHandle handle)
 long ESPIDFSDFileSystem::GetFileSize(FileHandle handle)
 {
     if (!handle)
+    {
         return -1;
+    }
 
     FILE* file = static_cast<FILE*>(handle);
     int fd = fileno(file);
     struct stat st;
     if (fstat(fd, &st) == 0)
+    {
         return st.st_size;
+    }
     return -1;
 }
 
@@ -218,7 +230,9 @@ bool ESPIDFSDFileSystem::FileExists(const char* path)
 {
     char realPath[128];
     if (!ConvertVirtualPathTo(path, realPath, sizeof(realPath)))
+    {
         return false;
+    }
     struct stat st;
     return stat(realPath, &st) == 0;
 }

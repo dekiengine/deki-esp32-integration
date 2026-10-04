@@ -64,7 +64,10 @@ bool ESPIDFInstaller::ParseYaml(const fs::path& path, std::vector<DependencyInfo
             continue;
         }
 
-        if (!inDependencies) continue;
+        if (!inDependencies)
+        {
+            continue;
+        }
 
         // Check if we're leaving dependencies section (new top-level key)
         if (!line.empty() && line[0] != ' ' && line[0] != '\t')
@@ -227,8 +230,8 @@ std::vector<PackageEntry> ESPIDFInstaller::GetInstalledPackages(const std::strin
     return packages;
 }
 
-void ESPIDFInstaller::Install(const std::string& projectPath, const PackageEntry& pkg,
-                              const std::string& version, PackageCallback callback)
+void ESPIDFInstaller::Install(const std::string& projectPath, const PackageEntry& pkg, const std::string& version,
+                              PackageCallback callback)
 {
     fs::path yamlPath = GetYamlPath(projectPath);
 
@@ -313,8 +316,7 @@ void ESPIDFInstaller::Install(const std::string& projectPath, const PackageEntry
     }
 }
 
-void ESPIDFInstaller::Remove(const std::string& projectPath, const PackageEntry& pkg,
-                             PackageCallback callback)
+void ESPIDFInstaller::Remove(const std::string& projectPath, const PackageEntry& pkg, PackageCallback callback)
 {
     fs::path yamlPath = GetYamlPath(projectPath);
 
@@ -528,7 +530,10 @@ void ESPIDFInstaller::MergePackageDeps(const std::string& projectPath)
 {
     // Scan project/packages/*/ for .deki-package.json files containing dependencies.espidf
     fs::path packagesDir = fs::path(DekiEditor::GetPackagesDirectory(projectPath));
-    if (!fs::exists(packagesDir)) return;
+    if (!fs::exists(packagesDir))
+    {
+        return;
+    }
 
     // Collect all espidf deps from installed packages (highest version wins)
     std::vector<DependencyInfo> packageDeps;
@@ -537,28 +542,45 @@ void ESPIDFInstaller::MergePackageDeps(const std::string& projectPath)
     {
         for (const auto& entry : fs::directory_iterator(packagesDir))
         {
-            if (!entry.is_directory()) continue;
+            if (!entry.is_directory())
+            {
+                continue;
+            }
 
             fs::path metaPath = entry.path() / ".deki-package.json";
-            if (!fs::exists(metaPath)) continue;
+            if (!fs::exists(metaPath))
+            {
+                continue;
+            }
 
             std::ifstream metaFile(metaPath);
-            std::string content((std::istreambuf_iterator<char>(metaFile)),
-                                std::istreambuf_iterator<char>());
+            std::string content((std::istreambuf_iterator<char>(metaFile)), std::istreambuf_iterator<char>());
 
             // Find "dependencies" section
             size_t pdPos = content.find("\"dependencies\"");
-            if (pdPos == std::string::npos) continue;
+            if (pdPos == std::string::npos)
+            {
+                continue;
+            }
 
             // Find "espidf" key within dependencies
             size_t espidfPos = content.find("\"espidf\"", pdPos);
-            if (espidfPos == std::string::npos) continue;
+            if (espidfPos == std::string::npos)
+            {
+                continue;
+            }
 
             // Find the array start
             size_t arrayStart = content.find('[', espidfPos);
-            if (arrayStart == std::string::npos) continue;
+            if (arrayStart == std::string::npos)
+            {
+                continue;
+            }
             size_t arrayEnd = content.find(']', arrayStart);
-            if (arrayEnd == std::string::npos) continue;
+            if (arrayEnd == std::string::npos)
+            {
+                continue;
+            }
 
             std::string arrayContent = content.substr(arrayStart, arrayEnd - arrayStart + 1);
 
@@ -567,9 +589,15 @@ void ESPIDFInstaller::MergePackageDeps(const std::string& projectPath)
             while (true)
             {
                 size_t objStart = arrayContent.find('{', searchPos);
-                if (objStart == std::string::npos) break;
+                if (objStart == std::string::npos)
+                {
+                    break;
+                }
                 size_t objEnd = arrayContent.find('}', objStart);
-                if (objEnd == std::string::npos) break;
+                if (objEnd == std::string::npos)
+                {
+                    break;
+                }
 
                 std::string obj = arrayContent.substr(objStart, objEnd - objStart + 1);
                 searchPos = objEnd + 1;
@@ -579,14 +607,26 @@ void ESPIDFInstaller::MergePackageDeps(const std::string& projectPath)
                 {
                     std::string needle = "\"" + key + "\"";
                     size_t pos = obj.find(needle);
-                    if (pos == std::string::npos) return "";
+                    if (pos == std::string::npos)
+                    {
+                        return "";
+                    }
                     pos = obj.find(':', pos + needle.size());
-                    if (pos == std::string::npos) return "";
+                    if (pos == std::string::npos)
+                    {
+                        return "";
+                    }
                     pos = obj.find('"', pos + 1);
-                    if (pos == std::string::npos) return "";
+                    if (pos == std::string::npos)
+                    {
+                        return "";
+                    }
                     pos++;
                     size_t end = obj.find('"', pos);
-                    if (end == std::string::npos) return "";
+                    if (end == std::string::npos)
+                    {
+                        return "";
+                    }
                     return obj.substr(pos, end - pos);
                 };
 
@@ -627,14 +667,20 @@ void ESPIDFInstaller::MergePackageDeps(const std::string& projectPath)
         return;
     }
 
-    if (packageDeps.empty()) return;
+    if (packageDeps.empty())
+    {
+        return;
+    }
 
     MergeDeps(projectPath, packageDeps);
 }
 
 void ESPIDFInstaller::MergeDeps(const std::string& projectPath, const std::vector<DependencyInfo>& deps)
 {
-    if (deps.empty()) return;
+    if (deps.empty())
+    {
+        return;
+    }
 
     // Read current idf_component.yml
     fs::path yamlPath = GetYamlPath(projectPath);
@@ -697,18 +743,21 @@ void ESPIDFInstaller::MergeDeps(const std::string& projectPath, const std::vecto
 
 #include <deki-editor/PackageInstallerPlugin.h>
 
-extern "C" {
-
-DEKI_INSTALLER_API int DekiInstaller_GetCount(void) { return 1; }
-
-DEKI_INSTALLER_API IPackageInstaller* DekiInstaller_Create(int index)
+extern "C"
 {
-    return index == 0 ? new ESPIDFInstaller() : nullptr;
-}
+    DEKI_INSTALLER_API int DekiInstaller_GetCount(void)
+    {
+        return 1;
+    }
 
-DEKI_INSTALLER_API void DekiInstaller_Destroy(IPackageInstaller* installer)
-{
-    delete installer;  // in THIS module
-}
+    DEKI_INSTALLER_API IPackageInstaller* DekiInstaller_Create(int index)
+    {
+        return index == 0 ? new ESPIDFInstaller() : nullptr;
+    }
+
+    DEKI_INSTALLER_API void DekiInstaller_Destroy(IPackageInstaller* installer)
+    {
+        delete installer;  // in THIS module
+    }
 
 }  // extern "C"

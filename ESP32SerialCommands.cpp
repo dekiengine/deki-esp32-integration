@@ -73,9 +73,13 @@ void ESP32SerialCommands::ProcessCommands()
         uint8_t c;
         int read = uart_read_bytes(SERIAL_UART_NUM, &c, 1, pdMS_TO_TICKS(10));
         if (read <= 0 || c == '\n')
+        {
             break;
+        }
         if (c != '\r')
+        {
             buf[len++] = static_cast<char>(c);
+        }
     }
     buf[len] = '\0';
 

@@ -33,17 +33,23 @@ std::string ESPIDFToolchain::ReadEngineVersion(const std::string& projectPath) c
 {
     fs::path dekiJsonPath = fs::path(projectPath) / "deki.json";
     if (!fs::exists(dekiJsonPath))
+    {
         return "";
+    }
 
     try
     {
         std::ifstream file(dekiJsonPath);
         if (!file.is_open())
+        {
             return "";
+        }
 
         nlohmann::json config = nlohmann::json::parse(file);
         if (config.contains("engineVersion"))
+        {
             return config["engineVersion"].get<std::string>();
+        }
     }
     catch (const std::exception&)
     {
@@ -61,10 +67,14 @@ std::string ESPIDFToolchain::GetIDFPath() const
     // below stays for installs made before it did.
 #ifdef _WIN32
     if (fs::exists(fs::path(idfDir) / "export.bat"))
+    {
         return idfDir;
+    }
 #else
     if (fs::exists(fs::path(idfDir) / "export.sh"))
+    {
         return idfDir;
+    }
 #endif
 
     try
@@ -97,12 +107,18 @@ namespace
 std::string CanonicalIdfVersion(std::string v)
 {
     if (!v.empty() && (v[0] == 'v' || v[0] == 'V'))
+    {
         v.erase(0, 1);
+    }
     int dots = 0;
     for (char c : v)
+    {
         dots += (c == '.');
+    }
     while (dots++ < 2)
+    {
         v += ".0";
+    }
     return v;
 }
 }  // namespace
@@ -111,7 +127,9 @@ std::string ESPIDFToolchain::InstalledVersion() const
 {
     std::ifstream f(fs::path(GetIDFPath()) / "tools" / "cmake" / "version.cmake");
     if (!f.is_open())
+    {
         return {};
+    }
 
     std::string major, minor, patch, line;
     while (std::getline(f, line))
@@ -121,18 +139,24 @@ std::string ESPIDFToolchain::InstalledVersion() const
             const std::string k = std::string("set(") + key + " ";
             const size_t at = line.find(k);
             if (at == std::string::npos)
+            {
                 return;
+            }
             const size_t start = at + k.size();
             const size_t end = line.find(')', start);
             if (end != std::string::npos)
+            {
                 out = line.substr(start, end - start);
+            }
         };
         grab("IDF_VERSION_MAJOR", major);
         grab("IDF_VERSION_MINOR", minor);
         grab("IDF_VERSION_PATCH", patch);
     }
     if (major.empty() || minor.empty())
+    {
         return {};
+    }
     return major + "." + minor + "." + (patch.empty() ? "0" : patch);
 }
 
@@ -147,39 +171,49 @@ bool ESPIDFToolchain::IsInstalled() const
 #endif
 
     if (!fs::exists(exportScript))
+    {
         return false;
+    }
     // No pin known means the definition failed to load, which the builder has
     // already reported; judging the version against nothing would only hide it.
     if (m_RequiredVersion.empty())
+    {
         return true;
+    }
     return InstalledVersion() == CanonicalIdfVersion(m_RequiredVersion);
 }
 
 std::string ESPIDFToolchain::GetStatus() const
 {
     if (IsInstalled())
+    {
         return "ESP-IDF " + InstalledVersion() + " installed at " + GetIDFPath();
+    }
 
     const std::string have = InstalledVersion();
     if (!have.empty() && !m_RequiredVersion.empty())
+    {
         return "ESP-IDF " + have + " is installed, but this package is built against " +
                CanonicalIdfVersion(m_RequiredVersion) +
                "; update the ESP-IDF SDK component (Build panel, or --install-toolchain esp-idf)";
+    }
     return "ESP-IDF not installed";
 }
 
-void ESPIDFToolchain::PrepareForBuild(BuildOutputCallback outputCallback,
-                                      const std::string& buildDir)
+void ESPIDFToolchain::PrepareForBuild(BuildOutputCallback outputCallback, const std::string& buildDir)
 {
     try
     {
-        fs::path appDescObj = fs::path(buildDir) / "build" / "esp-idf" / "esp_app_format" /
-                              "CMakeFiles" / "__idf_esp_app_format.dir" / "esp_app_desc.c.obj";
+        fs::path appDescObj = fs::path(buildDir) / "build" / "esp-idf" / "esp_app_format" / "CMakeFiles" /
+                              "__idf_esp_app_format.dir" / "esp_app_desc.c.obj";
 
         if (fs::exists(appDescObj))
         {
             fs::remove(appDescObj);
-            if (outputCallback) outputCallback("Deleted esp_app_desc.c.obj to refresh compile timestamp", false);
+            if (outputCallback)
+            {
+                outputCallback("Deleted esp_app_desc.c.obj to refresh compile timestamp", false);
+            }
         }
     }
     catch (const std::exception&)
@@ -193,9 +227,8 @@ void ESPIDFToolchain::PrepareForBuild(BuildOutputCallback outputCallback,
 
 #ifdef _WIN32
 
-int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& workDir,
-                                const std::string& enginePath, BuildOutputCallback outputCallback,
-                                const ESPIDFExecContext& ctx)
+int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& workDir, const std::string& enginePath,
+                                BuildOutputCallback outputCallback, const ESPIDFExecContext& ctx)
 {
     std::string idfPath = GetIDFPath();
 
@@ -234,9 +267,8 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
         }
         else
         {
-            for (const char* candidate : { "C:/msys64/mingw64/bin/g++.exe",
-                                           "C:/mingw64/bin/g++.exe",
-                                           "C:/MinGW/bin/g++.exe" })
+            for (const char* candidate :
+                 { "C:/msys64/mingw64/bin/g++.exe", "C:/mingw64/bin/g++.exe", "C:/MinGW/bin/g++.exe" })
             {
                 if (fs::exists(candidate))
                 {
@@ -264,11 +296,14 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
             std::string compilerDir = fs::path(gxx16).parent_path().string();
             std::replace(compilerDir.begin(), compilerDir.end(), '/', '\\');
             if (!compilerDir.empty())
+            {
                 preExportSettings += "set \"PATH=%PATH%;" + compilerDir + "\" && ";
+            }
 
             if (outputCallback)
-                outputCallback("[Codegen] DEKI_GXX16=" + gxx16 + " (PATH += " + compilerDir + ")",
-                               false);
+            {
+                outputCallback("[Codegen] DEKI_GXX16=" + gxx16 + " (PATH += " + compilerDir + ")", false);
+            }
         }
     }
 
@@ -283,12 +318,16 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
         // a shell line, and not every path to it runs the validation first.
         const std::string displayBus = ctx.platformConfig->Option("displayBus");
         if (IsValidDisplayBus(displayBus))
+        {
             envSettings += "set \"DEKI_DISPLAY_BUS=" + displayBus + "\" && ";
+        }
     }
     else
     {
         if (outputCallback)
+        {
             outputCallback("[Platform Config] Not set - using defaults from target header", false);
+        }
     }
 
     if (ctx.packageDefines && !ctx.packageDefines->empty())
@@ -301,10 +340,16 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
             std::string reason;
             if (!SafeNames::IsSafeDefine(def, reason))
             {
-                if (outputCallback) outputCallback("[Package Config] skipping define '" + def + "': " + reason, true);
+                if (outputCallback)
+                {
+                    outputCallback("[Package Config] skipping define '" + def + "': " + reason, true);
+                }
                 continue;
             }
-            if (!definesList.empty()) definesList += ";";
+            if (!definesList.empty())
+            {
+                definesList += ";";
+            }
             definesList += def;
         }
         envSettings += "set \"DEKI_PACKAGE_DEFINES=" + definesList + "\" && ";
@@ -313,7 +358,9 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
         {
             outputCallback("[Package Config] Auto-detected defines:", false);
             for (const auto& def : *ctx.packageDefines)
+            {
                 outputCallback("  " + def, false);
+            }
         }
     }
 
@@ -339,10 +386,9 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
     // enough to make every firmware build fail with "This .bat file is for
     // Windows CMD.EXE shell only". The child really is CMD; only the inherited
     // variable said otherwise.
-    std::string fullCommand = "cmd /s /c \"set \"MSYSTEM=\" && " + preExportSettings +
-                              "cd /d \"" + idfPathNative +
-                              "\" && call \"" + idfPathNative + "\\export.bat\" && cd /d \"" +
-                              workDir + "\" && " + envSettings + command + "\"";
+    std::string fullCommand = "cmd /s /c \"set \"MSYSTEM=\" && " + preExportSettings + "cd /d \"" + idfPathNative +
+                              "\" && call \"" + idfPathNative + "\\export.bat\" && cd /d \"" + workDir + "\" && " +
+                              envSettings + command + "\"";
 
     SECURITY_ATTRIBUTES sa;
     sa.nLength = sizeof(SECURITY_ATTRIBUTES);
@@ -371,17 +417,7 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
     std::vector<char> cmdBuf(fullCommand.begin(), fullCommand.end());
     cmdBuf.push_back('\0');
 
-    BOOL success = CreateProcessA(
-        NULL,
-        cmdBuf.data(),
-        NULL,
-        NULL,
-        TRUE,
-        CREATE_NO_WINDOW,
-        NULL,
-        NULL,
-        &si,
-        &pi);
+    BOOL success = CreateProcessA(NULL, cmdBuf.data(), NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi);
 
     CloseHandle(hWritePipe);
 
@@ -424,11 +460,10 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
 
             if (outputCallback && !line.empty())
             {
-                bool isError = (line.find("error:") != std::string::npos) ||
-                               (line.find("Error:") != std::string::npos) ||
-                               (line.find("ERROR") != std::string::npos) ||
-                               (line.find("fatal error") != std::string::npos) ||
-                               (line.find("FAILED") != std::string::npos);
+                bool isError =
+                    (line.find("error:") != std::string::npos) || (line.find("Error:") != std::string::npos) ||
+                    (line.find("ERROR") != std::string::npos) || (line.find("fatal error") != std::string::npos) ||
+                    (line.find("FAILED") != std::string::npos);
                 outputCallback(line, isError);
             }
         }
@@ -436,8 +471,8 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
 
     if (outputCallback && !lineBuffer.empty())
     {
-        bool isError = (lineBuffer.find("error:") != std::string::npos) ||
-                       (lineBuffer.find("Error:") != std::string::npos);
+        bool isError =
+            (lineBuffer.find("error:") != std::string::npos) || (lineBuffer.find("Error:") != std::string::npos);
         outputCallback(lineBuffer, isError);
     }
 
@@ -455,9 +490,8 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
 
 #else
 
-int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& workDir,
-                                const std::string& enginePath, BuildOutputCallback outputCallback,
-                                const ESPIDFExecContext& ctx)
+int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& workDir, const std::string& enginePath,
+                                BuildOutputCallback outputCallback, const ESPIDFExecContext& ctx)
 {
     std::string idfPath = GetIDFPath();
 
@@ -474,7 +508,9 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
         envExports += "export DEKI_USE_PSRAM=\"" + std::string(usePsram ? "1" : "") + "\" && ";
         const std::string displayBus = ctx.platformConfig->Option("displayBus");
         if (IsValidDisplayBus(displayBus))
+        {
             envExports += "export DEKI_DISPLAY_BUS=\"" + displayBus + "\" && ";
+        }
     }
 
     if (ctx.packageDefines && !ctx.packageDefines->empty())
@@ -486,17 +522,23 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
             std::string reason;
             if (!SafeNames::IsSafeDefine(def, reason))
             {
-                if (outputCallback) outputCallback("[Package Config] skipping define '" + def + "': " + reason, true);
+                if (outputCallback)
+                {
+                    outputCallback("[Package Config] skipping define '" + def + "': " + reason, true);
+                }
                 continue;
             }
-            if (!definesList.empty()) definesList += ";";
+            if (!definesList.empty())
+            {
+                definesList += ";";
+            }
             definesList += def;
         }
         envExports += "export DEKI_PACKAGE_DEFINES=\"" + definesList + "\" && ";
     }
 
-    std::string fullCommand = "cd \"" + idfPath + "\" && . ./export.sh && cd \"" +
-                              workDir + "\" && " + envExports + command;
+    std::string fullCommand =
+        "cd \"" + idfPath + "\" && . ./export.sh && cd \"" + workDir + "\" && " + envExports + command;
 
     FILE* pipe = popen(fullCommand.c_str(), "r");
     if (!pipe)
@@ -521,8 +563,7 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
 
         if (outputCallback && !line.empty())
         {
-            bool isError = (line.find("error:") != std::string::npos) ||
-                           (line.find("Error:") != std::string::npos) ||
+            bool isError = (line.find("error:") != std::string::npos) || (line.find("Error:") != std::string::npos) ||
                            (line.find("ERROR") != std::string::npos) ||
                            (line.find("fatal error") != std::string::npos) ||
                            (line.find("FAILED") != std::string::npos);

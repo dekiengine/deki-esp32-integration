@@ -9,7 +9,6 @@
 namespace DekiEsp32
 {
 
-
 ESPIDFI2S::~ESPIDFI2S()
 {
     Shutdown();
@@ -17,13 +16,13 @@ ESPIDFI2S::~ESPIDFI2S()
 
 void ESPIDFI2S::Configure(const Deki::PackageConfig& config)
 {
-    m_PinBCLK       = config.GetPin("BCLK", -1);
-    m_PinLRCLK      = config.GetPin("LRCLK", -1);
-    m_PinDOUT       = config.GetPin("DOUT", -1);
-    m_Port          = config.GetInt("i2sPort", 0);
-    m_SampleRate    = config.GetInt("sampleRate", 16000);
+    m_PinBCLK = config.GetPin("BCLK", -1);
+    m_PinLRCLK = config.GetPin("LRCLK", -1);
+    m_PinDOUT = config.GetPin("DOUT", -1);
+    m_Port = config.GetInt("i2sPort", 0);
+    m_SampleRate = config.GetInt("sampleRate", 16000);
     m_BitsPerSample = config.GetInt("bits_per_sample", 16);
-    m_Channels      = config.GetInt("channels", 1);
+    m_Channels = config.GetInt("channels", 1);
 }
 
 bool ESPIDFI2S::Initialize()
@@ -38,7 +37,8 @@ bool ESPIDFI2S::Initialize()
 
     Shutdown();  // a second Initialize leaked the first channel
 
-    i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(m_Port, I2S_ROLE_MASTER);  // an int since ESP-IDF 6; i2s_port_t is gone
+    i2s_chan_config_t chan_cfg =
+        I2S_CHANNEL_DEFAULT_CONFIG(m_Port, I2S_ROLE_MASTER);  // an int since ESP-IDF 6; i2s_port_t is gone
     if (i2s_new_channel(&chan_cfg, &m_TxHandle, nullptr) != ESP_OK)
     {
         m_LastError = "ESPIDFI2S: i2s_new_channel failed";
@@ -46,12 +46,10 @@ bool ESPIDFI2S::Initialize()
         return false;
     }
 
-    i2s_data_bit_width_t bits =
-        (m_BitsPerSample == 24) ? I2S_DATA_BIT_WIDTH_24BIT :
-        (m_BitsPerSample == 32) ? I2S_DATA_BIT_WIDTH_32BIT :
-                                  I2S_DATA_BIT_WIDTH_16BIT;
-    i2s_slot_mode_t slot =
-        (m_Channels == 2) ? I2S_SLOT_MODE_STEREO : I2S_SLOT_MODE_MONO;
+    i2s_data_bit_width_t bits = (m_BitsPerSample == 24)   ? I2S_DATA_BIT_WIDTH_24BIT
+                                : (m_BitsPerSample == 32) ? I2S_DATA_BIT_WIDTH_32BIT
+                                                          : I2S_DATA_BIT_WIDTH_16BIT;
+    i2s_slot_mode_t slot = (m_Channels == 2) ? I2S_SLOT_MODE_STEREO : I2S_SLOT_MODE_MONO;
 
     i2s_std_config_t std_cfg = {
         .clk_cfg  = I2S_STD_CLK_DEFAULT_CONFIG((uint32_t)m_SampleRate),
@@ -93,7 +91,10 @@ void ESPIDFI2S::Shutdown()
 #if defined(ESP32)
     if (m_TxHandle)
     {
-        if (m_Running) i2s_channel_disable(m_TxHandle);
+        if (m_Running)
+        {
+            i2s_channel_disable(m_TxHandle);
+        }
         i2s_del_channel(m_TxHandle);
         m_TxHandle = nullptr;
     }
@@ -105,8 +106,14 @@ void ESPIDFI2S::Shutdown()
 bool ESPIDFI2S::Start()
 {
 #if defined(ESP32)
-    if (!m_TxHandle) return false;
-    if (m_Running) return true;
+    if (!m_TxHandle)
+    {
+        return false;
+    }
+    if (m_Running)
+    {
+        return true;
+    }
     if (i2s_channel_enable(m_TxHandle) != ESP_OK)
     {
         m_LastError = "ESPIDFI2S: i2s_channel_enable failed";
@@ -123,7 +130,10 @@ bool ESPIDFI2S::Start()
 bool ESPIDFI2S::Stop()
 {
 #if defined(ESP32)
-    if (!m_TxHandle || !m_Running) return true;
+    if (!m_TxHandle || !m_Running)
+    {
+        return true;
+    }
     if (i2s_channel_disable(m_TxHandle) != ESP_OK)
     {
         m_LastError = "ESPIDFI2S: i2s_channel_disable failed";
@@ -140,13 +150,22 @@ bool ESPIDFI2S::Stop()
 int ESPIDFI2S::Write(const void* data, size_t bytes, uint32_t timeoutMs)
 {
 #if defined(ESP32)
-    if (!m_TxHandle || !data || bytes == 0) return 0;
+    if (!m_TxHandle || !data || bytes == 0)
+    {
+        return 0;
+    }
     size_t written = 0;
     esp_err_t err = i2s_channel_write(m_TxHandle, data, bytes, &written, pdMS_TO_TICKS(timeoutMs));
-    if (err != ESP_OK && err != ESP_ERR_TIMEOUT) return 0;
+    if (err != ESP_OK && err != ESP_ERR_TIMEOUT)
+    {
+        return 0;
+    }
     return (int)written;
 #else
-    (void)data; (void)bytes; (void)timeoutMs; return 0;
+    (void)data;
+    (void)bytes;
+    (void)timeoutMs;
+    return 0;
 #endif
 }
 

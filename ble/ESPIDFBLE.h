@@ -1,6 +1,6 @@
 #pragma once
 
-#include "IDekiBLE.h"        // from deki-ble
+#include "IDekiBLE.h"  // from deki-ble
 #include <deki/PackageConfig.h>
 #include <string>
 
@@ -26,12 +26,12 @@ public:
     ~ESPIDFBLE() override = default;
 
     // Deki::IPackage
-    const char* GetPackageId()   const override { return "ble"; }
+    const char* GetPackageId() const override { return "ble"; }
     const char* GetPackageName() const override { return "BLE (NimBLE)"; }
-    void        Configure(const Deki::PackageConfig&) override {}
-    bool        Initialize() override;
-    void        Shutdown() override;
-    void        Update(float) override {}
+    void Configure(const Deki::PackageConfig&) override {}
+    bool Initialize() override;
+    void Shutdown() override;
+    void Update(float) override {}
     Deki::PackageState GetState() const override { return m_State; }
     const char* GetLastError() const override { return m_LastError.c_str(); }
 
@@ -47,9 +47,10 @@ public:
 
     // DekiBle::IDekiBLE -- GATT server
     bool BuildGattServer(DekiBle::DekiBLEServiceSpec* services, uint8_t count) override;
-    bool NotifyValue(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECharHandle handle, const void* data, size_t len) override;
+    bool NotifyValue(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECharHandle handle, const void* data,
+                     size_t len) override;
     void SetCharWriteCallback(DekiBle::DekiBLECharWriteCb cb, void* user) override;
-    void SetCharReadCallback (DekiBle::DekiBLECharReadCb  cb, void* user) override;
+    void SetCharReadCallback(DekiBle::DekiBLECharReadCb cb, void* user) override;
     void SetConnectionCallback(DekiBle::DekiBLEConnCb cb, void* user) override;
 
     // DekiBle::IDekiBLE -- GATT client
@@ -57,8 +58,10 @@ public:
     void DisconnectClient(DekiBle::DekiBLEConnHandle conn) override;
     bool DiscoverService(DekiBle::DekiBLEConnHandle conn, const DekiBle::DekiBLEUUID& service,
                          DekiBle::DekiBLECharHandle* outFirstHandle, uint8_t* outCount) override;
-    bool ReadRemote(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECharHandle handle, uint8_t* out, size_t* len) override;
-    bool WriteRemote(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECharHandle handle, const void* data, size_t len, bool with_response) override;
+    bool ReadRemote(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECharHandle handle, uint8_t* out,
+                    size_t* len) override;
+    bool WriteRemote(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECharHandle handle, const void* data, size_t len,
+                     bool with_response) override;
     bool Subscribe(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECharHandle handle, bool enable) override;
     void SetNotifyCallback(DekiBle::DekiBLENotifyCb cb, void* user) override;
 

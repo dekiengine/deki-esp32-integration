@@ -14,7 +14,7 @@ namespace DekiEsp32
  */
 class ESP32SerialCommands
 {
-   public:
+public:
     /**
      * @brief Initialize the serial command handler
      * @param baudRate Baud rate for serial communication (default: 115200)
@@ -33,7 +33,7 @@ class ESP32SerialCommands
      */
     static bool IsInStorageMode();
 
-   private:
+private:
     static bool s_Initialized;
     static bool s_InStorageMode;
 };

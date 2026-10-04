@@ -69,7 +69,9 @@ void ESP32QemuDisplay::Shutdown()
 void ESP32QemuDisplay::Present(const uint8_t* framebuffer, int width, int height, Deki::ColorFormat format)
 {
     if (!m_Initialized || !framebuffer || width != m_Width || height != m_Height || format != m_Format)
+    {
         return;
+    }
     kPanel->updateFrom = 0;
     kPanel->updateTo = (static_cast<uint32_t>(width) << 16) | static_cast<uint32_t>(height);
     kPanel->content = framebuffer;
@@ -83,20 +85,42 @@ void ESP32QemuDisplay::Present(const uint8_t* framebuffer, int width, int height
 
 void ESP32QemuDisplay::GetDisplaySize(int32_t* width, int32_t* height) const
 {
-    if (width) *width = m_Width;
-    if (height) *height = m_Height;
+    if (width)
+    {
+        *width = m_Width;
+    }
+    if (height)
+    {
+        *height = m_Height;
+    }
 }
 
 #else
 
-bool ESP32QemuDisplay::RunningInQemu() { return false; }
-bool ESP32QemuDisplay::Initialize(int32_t, int32_t) { return false; }
-void ESP32QemuDisplay::Shutdown() {}
-void ESP32QemuDisplay::Present(const uint8_t*, int, int, Deki::ColorFormat) {}
+bool ESP32QemuDisplay::RunningInQemu()
+{
+    return false;
+}
+bool ESP32QemuDisplay::Initialize(int32_t, int32_t)
+{
+    return false;
+}
+void ESP32QemuDisplay::Shutdown()
+{
+}
+void ESP32QemuDisplay::Present(const uint8_t*, int, int, Deki::ColorFormat)
+{
+}
 void ESP32QemuDisplay::GetDisplaySize(int32_t* width, int32_t* height) const
 {
-    if (width) *width = 0;
-    if (height) *height = 0;
+    if (width)
+    {
+        *width = 0;
+    }
+    if (height)
+    {
+        *height = 0;
+    }
 }
 
 #endif

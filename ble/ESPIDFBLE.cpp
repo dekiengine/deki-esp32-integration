@@ -32,73 +32,75 @@ namespace DekiEsp32
 // stub branch below already answers every call safely, so use it.
 #if defined(ESP32) && defined(CONFIG_BT_ENABLED)
 
-
-
-namespace {
+namespace
+{
 
 // =============================================================================
 // Package-wide state. NimBLE is a singleton stack, the ESPIDFBLE class is a
 // thin facade on top, so we keep state here in a single anonymous namespace.
 // =============================================================================
 
-bool                 s_StackInited      = false;
-bool                 s_HostReady        = false;
-uint8_t              s_OwnAddrType      = 0;
+bool s_StackInited = false;
+bool s_HostReady = false;
+uint8_t s_OwnAddrType = 0;
 
 // Scan
-DekiBle::DekiBLEScanCb        s_ScanCb           = nullptr;
-void*                s_ScanUser         = nullptr;
-bool                 s_ScanActive       = false;
+DekiBle::DekiBLEScanCb s_ScanCb = nullptr;
+void* s_ScanUser = nullptr;
+bool s_ScanActive = false;
 
 // Advertise
-bool                 s_Advertising      = false;
-uint8_t              s_AdvRawBuf[31];
-uint8_t              s_AdvRawLen        = 0;
+bool s_Advertising = false;
+uint8_t s_AdvRawBuf[31];
+uint8_t s_AdvRawLen = 0;
 
 // GATT server: persisted service table (NimBLE references this after registration).
 // Each translated service has a flat char array terminated by a zero entry.
-struct GattCharRecord {
-    DekiBle::DekiBLEUUID       deki_uuid;
-    ble_uuid_any_t    nimble_uuid;
-    uint16_t          val_handle;     // populated by NimBLE via ble_gatts_add_svcs callback
-    uint8_t           props;
-    uint16_t          max_len;
-    uint8_t           idx_in_service;
+struct GattCharRecord
+{
+    DekiBle::DekiBLEUUID deki_uuid;
+    ble_uuid_any_t nimble_uuid;
+    uint16_t val_handle;  // populated by NimBLE via ble_gatts_add_svcs callback
+    uint8_t props;
+    uint16_t max_len;
+    uint8_t idx_in_service;
 };
 
-struct GattServiceRecord {
-    DekiBle::DekiBLEUUID       deki_uuid;
-    ble_uuid_any_t    nimble_uuid;
+struct GattServiceRecord
+{
+    DekiBle::DekiBLEUUID deki_uuid;
+    ble_uuid_any_t nimble_uuid;
     std::vector<GattCharRecord> chars;
-    std::vector<ble_gatt_chr_def>   chr_defs;  // terminated entry appended
+    std::vector<ble_gatt_chr_def> chr_defs;  // terminated entry appended
 };
 
-std::vector<GattServiceRecord>  s_GattServices;
-std::vector<ble_gatt_svc_def>   s_GattSvcDefs;   // flat array passed to NimBLE; terminated
+std::vector<GattServiceRecord> s_GattServices;
+std::vector<ble_gatt_svc_def> s_GattSvcDefs;  // flat array passed to NimBLE; terminated
 
 // GATT server callbacks
-DekiBle::DekiBLECharWriteCb   s_CharWriteCb      = nullptr;
-void*                s_CharWriteUser    = nullptr;
-DekiBle::DekiBLECharReadCb    s_CharReadCb       = nullptr;
-void*                s_CharReadUser     = nullptr;
-DekiBle::DekiBLEConnCb        s_ConnCb           = nullptr;
-void*                s_ConnUser         = nullptr;
+DekiBle::DekiBLECharWriteCb s_CharWriteCb = nullptr;
+void* s_CharWriteUser = nullptr;
+DekiBle::DekiBLECharReadCb s_CharReadCb = nullptr;
+void* s_CharReadUser = nullptr;
+DekiBle::DekiBLEConnCb s_ConnCb = nullptr;
+void* s_ConnUser = nullptr;
 
 // GATT client async wait state
-SemaphoreHandle_t    s_ClientSem        = nullptr;
-struct ClientOpState {
-    int               status;
+SemaphoreHandle_t s_ClientSem = nullptr;
+struct ClientOpState
+{
+    int status;
     DekiBle::DekiBLEConnHandle conn_handle;
-    uint16_t          attr_handle_first;
-    uint8_t           attr_handle_count;
-    uint8_t*          read_buf;
-    size_t            read_buf_max;
-    size_t            read_buf_written;
+    uint16_t attr_handle_first;
+    uint8_t attr_handle_count;
+    uint8_t* read_buf;
+    size_t read_buf_max;
+    size_t read_buf_written;
 } s_ClientOp;
 
 // GATT notify dispatch
-DekiBle::DekiBLENotifyCb      s_NotifyCb         = nullptr;
-void*                s_NotifyUser       = nullptr;
+DekiBle::DekiBLENotifyCb s_NotifyCb = nullptr;
+void* s_NotifyUser = nullptr;
 
 // =============================================================================
 // Helpers
@@ -106,56 +108,72 @@ void*                s_NotifyUser       = nullptr;
 
 void ToNimbleUuid(const DekiBle::DekiBLEUUID& in, ble_uuid_any_t& out)
 {
-    if (in.is16bit) {
+    if (in.is16bit)
+    {
         out.u.type = BLE_UUID_TYPE_16;
         out.u16.value = in.shortId;
-    } else {
+    }
+    else
+    {
         out.u.type = BLE_UUID_TYPE_128;
         // NimBLE expects little-endian; DekiBLEUUID is big-endian canonical.
-        for (int i = 0; i < 16; ++i) out.u128.value[i] = in.bytes[15 - i];
+        for (int i = 0; i < 16; ++i)
+        {
+            out.u128.value[i] = in.bytes[15 - i];
+        }
     }
 }
 
 void FromNimbleUuid(const ble_uuid_t* in, DekiBle::DekiBLEUUID& out)
 {
-    if (!in) { out = {}; return; }
-    if (in->type == BLE_UUID_TYPE_16) {
+    if (!in)
+    {
+        out = {};
+        return;
+    }
+    if (in->type == BLE_UUID_TYPE_16)
+    {
         const ble_uuid16_t* u = (const ble_uuid16_t*)in;
-        out.is16bit  = true;
+        out.is16bit = true;
         out.shortId = u->value;
         // Splice into Bluetooth base UUID: 00000000-0000-1000-8000-00805F9B34FB
-        static const uint8_t base[16] = {
-            0x00,0x00,0x00,0x00, 0x00,0x00, 0x10,0x00,
-            0x80,0x00, 0x00,0x80,0x5F,0x9B,0x34,0xFB
-        };
+        static const uint8_t base[16] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00,
+                                          0x80, 0x00, 0x00, 0x80, 0x5F, 0x9B, 0x34, 0xFB };
         std::memcpy(out.bytes, base, 16);
         out.bytes[2] = (u->value >> 8) & 0xFF;
         out.bytes[3] = u->value & 0xFF;
-    } else if (in->type == BLE_UUID_TYPE_128) {
+    }
+    else if (in->type == BLE_UUID_TYPE_128)
+    {
         const ble_uuid128_t* u = (const ble_uuid128_t*)in;
         out.is16bit = false;
         out.shortId = 0;
-        for (int i = 0; i < 16; ++i) out.bytes[i] = u->value[15 - i];
+        for (int i = 0; i < 16; ++i)
+        {
+            out.bytes[i] = u->value[15 - i];
+        }
     }
 }
 
 DekiBle::DekiBLEAddrType FromNimbleAddrType(uint8_t t)
 {
-    switch (t) {
-        case BLE_ADDR_PUBLIC:        return DekiBle::DekiBLEAddrType::Public;
-        case BLE_ADDR_RANDOM:        return DekiBle::DekiBLEAddrType::RandomStatic;
-        case BLE_ADDR_PUBLIC_ID:     return DekiBle::DekiBLEAddrType::Public;
-        case BLE_ADDR_RANDOM_ID:     return DekiBle::DekiBLEAddrType::RandomPrivateResolvable;
+    switch (t)
+    {
+        case BLE_ADDR_PUBLIC: return DekiBle::DekiBLEAddrType::Public;
+        case BLE_ADDR_RANDOM: return DekiBle::DekiBLEAddrType::RandomStatic;
+        case BLE_ADDR_PUBLIC_ID: return DekiBle::DekiBLEAddrType::Public;
+        case BLE_ADDR_RANDOM_ID: return DekiBle::DekiBLEAddrType::RandomPrivateResolvable;
     }
     return DekiBle::DekiBLEAddrType::Public;
 }
 
 uint8_t ToNimbleAddrType(DekiBle::DekiBLEAddrType t)
 {
-    switch (t) {
-        case DekiBle::DekiBLEAddrType::Public:                     return BLE_ADDR_PUBLIC;
-        case DekiBle::DekiBLEAddrType::RandomStatic:               return BLE_ADDR_RANDOM;
-        case DekiBle::DekiBLEAddrType::RandomPrivateResolvable:    return BLE_ADDR_RANDOM_ID;
+    switch (t)
+    {
+        case DekiBle::DekiBLEAddrType::Public: return BLE_ADDR_PUBLIC;
+        case DekiBle::DekiBLEAddrType::RandomStatic: return BLE_ADDR_RANDOM;
+        case DekiBle::DekiBLEAddrType::RandomPrivateResolvable: return BLE_ADDR_RANDOM_ID;
         case DekiBle::DekiBLEAddrType::RandomPrivateNonResolvable: return BLE_ADDR_RANDOM;
     }
     return BLE_ADDR_PUBLIC;
@@ -168,7 +186,8 @@ uint8_t ToNimbleAddrType(DekiBle::DekiBLEAddrType t)
 void OnHostSync()
 {
     int rc = ble_hs_id_infer_auto(0, &s_OwnAddrType);
-    if (rc != 0) {
+    if (rc != 0)
+    {
         DEKI_LOG_ERROR("[ble] ble_hs_id_infer_auto rc=%d", rc);
         return;
     }
@@ -193,7 +212,10 @@ int GapEvent(struct ble_gap_event* ev, void* /*arg*/);
 // Translate a NimBLE scan event into DekiBLEDevice, then dispatch to user cb.
 void DispatchScanResult(const struct ble_gap_disc_desc& disc)
 {
-    if (!s_ScanCb) return;
+    if (!s_ScanCb)
+    {
+        return;
+    }
 
     DekiBle::DekiBLEDevice dev = {};
     std::memcpy(dev.addr.bytes, disc.addr.val, 6);
@@ -206,28 +228,38 @@ void DispatchScanResult(const struct ble_gap_disc_desc& disc)
 
     // Parse common AD types out of the raw payload.
     struct ble_hs_adv_fields fields;
-    if (ble_hs_adv_parse_fields(&fields, disc.data, disc.length_data) == 0) {
-        if (fields.name && fields.name_len) {
+    if (ble_hs_adv_parse_fields(&fields, disc.data, disc.length_data) == 0)
+    {
+        if (fields.name && fields.name_len)
+        {
             size_t n = fields.name_len;
-            if (n > sizeof(dev.name) - 1) n = sizeof(dev.name) - 1;
+            if (n > sizeof(dev.name) - 1)
+            {
+                n = sizeof(dev.name) - 1;
+            }
             std::memcpy(dev.name, fields.name, n);
             dev.name[n] = '\0';
         }
-        if (fields.mfg_data && fields.mfg_data_len >= 2) {
-            dev.manufacturerId = (uint16_t)fields.mfg_data[0]
-                                | ((uint16_t)fields.mfg_data[1] << 8);
+        if (fields.mfg_data && fields.mfg_data_len >= 2)
+        {
+            dev.manufacturerId = (uint16_t)fields.mfg_data[0] | ((uint16_t)fields.mfg_data[1] << 8);
             uint8_t mlen = fields.mfg_data_len - 2;
-            if (mlen > sizeof(dev.manufacturerData)) mlen = sizeof(dev.manufacturerData);
+            if (mlen > sizeof(dev.manufacturerData))
+            {
+                mlen = sizeof(dev.manufacturerData);
+            }
             std::memcpy(dev.manufacturerData, fields.mfg_data + 2, mlen);
             dev.manufacturerDataLen = mlen;
         }
         // Parse up to 4 service UUIDs across 16/32/128 lists.
         uint8_t out_i = 0;
-        for (uint8_t i = 0; i < fields.num_uuids16 && out_i < 4; ++i) {
+        for (uint8_t i = 0; i < fields.num_uuids16 && out_i < 4; ++i)
+        {
             ble_uuid16_t u = { .u = { .type = BLE_UUID_TYPE_16 }, .value = fields.uuids16[i].value };
             FromNimbleUuid((const ble_uuid_t*)&u, dev.serviceUuids[out_i++]);
         }
-        for (uint8_t i = 0; i < fields.num_uuids128 && out_i < 4; ++i) {
+        for (uint8_t i = 0; i < fields.num_uuids128 && out_i < 4; ++i)
+        {
             ble_uuid128_t u;
             u.u.type = BLE_UUID_TYPE_128;
             std::memcpy(u.value, fields.uuids128[i].value, 16);
@@ -241,9 +273,13 @@ void DispatchScanResult(const struct ble_gap_disc_desc& disc)
 
 void DispatchConnEvent(uint16_t conn_handle, const ble_addr_t* peer, bool connected)
 {
-    if (!s_ConnCb) return;
+    if (!s_ConnCb)
+    {
+        return;
+    }
     DekiBle::DekiBLEAddress addr = {};
-    if (peer) {
+    if (peer)
+    {
         std::memcpy(addr.bytes, peer->val, 6);
         addr.type = FromNimbleAddrType(peer->type);
     }
@@ -252,52 +288,51 @@ void DispatchConnEvent(uint16_t conn_handle, const ble_addr_t* peer, bool connec
 
 int GapEvent(struct ble_gap_event* ev, void* /*arg*/)
 {
-    switch (ev->type) {
-        case BLE_GAP_EVENT_DISC:
-            DispatchScanResult(ev->disc);
-            return 0;
+    switch (ev->type)
+    {
+        case BLE_GAP_EVENT_DISC: DispatchScanResult(ev->disc); return 0;
 
-        case BLE_GAP_EVENT_DISC_COMPLETE:
-            s_ScanActive = false;
-            return 0;
+        case BLE_GAP_EVENT_DISC_COMPLETE: s_ScanActive = false; return 0;
 
-        case BLE_GAP_EVENT_CONNECT: {
+        case BLE_GAP_EVENT_CONNECT:
+        {
             struct ble_gap_conn_desc desc;
-            if (ble_gap_conn_find(ev->connect.conn_handle, &desc) == 0) {
-                DispatchConnEvent(ev->connect.conn_handle, &desc.peer_id_addr,
-                                  ev->connect.status == 0);
+            if (ble_gap_conn_find(ev->connect.conn_handle, &desc) == 0)
+            {
+                DispatchConnEvent(ev->connect.conn_handle, &desc.peer_id_addr, ev->connect.status == 0);
             }
             // Wake any blocked Connect()
             s_ClientOp.status = ev->connect.status;
             s_ClientOp.conn_handle = ev->connect.conn_handle;
-            if (s_ClientSem) xSemaphoreGive(s_ClientSem);
+            if (s_ClientSem)
+            {
+                xSemaphoreGive(s_ClientSem);
+            }
             return 0;
         }
 
         case BLE_GAP_EVENT_DISCONNECT:
-            DispatchConnEvent(ev->disconnect.conn.conn_handle,
-                              &ev->disconnect.conn.peer_id_addr, false);
+            DispatchConnEvent(ev->disconnect.conn.conn_handle, &ev->disconnect.conn.peer_id_addr, false);
             return 0;
 
-        case BLE_GAP_EVENT_ADV_COMPLETE:
-            s_Advertising = false;
-            return 0;
+        case BLE_GAP_EVENT_ADV_COMPLETE: s_Advertising = false; return 0;
 
-        case BLE_GAP_EVENT_NOTIFY_RX: {
-            if (s_NotifyCb && ev->notify_rx.om) {
+        case BLE_GAP_EVENT_NOTIFY_RX:
+        {
+            if (s_NotifyCb && ev->notify_rx.om)
+            {
                 uint8_t buf[256];
                 uint16_t out_len = 0;
                 int rc = ble_hs_mbuf_to_flat(ev->notify_rx.om, buf, sizeof(buf), &out_len);
-                if (rc == 0) {
-                    s_NotifyCb(ev->notify_rx.conn_handle, ev->notify_rx.attr_handle,
-                               buf, out_len, s_NotifyUser);
+                if (rc == 0)
+                {
+                    s_NotifyCb(ev->notify_rx.conn_handle, ev->notify_rx.attr_handle, buf, out_len, s_NotifyUser);
                 }
             }
             return 0;
         }
 
-        default:
-            return 0;
+        default: return 0;
     }
 }
 
@@ -305,25 +340,36 @@ int GapEvent(struct ble_gap_event* ev, void* /*arg*/)
 // GATT server access callback
 // =============================================================================
 
-int GattAccess(uint16_t conn_handle, uint16_t attr_handle,
-               struct ble_gatt_access_ctxt* ctxt, void* /*arg*/)
+int GattAccess(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt_access_ctxt* ctxt, void* /*arg*/)
 {
-    if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
-        if (!s_CharWriteCb) return 0;
+    if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR)
+    {
+        if (!s_CharWriteCb)
+        {
+            return 0;
+        }
         uint8_t buf[512];
         uint16_t out_len = 0;
         int rc = ble_hs_mbuf_to_flat(ctxt->om, buf, sizeof(buf), &out_len);
-        if (rc != 0) return BLE_ATT_ERR_UNLIKELY;
+        if (rc != 0)
+        {
+            return BLE_ATT_ERR_UNLIKELY;
+        }
         s_CharWriteCb(conn_handle, attr_handle, buf, out_len, s_CharWriteUser);
         return 0;
     }
-    if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
+    if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR)
+    {
         uint8_t buf[512];
         int written = 0;
-        if (s_CharReadCb) {
+        if (s_CharReadCb)
+        {
             written = s_CharReadCb(conn_handle, attr_handle, buf, sizeof(buf), s_CharReadUser);
         }
-        if (written < 0) return BLE_ATT_ERR_UNLIKELY;
+        if (written < 0)
+        {
+            return BLE_ATT_ERR_UNLIKELY;
+        }
         int rc = os_mbuf_append(ctxt->om, buf, (uint16_t)written);
         return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
     }
@@ -333,36 +379,58 @@ int GattAccess(uint16_t conn_handle, uint16_t attr_handle,
 uint8_t PropsToNimble(uint8_t deki)
 {
     uint8_t f = 0;
-    if (deki & DekiBLECharProp_Read)        f |= BLE_GATT_CHR_F_READ;
-    if (deki & DekiBLECharProp_Write)       f |= BLE_GATT_CHR_F_WRITE;
-    if (deki & DekiBLECharProp_WriteNoResp) f |= BLE_GATT_CHR_F_WRITE_NO_RSP;
-    if (deki & DekiBLECharProp_Notify)      f |= BLE_GATT_CHR_F_NOTIFY;
-    if (deki & DekiBLECharProp_Indicate)    f |= BLE_GATT_CHR_F_INDICATE;
+    if (deki & DekiBLECharProp_Read)
+    {
+        f |= BLE_GATT_CHR_F_READ;
+    }
+    if (deki & DekiBLECharProp_Write)
+    {
+        f |= BLE_GATT_CHR_F_WRITE;
+    }
+    if (deki & DekiBLECharProp_WriteNoResp)
+    {
+        f |= BLE_GATT_CHR_F_WRITE_NO_RSP;
+    }
+    if (deki & DekiBLECharProp_Notify)
+    {
+        f |= BLE_GATT_CHR_F_NOTIFY;
+    }
+    if (deki & DekiBLECharProp_Indicate)
+    {
+        f |= BLE_GATT_CHR_F_INDICATE;
+    }
     return f;
 }
 
 bool InitStackOnce()
 {
-    if (s_StackInited) return true;
+    if (s_StackInited)
+    {
+        return true;
+    }
 
     // NimBLE keeps bonding keys in NVS.
     if (!EnsureNvsFlash())
+    {
         return false;
+    }
     esp_err_t e = esp_nimble_hci_and_controller_init();
-    if (e != ESP_OK) {
+    if (e != ESP_OK)
+    {
         DEKI_LOG_ERROR("[ble] esp_nimble_hci_and_controller_init failed (%d)", e);
         return false;
     }
     nimble_port_init();
 
-    ble_hs_cfg.sync_cb       = OnHostSync;
-    ble_hs_cfg.reset_cb      = OnHostReset;
+    ble_hs_cfg.sync_cb = OnHostSync;
+    ble_hs_cfg.reset_cb = OnHostReset;
     ble_hs_cfg.store_status_cb = NULL;
 
     ble_svc_gap_init();
     ble_svc_gatt_init();
 
-    if (!s_ClientSem) {
+    if (!s_ClientSem)
+    {
         s_ClientSem = xSemaphoreCreateBinary();
     }
 
@@ -370,10 +438,12 @@ bool InitStackOnce()
 
     // Wait briefly for the host to sync. NimBLE issues the sync callback once
     // the controller is up; without it we cannot pick an own_addr_type.
-    for (int i = 0; i < 50 && !s_HostReady; ++i) {
+    for (int i = 0; i < 50 && !s_HostReady; ++i)
+    {
         vTaskDelay(pdMS_TO_TICKS(20));
     }
-    if (!s_HostReady) {
+    if (!s_HostReady)
+    {
         DEKI_LOG_ERROR("[ble] host did not sync within 1s");
         return false;
     }
@@ -400,19 +470,29 @@ bool ESPIDFBLE::Initialize()
 
 void ESPIDFBLE::Shutdown()
 {
-    if (!s_StackInited) {
+    if (!s_StackInited)
+    {
         m_State = Deki::PackageState::Uninitialized;
         return;
     }
-    if (s_Advertising) { ble_gap_adv_stop(); s_Advertising = false; }
-    if (s_ScanActive)  { ble_gap_disc_cancel(); s_ScanActive = false; }
+    if (s_Advertising)
+    {
+        ble_gap_adv_stop();
+        s_Advertising = false;
+    }
+    if (s_ScanActive)
+    {
+        ble_gap_disc_cancel();
+        s_ScanActive = false;
+    }
     int rc = nimble_port_stop();
-    if (rc == 0) {
+    if (rc == 0)
+    {
         nimble_port_deinit();
         esp_nimble_hci_and_controller_deinit();
     }
     s_StackInited = false;
-    s_HostReady   = false;
+    s_HostReady = false;
     m_State = Deki::PackageState::Uninitialized;
 }
 
@@ -422,19 +502,26 @@ void ESPIDFBLE::Shutdown()
 
 bool ESPIDFBLE::StartScan(uint16_t intervalMs, uint16_t windowMs, bool active, uint32_t durationMs)
 {
-    if (!InitStackOnce()) return false;
-    if (s_ScanActive) ble_gap_disc_cancel();
+    if (!InitStackOnce())
+    {
+        return false;
+    }
+    if (s_ScanActive)
+    {
+        ble_gap_disc_cancel();
+    }
 
     struct ble_gap_disc_params dp = {};
-    dp.itvl          = (uint16_t)((intervalMs * 1000) / 625);  // 0.625ms units
-    dp.window        = (uint16_t)((windowMs   * 1000) / 625);
-    dp.passive       = active ? 0 : 1;
+    dp.itvl = (uint16_t)((intervalMs * 1000) / 625);  // 0.625ms units
+    dp.window = (uint16_t)((windowMs * 1000) / 625);
+    dp.passive = active ? 0 : 1;
     dp.filter_duplicates = 0;
-    dp.limited       = 0;
+    dp.limited = 0;
 
     int32_t dur = durationMs == 0 ? BLE_HS_FOREVER : (int32_t)durationMs;
     int rc = ble_gap_disc(s_OwnAddrType, dur, &dp, GapEvent, this);
-    if (rc != 0) {
+    if (rc != 0)
+    {
         m_LastError = "ble_gap_disc failed";
         DEKI_LOG_ERROR("[ble] ble_gap_disc rc=%d", rc);
         return false;
@@ -445,7 +532,8 @@ bool ESPIDFBLE::StartScan(uint16_t intervalMs, uint16_t windowMs, bool active, u
 
 void ESPIDFBLE::StopScan()
 {
-    if (s_ScanActive) {
+    if (s_ScanActive)
+    {
         ble_gap_disc_cancel();
         s_ScanActive = false;
     }
@@ -453,7 +541,7 @@ void ESPIDFBLE::StopScan()
 
 void ESPIDFBLE::SetScanCallback(DekiBle::DekiBLEScanCb cb, void* user)
 {
-    s_ScanCb   = cb;
+    s_ScanCb = cb;
     s_ScanUser = user;
 }
 
@@ -463,51 +551,67 @@ void ESPIDFBLE::SetScanCallback(DekiBle::DekiBLEScanCb cb, void* user)
 
 bool ESPIDFBLE::StartAdvertising(const DekiBle::DekiBLEAdvData& data)
 {
-    if (!InitStackOnce()) return false;
-    if (s_Advertising) ble_gap_adv_stop();
+    if (!InitStackOnce())
+    {
+        return false;
+    }
+    if (s_Advertising)
+    {
+        ble_gap_adv_stop();
+    }
 
-    if (data.rawOverride && data.rawOverrideLen > 0 && data.rawOverrideLen <= 31) {
+    if (data.rawOverride && data.rawOverrideLen > 0 && data.rawOverrideLen <= 31)
+    {
         std::memcpy(s_AdvRawBuf, data.rawOverride, data.rawOverrideLen);
         s_AdvRawLen = data.rawOverrideLen;
         int rc = ble_gap_adv_set_data(s_AdvRawBuf, s_AdvRawLen);
-        if (rc != 0) {
+        if (rc != 0)
+        {
             m_LastError = "ble_gap_adv_set_data raw failed";
             return false;
         }
-    } else {
+    }
+    else
+    {
         struct ble_hs_adv_fields fields = {};
         fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
-        if (data.localName) {
-            fields.name        = (uint8_t*)data.localName;
-            fields.name_len    = (uint8_t)std::strlen(data.localName);
+        if (data.localName)
+        {
+            fields.name = (uint8_t*)data.localName;
+            fields.name_len = (uint8_t)std::strlen(data.localName);
             fields.name_is_complete = 1;
         }
         // Marshal manufacturer data with leading manufacturer_id (LE).
         uint8_t mfg_buf[29];
-        if (data.manufacturerId != 0xFFFF && data.manufacturerDataLen > 0
-            && data.manufacturerDataLen <= 27)
+        if (data.manufacturerId != 0xFFFF && data.manufacturerDataLen > 0 && data.manufacturerDataLen <= 27)
         {
             mfg_buf[0] = data.manufacturerId & 0xFF;
             mfg_buf[1] = (data.manufacturerId >> 8) & 0xFF;
             std::memcpy(mfg_buf + 2, data.manufacturerData, data.manufacturerDataLen);
-            fields.mfg_data     = mfg_buf;
+            fields.mfg_data = mfg_buf;
             fields.mfg_data_len = data.manufacturerDataLen + 2;
         }
         // Service UUIDs: only 128-bit emitted here (16-bit can be added if asked).
         std::vector<ble_uuid128_t> u128s;
-        for (uint8_t i = 0; i < data.serviceUuidCount && i < 4; ++i) {
+        for (uint8_t i = 0; i < data.serviceUuidCount && i < 4; ++i)
+        {
             ble_uuid_any_t any;
             ToNimbleUuid(data.serviceUuids[i], any);
-            if (any.u.type == BLE_UUID_TYPE_128) u128s.push_back(any.u128);
+            if (any.u.type == BLE_UUID_TYPE_128)
+            {
+                u128s.push_back(any.u128);
+            }
         }
-        if (!u128s.empty()) {
-            fields.uuids128         = u128s.data();
-            fields.num_uuids128     = (uint8_t)u128s.size();
+        if (!u128s.empty())
+        {
+            fields.uuids128 = u128s.data();
+            fields.num_uuids128 = (uint8_t)u128s.size();
             fields.uuids128_is_complete = 1;
         }
 
         int rc = ble_gap_adv_set_fields(&fields);
-        if (rc != 0) {
+        if (rc != 0)
+        {
             m_LastError = "ble_gap_adv_set_fields failed";
             DEKI_LOG_ERROR("[ble] adv_set_fields rc=%d", rc);
             return false;
@@ -522,7 +626,8 @@ bool ESPIDFBLE::StartAdvertising(const DekiBle::DekiBLEAdvData& data)
     ap.itvl_max = itvl;
 
     int rc = ble_gap_adv_start(s_OwnAddrType, NULL, BLE_HS_FOREVER, &ap, GapEvent, this);
-    if (rc != 0) {
+    if (rc != 0)
+    {
         m_LastError = "ble_gap_adv_start failed";
         DEKI_LOG_ERROR("[ble] adv_start rc=%d", rc);
         return false;
@@ -533,7 +638,11 @@ bool ESPIDFBLE::StartAdvertising(const DekiBle::DekiBLEAdvData& data)
 
 void ESPIDFBLE::StopAdvertising()
 {
-    if (s_Advertising) { ble_gap_adv_stop(); s_Advertising = false; }
+    if (s_Advertising)
+    {
+        ble_gap_adv_stop();
+        s_Advertising = false;
+    }
 }
 
 bool ESPIDFBLE::IsAdvertising() const
@@ -547,15 +656,22 @@ bool ESPIDFBLE::IsAdvertising() const
 
 bool ESPIDFBLE::BuildGattServer(DekiBle::DekiBLEServiceSpec* services, uint8_t count)
 {
-    if (!InitStackOnce()) return false;
-    if (!services || count == 0) return false;
+    if (!InitStackOnce())
+    {
+        return false;
+    }
+    if (!services || count == 0)
+    {
+        return false;
+    }
 
     s_GattServices.clear();
     s_GattServices.resize(count);
     s_GattSvcDefs.clear();
     s_GattSvcDefs.resize(count + 1);
 
-    for (uint8_t s = 0; s < count; ++s) {
+    for (uint8_t s = 0; s < count; ++s)
+    {
         GattServiceRecord& rec = s_GattServices[s];
         rec.deki_uuid = services[s].uuid;
         ToNimbleUuid(rec.deki_uuid, rec.nimble_uuid);
@@ -563,75 +679,96 @@ bool ESPIDFBLE::BuildGattServer(DekiBle::DekiBLEServiceSpec* services, uint8_t c
         rec.chars.resize(services[s].charCount);
         rec.chr_defs.resize(services[s].charCount + 1);
 
-        for (uint8_t c = 0; c < services[s].charCount; ++c) {
+        for (uint8_t c = 0; c < services[s].charCount; ++c)
+        {
             GattCharRecord& cr = rec.chars[c];
-            cr.deki_uuid     = services[s].chars[c].uuid;
-            cr.props         = services[s].chars[c].props;
-            cr.maxLen       = services[s].chars[c].maxLen;
+            cr.deki_uuid = services[s].chars[c].uuid;
+            cr.props = services[s].chars[c].props;
+            cr.maxLen = services[s].chars[c].maxLen;
             cr.idx_in_service = c;
             ToNimbleUuid(cr.deki_uuid, cr.nimble_uuid);
 
             ble_gatt_chr_def& d = rec.chr_defs[c];
             std::memset(&d, 0, sizeof(d));
-            d.uuid        = (const ble_uuid_t*)&cr.nimble_uuid;
-            d.access_cb   = GattAccess;
-            d.arg         = nullptr;
-            d.flags       = PropsToNimble(cr.props);
-            d.val_handle  = &cr.val_handle;
+            d.uuid = (const ble_uuid_t*)&cr.nimble_uuid;
+            d.access_cb = GattAccess;
+            d.arg = nullptr;
+            d.flags = PropsToNimble(cr.props);
+            d.val_handle = &cr.val_handle;
         }
         // Terminator
         std::memset(&rec.chr_defs[services[s].charCount], 0, sizeof(ble_gatt_chr_def));
 
         ble_gatt_svc_def& sd = s_GattSvcDefs[s];
         std::memset(&sd, 0, sizeof(sd));
-        sd.type            = BLE_GATT_SVC_TYPE_PRIMARY;
-        sd.uuid            = (const ble_uuid_t*)&rec.nimble_uuid;
+        sd.type = BLE_GATT_SVC_TYPE_PRIMARY;
+        sd.uuid = (const ble_uuid_t*)&rec.nimble_uuid;
         sd.characteristics = rec.chr_defs.data();
     }
     // Terminator
     std::memset(&s_GattSvcDefs[count], 0, sizeof(ble_gatt_svc_def));
 
     int rc = ble_gatts_count_cfg(s_GattSvcDefs.data());
-    if (rc != 0) { m_LastError = "ble_gatts_count_cfg failed"; return false; }
+    if (rc != 0)
+    {
+        m_LastError = "ble_gatts_count_cfg failed";
+        return false;
+    }
     rc = ble_gatts_add_svcs(s_GattSvcDefs.data());
-    if (rc != 0) { m_LastError = "ble_gatts_add_svcs failed"; return false; }
+    if (rc != 0)
+    {
+        m_LastError = "ble_gatts_add_svcs failed";
+        return false;
+    }
     rc = ble_gatts_start();
-    if (rc != 0) { m_LastError = "ble_gatts_start failed"; return false; }
+    if (rc != 0)
+    {
+        m_LastError = "ble_gatts_start failed";
+        return false;
+    }
 
     // Copy resolved value handles back into caller's specs.
-    for (uint8_t s = 0; s < count; ++s) {
-        for (uint8_t c = 0; c < services[s].charCount; ++c) {
+    for (uint8_t s = 0; s < count; ++s)
+    {
+        for (uint8_t c = 0; c < services[s].charCount; ++c)
+        {
             services[s].chars[c].valueHandle = s_GattServices[s].chars[c].val_handle;
         }
     }
     return true;
 }
 
-bool ESPIDFBLE::NotifyValue(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECharHandle handle,
-                            const void* data, size_t len)
+bool ESPIDFBLE::NotifyValue(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECharHandle handle, const void* data,
+                            size_t len)
 {
-    if (!s_StackInited) return false;
+    if (!s_StackInited)
+    {
+        return false;
+    }
     struct os_mbuf* om = ble_hs_mbuf_from_flat(data, (uint16_t)len);
-    if (!om) return false;
+    if (!om)
+    {
+        return false;
+    }
     int rc = ble_gatts_notify_custom(conn, handle, om);
     return rc == 0;
 }
 
 void ESPIDFBLE::SetCharWriteCallback(DekiBle::DekiBLECharWriteCb cb, void* user)
 {
-    s_CharWriteCb   = cb;
+    s_CharWriteCb = cb;
     s_CharWriteUser = user;
 }
 
 void ESPIDFBLE::SetCharReadCallback(DekiBle::DekiBLECharReadCb cb, void* user)
 {
-    s_CharReadCb   = cb;
+    s_CharReadCb = cb;
     s_CharReadUser = user;
 }
 
 void ESPIDFBLE::SetConnectionCallback(DekiBle::DekiBLEConnCb cb, void* user)
 {
-    s_ConnCb   = cb;
+    s_ConnCb = cb;
     s_ConnUser = user;
 }
 
@@ -641,7 +778,10 @@ void ESPIDFBLE::SetConnectionCallback(DekiBle::DekiBLEConnCb cb, void* user)
 
 bool ESPIDFBLE::Connect(const DekiBle::DekiBLEAddress& addr, uint32_t timeoutMs)
 {
-    if (!InitStackOnce()) return false;
+    if (!InitStackOnce())
+    {
+        return false;
+    }
 
     ble_addr_t peer;
     peer.type = ToNimbleAddrType(addr.type);
@@ -651,12 +791,14 @@ bool ESPIDFBLE::Connect(const DekiBle::DekiBLEAddress& addr, uint32_t timeoutMs)
     s_ClientOp = {};
 
     int rc = ble_gap_connect(s_OwnAddrType, &peer, timeoutMs, NULL, GapEvent, this);
-    if (rc != 0) {
+    if (rc != 0)
+    {
         m_LastError = "ble_gap_connect failed";
         DEKI_LOG_ERROR("[ble] connect rc=%d", rc);
         return false;
     }
-    if (xSemaphoreTake(s_ClientSem, pdMS_TO_TICKS(timeoutMs + 500)) != pdTRUE) {
+    if (xSemaphoreTake(s_ClientSem, pdMS_TO_TICKS(timeoutMs + 500)) != pdTRUE)
+    {
         m_LastError = "connect timed out waiting for event";
         return false;
     }
@@ -665,49 +807,66 @@ bool ESPIDFBLE::Connect(const DekiBle::DekiBLEAddress& addr, uint32_t timeoutMs)
 
 void ESPIDFBLE::DisconnectClient(DekiBle::DekiBLEConnHandle conn)
 {
-    if (!s_StackInited) return;
+    if (!s_StackInited)
+    {
+        return;
+    }
     ble_gap_terminate(conn, BLE_ERR_REM_USER_CONN_TERM);
 }
 
-namespace {
+namespace
+{
 
-int DiscChrCb(uint16_t conn_handle, const struct ble_gatt_error* error,
-              const struct ble_gatt_chr* chr, void* /*arg*/)
+int DiscChrCb(uint16_t conn_handle, const struct ble_gatt_error* error, const struct ble_gatt_chr* chr, void* /*arg*/)
 {
     (void)conn_handle;
-    if (error && error->status == BLE_HS_EDONE) {
-        if (s_ClientSem) xSemaphoreGive(s_ClientSem);
+    if (error && error->status == BLE_HS_EDONE)
+    {
+        if (s_ClientSem)
+        {
+            xSemaphoreGive(s_ClientSem);
+        }
         return 0;
     }
-    if (chr) {
+    if (chr)
+    {
         if (s_ClientOp.attr_handle_count == 0)
+        {
             s_ClientOp.attr_handle_first = chr->val_handle;
-        if (s_ClientOp.attr_handle_count < 0xFF) s_ClientOp.attr_handle_count++;
+        }
+        if (s_ClientOp.attr_handle_count < 0xFF)
+        {
+            s_ClientOp.attr_handle_count++;
+        }
     }
     return 0;
 }
 
-int ReadCb(uint16_t conn_handle, const struct ble_gatt_error* error,
-           struct ble_gatt_attr* attr, void* /*arg*/)
+int ReadCb(uint16_t conn_handle, const struct ble_gatt_error* error, struct ble_gatt_attr* attr, void* /*arg*/)
 {
     (void)conn_handle;
     s_ClientOp.status = error ? error->status : 0;
-    if (error == nullptr || error->status == 0) {
+    if (error == nullptr || error->status == 0)
+    {
         uint16_t out_len = 0;
-        ble_hs_mbuf_to_flat(attr->om, s_ClientOp.read_buf,
-                            (uint16_t)s_ClientOp.read_buf_max, &out_len);
+        ble_hs_mbuf_to_flat(attr->om, s_ClientOp.read_buf, (uint16_t)s_ClientOp.read_buf_max, &out_len);
         s_ClientOp.read_buf_written = out_len;
     }
-    if (s_ClientSem) xSemaphoreGive(s_ClientSem);
+    if (s_ClientSem)
+    {
+        xSemaphoreGive(s_ClientSem);
+    }
     return 0;
 }
 
-int WriteCb(uint16_t conn_handle, const struct ble_gatt_error* error,
-            struct ble_gatt_attr* /*attr*/, void* /*arg*/)
+int WriteCb(uint16_t conn_handle, const struct ble_gatt_error* error, struct ble_gatt_attr* /*attr*/, void* /*arg*/)
 {
     (void)conn_handle;
     s_ClientOp.status = error ? error->status : 0;
-    if (s_ClientSem) xSemaphoreGive(s_ClientSem);
+    if (s_ClientSem)
+    {
+        xSemaphoreGive(s_ClientSem);
+    }
     return 0;
 }
 
@@ -716,7 +875,10 @@ int WriteCb(uint16_t conn_handle, const struct ble_gatt_error* error,
 bool ESPIDFBLE::DiscoverService(DekiBle::DekiBLEConnHandle conn, const DekiBle::DekiBLEUUID& service,
                                 DekiBle::DekiBLECharHandle* outFirstHandle, uint8_t* outCount)
 {
-    if (!s_StackInited) return false;
+    if (!s_StackInited)
+    {
+        return false;
+    }
     ble_uuid_any_t any;
     ToNimbleUuid(service, any);
 
@@ -728,54 +890,85 @@ bool ESPIDFBLE::DiscoverService(DekiBle::DekiBLEConnHandle conn, const DekiBle::
     // range. For simplicity we discover all chrs and trust the caller to match by
     // UUID downstream; revisit if filtering becomes necessary.
     (void)any;
-    if (rc != 0) {
+    if (rc != 0)
+    {
         m_LastError = "ble_gattc_disc_all_chrs failed";
         return false;
     }
-    if (xSemaphoreTake(s_ClientSem, pdMS_TO_TICKS(5000)) != pdTRUE) {
+    if (xSemaphoreTake(s_ClientSem, pdMS_TO_TICKS(5000)) != pdTRUE)
+    {
         m_LastError = "discover timed out";
         return false;
     }
-    if (outFirstHandle) *outFirstHandle = s_ClientOp.attr_handle_first;
-    if (outCount)       *outCount       = s_ClientOp.attr_handle_count;
+    if (outFirstHandle)
+    {
+        *outFirstHandle = s_ClientOp.attr_handle_first;
+    }
+    if (outCount)
+    {
+        *outCount = s_ClientOp.attr_handle_count;
+    }
     return s_ClientOp.attr_handle_count > 0;
 }
 
-bool ESPIDFBLE::ReadRemote(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECharHandle handle,
-                           uint8_t* out, size_t* len)
+bool ESPIDFBLE::ReadRemote(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECharHandle handle, uint8_t* out,
+                           size_t* len)
 {
-    if (!s_StackInited || !out || !len) return false;
+    if (!s_StackInited || !out || !len)
+    {
+        return false;
+    }
     xSemaphoreTake(s_ClientSem, 0);
     s_ClientOp = {};
-    s_ClientOp.read_buf     = out;
+    s_ClientOp.read_buf = out;
     s_ClientOp.read_buf_max = *len;
 
     int rc = ble_gattc_read(conn, handle, ReadCb, nullptr);
-    if (rc != 0) { m_LastError = "ble_gattc_read failed"; return false; }
-    if (xSemaphoreTake(s_ClientSem, pdMS_TO_TICKS(5000)) != pdTRUE) {
+    if (rc != 0)
+    {
+        m_LastError = "ble_gattc_read failed";
+        return false;
+    }
+    if (xSemaphoreTake(s_ClientSem, pdMS_TO_TICKS(5000)) != pdTRUE)
+    {
         m_LastError = "read timed out";
         return false;
     }
-    if (s_ClientOp.status != 0) return false;
+    if (s_ClientOp.status != 0)
+    {
+        return false;
+    }
     *len = s_ClientOp.read_buf_written;
     return true;
 }
 
-bool ESPIDFBLE::WriteRemote(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECharHandle handle,
-                            const void* data, size_t len, bool with_response)
+bool ESPIDFBLE::WriteRemote(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECharHandle handle, const void* data,
+                            size_t len, bool with_response)
 {
-    if (!s_StackInited) return false;
-    if (!with_response) {
+    if (!s_StackInited)
+    {
+        return false;
+    }
+    if (!with_response)
+    {
         int rc = ble_gattc_write_no_rsp_flat(conn, handle, data, (uint16_t)len);
         return rc == 0;
     }
     xSemaphoreTake(s_ClientSem, 0);
     s_ClientOp = {};
     struct os_mbuf* om = ble_hs_mbuf_from_flat(data, (uint16_t)len);
-    if (!om) return false;
+    if (!om)
+    {
+        return false;
+    }
     int rc = ble_gattc_write(conn, handle, om, WriteCb, nullptr);
-    if (rc != 0) { m_LastError = "ble_gattc_write failed"; return false; }
-    if (xSemaphoreTake(s_ClientSem, pdMS_TO_TICKS(5000)) != pdTRUE) {
+    if (rc != 0)
+    {
+        m_LastError = "ble_gattc_write failed";
+        return false;
+    }
+    if (xSemaphoreTake(s_ClientSem, pdMS_TO_TICKS(5000)) != pdTRUE)
+    {
         m_LastError = "write timed out";
         return false;
     }
@@ -784,62 +977,107 @@ bool ESPIDFBLE::WriteRemote(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECha
 
 bool ESPIDFBLE::Subscribe(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECharHandle handle, bool enable)
 {
-    if (!s_StackInited) return false;
+    if (!s_StackInited)
+    {
+        return false;
+    }
     // CCCD is the descriptor immediately after the characteristic value handle.
     uint16_t cccd_handle = handle + 1;
-    uint8_t  val[2] = { (uint8_t)(enable ? 0x01 : 0x00), 0x00 };
+    uint8_t val[2] = { (uint8_t)(enable ? 0x01 : 0x00), 0x00 };
     int rc = ble_gattc_write_no_rsp_flat(conn, cccd_handle, val, 2);
     return rc == 0;
 }
 
 void ESPIDFBLE::SetNotifyCallback(DekiBle::DekiBLENotifyCb cb, void* user)
 {
-    s_NotifyCb   = cb;
+    s_NotifyCb = cb;
     s_NotifyUser = user;
 }
 
 #else  // no NimBLE here -- desktop, editor, or Bluetooth disabled
 
-bool ESPIDFBLE::Initialize() { m_State = Deki::PackageState::Initialized; return true; }
-void ESPIDFBLE::Shutdown()   { m_State = Deki::PackageState::Uninitialized; }
+bool ESPIDFBLE::Initialize()
+{
+    m_State = Deki::PackageState::Initialized;
+    return true;
+}
+void ESPIDFBLE::Shutdown()
+{
+    m_State = Deki::PackageState::Uninitialized;
+}
 
 bool ESPIDFBLE::StartScan(uint16_t, uint16_t, bool, uint32_t)
 {
     m_LastError = "BLE scan not supported on this platform";
     return false;
 }
-void ESPIDFBLE::StopScan() {}
-void ESPIDFBLE::SetScanCallback(DekiBle::DekiBLEScanCb, void*) {}
+void ESPIDFBLE::StopScan()
+{
+}
+void ESPIDFBLE::SetScanCallback(DekiBle::DekiBLEScanCb, void*)
+{
+}
 
 bool ESPIDFBLE::StartAdvertising(const DekiBle::DekiBLEAdvData&)
 {
     m_LastError = "BLE advertising not supported on this platform";
     return false;
 }
-void ESPIDFBLE::StopAdvertising() {}
-bool ESPIDFBLE::IsAdvertising() const { return false; }
+void ESPIDFBLE::StopAdvertising()
+{
+}
+bool ESPIDFBLE::IsAdvertising() const
+{
+    return false;
+}
 
 bool ESPIDFBLE::BuildGattServer(DekiBle::DekiBLEServiceSpec*, uint8_t)
 {
     m_LastError = "BLE GATT server not supported on this platform";
     return false;
 }
-bool ESPIDFBLE::NotifyValue(DekiBle::DekiBLEConnHandle, DekiBle::DekiBLECharHandle, const void*, size_t) { return false; }
-void ESPIDFBLE::SetCharWriteCallback(DekiBle::DekiBLECharWriteCb, void*) {}
-void ESPIDFBLE::SetCharReadCallback (DekiBle::DekiBLECharReadCb,  void*) {}
-void ESPIDFBLE::SetConnectionCallback(DekiBle::DekiBLEConnCb, void*) {}
+bool ESPIDFBLE::NotifyValue(DekiBle::DekiBLEConnHandle, DekiBle::DekiBLECharHandle, const void*, size_t)
+{
+    return false;
+}
+void ESPIDFBLE::SetCharWriteCallback(DekiBle::DekiBLECharWriteCb, void*)
+{
+}
+void ESPIDFBLE::SetCharReadCallback(DekiBle::DekiBLECharReadCb, void*)
+{
+}
+void ESPIDFBLE::SetConnectionCallback(DekiBle::DekiBLEConnCb, void*)
+{
+}
 
 bool ESPIDFBLE::Connect(const DekiBle::DekiBLEAddress&, uint32_t)
 {
     m_LastError = "BLE Connect not supported on this platform";
     return false;
 }
-void ESPIDFBLE::DisconnectClient(DekiBle::DekiBLEConnHandle) {}
-bool ESPIDFBLE::DiscoverService(DekiBle::DekiBLEConnHandle, const DekiBle::DekiBLEUUID&, DekiBle::DekiBLECharHandle*, uint8_t*) { return false; }
-bool ESPIDFBLE::ReadRemote(DekiBle::DekiBLEConnHandle, DekiBle::DekiBLECharHandle, uint8_t*, size_t*) { return false; }
-bool ESPIDFBLE::WriteRemote(DekiBle::DekiBLEConnHandle, DekiBle::DekiBLECharHandle, const void*, size_t, bool) { return false; }
-bool ESPIDFBLE::Subscribe(DekiBle::DekiBLEConnHandle, DekiBle::DekiBLECharHandle, bool) { return false; }
-void ESPIDFBLE::SetNotifyCallback(DekiBle::DekiBLENotifyCb, void*) {}
+void ESPIDFBLE::DisconnectClient(DekiBle::DekiBLEConnHandle)
+{
+}
+bool ESPIDFBLE::DiscoverService(DekiBle::DekiBLEConnHandle, const DekiBle::DekiBLEUUID&, DekiBle::DekiBLECharHandle*,
+                                uint8_t*)
+{
+    return false;
+}
+bool ESPIDFBLE::ReadRemote(DekiBle::DekiBLEConnHandle, DekiBle::DekiBLECharHandle, uint8_t*, size_t*)
+{
+    return false;
+}
+bool ESPIDFBLE::WriteRemote(DekiBle::DekiBLEConnHandle, DekiBle::DekiBLECharHandle, const void*, size_t, bool)
+{
+    return false;
+}
+bool ESPIDFBLE::Subscribe(DekiBle::DekiBLEConnHandle, DekiBle::DekiBLECharHandle, bool)
+{
+    return false;
+}
+void ESPIDFBLE::SetNotifyCallback(DekiBle::DekiBLENotifyCb, void*)
+{
+}
 
 #endif  // ESP32 && CONFIG_BT_ENABLED
 

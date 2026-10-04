@@ -31,11 +31,11 @@
 #include "DekiI2S.h"  // from deki-i2s
 #include "blit/S3PIEBlitKernels.h"
 #include "wifi/ESPIDFWiFi.h"
-#include "DekiWiFi.h"           // from deki-wifi
+#include "DekiWiFi.h"  // from deki-wifi
 #include "ble/ESPIDFBLE.h"
-#include "DekiBLE.h"            // from deki-ble
+#include "DekiBLE.h"  // from deki-ble
 #include "http/ESPIDFHttpClient.h"
-#include "DekiHttp.h"           // from deki-http
+#include "DekiHttp.h"  // from deki-http
 #include "power/ESPIDFPower.h"
 #include <deki/providers/Power.h>
 #endif
@@ -56,8 +56,10 @@ namespace DekiEsp32
 
 namespace
 {
-struct ESP32BackendInit {
-    ESP32BackendInit() {
+struct ESP32BackendInit
+{
+    ESP32BackendInit()
+    {
         Deki::Memory::SetBackend(new Deki::ESP32MemoryProvider());
         Deki::FileSystem::SetFileSystem(new Deki::ESP32FileSystem());
         Deki::Time::SetTimeProvider(std::make_unique<Deki::ESP32TimeProvider>());
@@ -98,22 +100,23 @@ struct ESP32BackendInit {
         // S3 PIE SIMD blit kernels. Only kernels with verified implementations
         // are registered; the dispatcher in QuadBlit runs its scalar inner
         // loop for unregistered ops. See blit/S3PIEBlitKernels.cpp.
-        QuadBlit::RegisterKernel(QuadBlit::KernelOp::RGB565_Copy_Row,
-                                 &DekiEsp32::Blit::S3PIE_RGB565_Copy_Row);
+        QuadBlit::RegisterKernel(QuadBlit::KernelOp::RGB565_Copy_Row, &DekiEsp32::Blit::S3PIE_RGB565_Copy_Row);
 #endif
     }
 };
 static ESP32BackendInit s_esp32_init;
-}
-
+}  // namespace
 
 // The exports below are C symbols at global scope; the package's own
 // registration helpers and statics live in its namespace.
 using namespace DekiEsp32;
 
-extern "C" void app_main(void) { Deki::Main(); }
+extern "C" void app_main(void)
+{
+    Deki::Main();
+}
 
-#endif // ESP32
+#endif  // ESP32
 }  // namespace DekiEsp32
 
 #ifdef DEKI_EDITOR
@@ -123,81 +126,82 @@ extern "C" void app_main(void) { Deki::Main(); }
 // Track if already registered to avoid duplicates
 static bool s_ESP32HALRegistered = false;
 
-extern "C" {
-
-/**
- * @brief Ensure deki-esp32-hal package is loaded and components are registered
- */
-DEKI_ESP32_HAL_API int DekiESP32HAL_EnsureRegistered(void)
+extern "C"
 {
-    if (s_ESP32HALRegistered)
+    /**
+     * @brief Ensure deki-esp32-hal package is loaded and components are registered
+     */
+    DEKI_ESP32_HAL_API int DekiESP32HAL_EnsureRegistered(void)
+    {
+        if (s_ESP32HALRegistered)
+        {
+            return ::DekiESP32HAL_GetAutoComponentCount();
+        }
+        s_ESP32HALRegistered = true;
+
+        // Auto-generated: registers all ESP32 HAL components with ComponentRegistry + ComponentFactory
+        ::DekiESP32HAL_RegisterComponents();
+
         return ::DekiESP32HAL_GetAutoComponentCount();
-    s_ESP32HALRegistered = true;
+    }
 
-    // Auto-generated: registers all ESP32 HAL components with ComponentRegistry + ComponentFactory
-    ::DekiESP32HAL_RegisterComponents();
+    // =============================================================================
+    // Plugin metadata (for dynamic loading compatibility)
+    // =============================================================================
 
-    return ::DekiESP32HAL_GetAutoComponentCount();
-}
+    DEKI_PLUGIN_API const char* DekiPlugin_GetName(void)
+    {
+        return "Deki ESP32 HAL Package";
+    }
 
-// =============================================================================
-// Plugin metadata (for dynamic loading compatibility)
-// =============================================================================
-
-DEKI_PLUGIN_API const char* DekiPlugin_GetName(void)
-{
-    return "Deki ESP32 HAL Package";
-}
-
-DEKI_PLUGIN_API const char* DekiPlugin_GetVersion(void)
-{
+    DEKI_PLUGIN_API const char* DekiPlugin_GetVersion(void)
+    {
 #ifdef DEKI_PACKAGE_VERSION
-    return DEKI_PACKAGE_VERSION;
+        return DEKI_PACKAGE_VERSION;
 #else
-    return "0.0.0-dev";
+        return "0.0.0-dev";
 #endif
-}
+    }
 
-DEKI_PLUGIN_API int DekiPlugin_Init(void)
-{
-    return 0;
-}
+    DEKI_PLUGIN_API int DekiPlugin_Init(void)
+    {
+        return 0;
+    }
 
-DEKI_PLUGIN_API void DekiPlugin_Shutdown(void)
-{
-    s_ESP32HALRegistered = false;
-}
+    DEKI_PLUGIN_API void DekiPlugin_Shutdown(void)
+    {
+        s_ESP32HALRegistered = false;
+    }
 
-DEKI_PLUGIN_API int DekiPlugin_GetComponentCount(void)
-{
-    return ::DekiESP32HAL_GetAutoComponentCount();
-}
+    DEKI_PLUGIN_API int DekiPlugin_GetComponentCount(void)
+    {
+        return ::DekiESP32HAL_GetAutoComponentCount();
+    }
 
-DEKI_PLUGIN_API const Deki::ComponentMeta* DekiPlugin_GetComponentMeta(int index)
-{
-    return ::DekiESP32HAL_GetAutoComponentMeta(index);
-}
+    DEKI_PLUGIN_API const Deki::ComponentMeta* DekiPlugin_GetComponentMeta(int index)
+    {
+        return ::DekiESP32HAL_GetAutoComponentMeta(index);
+    }
 
-DEKI_PLUGIN_API void DekiPlugin_RegisterComponents(void)
-{
-    DekiESP32HAL_EnsureRegistered();
-}
+    DEKI_PLUGIN_API void DekiPlugin_RegisterComponents(void)
+    {
+        DekiESP32HAL_EnsureRegistered();
+    }
 
-// =============================================================================
-// Package-specific feature API (for linked DLL access without name conflicts)
-// =============================================================================
+    // =============================================================================
+    // Package-specific feature API (for linked DLL access without name conflicts)
+    // =============================================================================
 
-DEKI_ESP32_HAL_API const char* DekiESP32HAL_GetName(void)
-{
-    return "ESP32 HAL";
-}
+    DEKI_ESP32_HAL_API const char* DekiESP32HAL_GetName(void)
+    {
+        return "ESP32 HAL";
+    }
 
-} // extern "C"
+}  // extern "C"
 
-#else // !DEKI_EDITOR - Runtime registration
+#else  // !DEKI_EDITOR - Runtime registration
 
 // For runtime builds, component registration happens via static initializers
 // or explicit calls from the application
 
-#endif // DEKI_EDITOR
-
+#endif  // DEKI_EDITOR

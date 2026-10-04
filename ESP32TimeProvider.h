@@ -15,20 +15,13 @@
 namespace Deki
 {
 
-
 class ESP32TimeProvider : public ITimeProvider
 {
 public:
 #if defined(ESP32)
-    uint32_t GetTicksMs() const override
-    {
-        return (uint32_t)(esp_timer_get_time() / 1000);
-    }
+    uint32_t GetTicksMs() const override { return (uint32_t)(esp_timer_get_time() / 1000); }
 
-    void DelayMs(uint32_t ms) const override
-    {
-        vTaskDelay(pdMS_TO_TICKS(ms));
-    }
+    void DelayMs(uint32_t ms) const override { vTaskDelay(pdMS_TO_TICKS(ms)); }
 #else
     // Declared but inert off-target, so the editor can still name the type
     // while the package's sources compile on a desktop.

@@ -14,27 +14,33 @@ namespace Deki
 
 #ifdef ESP32
 
-
 static const char* TAG = "ESP32FS";
 
 // True when the partition's first two blocks (where LittleFS keeps its
 // superblocks) were never written: erased flash reads as 0xFF.
 static bool PartitionIsBlank(const char* label)
 {
-    const esp_partition_t* part =
-        esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, label);
+    const esp_partition_t* part = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, label);
     if (!part)
+    {
         return false;
+    }
     uint8_t buf[256];
     const size_t span = part->size < 8192 ? part->size : 8192;
     for (size_t off = 0; off < span; off += sizeof(buf))
     {
         const size_t n = (span - off) < sizeof(buf) ? (span - off) : sizeof(buf);
         if (esp_partition_read(part, off, buf, n) != ESP_OK)
+        {
             return false;
+        }
         for (size_t i = 0; i < n; ++i)
+        {
             if (buf[i] != 0xFF)
+            {
                 return false;
+            }
+        }
     }
     return true;
 }
@@ -52,7 +58,9 @@ ESP32FileSystem::~ESP32FileSystem()
 bool ESP32FileSystem::Initialize()
 {
     if (m_Initialized)
+    {
         return true;
+    }
 
     esp_vfs_littlefs_conf_t conf = {};
     conf.base_path = "/littlefs";
@@ -67,15 +75,18 @@ bool ESP32FileSystem::Initialize()
     {
         ESP_LOGI(TAG, "LittleFS partition is blank; formatting it");
         if (esp_littlefs_format("spiffs") == ESP_OK)
+        {
             ret = esp_vfs_littlefs_register(&conf);
+        }
     }
     if (ret != ESP_OK)
     {
         // The engine runs on without F:/, so the error shows on the console
         // rather than the board stopping at boot. Flashing the firmware again
         // rewrites the partition.
-        ESP_LOGE(TAG, "LittleFS mount failed: %s. Running without F:/; nothing on it was changed. "
-                      "Flash the firmware again to rewrite it.",
+        ESP_LOGE(TAG,
+                 "LittleFS mount failed: %s. Running without F:/; nothing on it was changed. "
+                 "Flash the firmware again to rewrite it.",
                  esp_err_to_name(ret));
         return true;
     }
@@ -99,7 +110,10 @@ void ESP32FileSystem::Shutdown()
 
 std::string ESP32FileSystem::ConvertPathInternal(const char* virtualPath)
 {
-    if (!virtualPath) return "";
+    if (!virtualPath)
+    {
+        return "";
+    }
 
     std::string path(virtualPath);
 
@@ -118,7 +132,10 @@ std::string ESP32FileSystem::ConvertPathInternal(const char* virtualPath)
 
 IFileSystem::FileHandle ESP32FileSystem::OpenFile(const char* path, OpenMode mode)
 {
-    if (!m_Initialized || !path) return nullptr;
+    if (!m_Initialized || !path)
+    {
+        return nullptr;
+    }
 
     std::string real_path = ConvertPathInternal(path);
     const char* mode_str = "";
@@ -126,18 +143,16 @@ IFileSystem::FileHandle ESP32FileSystem::OpenFile(const char* path, OpenMode mod
     switch (mode)
     {
         case OpenMode::READ_BINARY:
-        case OpenMode::READ_TEXT:
-            mode_str = "r";
-            break;
+        case OpenMode::READ_TEXT: mode_str = "r"; break;
         case OpenMode::WRITE_BINARY:
-        case OpenMode::WRITE_TEXT:
-            mode_str = "w";
-            break;
+        case OpenMode::WRITE_TEXT: mode_str = "w"; break;
     }
 
     FILE* f = fopen(real_path.c_str(), mode_str);
     if (!f)
+    {
         return nullptr;
+    }
 
     return static_cast<FileHandle>(f);
 }
@@ -152,19 +167,28 @@ void ESP32FileSystem::CloseFile(FileHandle handle)
 
 size_t ESP32FileSystem::ReadFile(FileHandle handle, void* buffer, size_t size)
 {
-    if (!handle || !buffer) return 0;
+    if (!handle || !buffer)
+    {
+        return 0;
+    }
     return fread(buffer, 1, size, static_cast<FILE*>(handle));
 }
 
 size_t ESP32FileSystem::WriteFile(FileHandle handle, const void* buffer, size_t size)
 {
-    if (!handle || !buffer) return 0;
+    if (!handle || !buffer)
+    {
+        return 0;
+    }
     return fwrite(buffer, 1, size, static_cast<FILE*>(handle));
 }
 
 long ESP32FileSystem::SeekFile(FileHandle handle, long offset, SeekOrigin origin)
 {
-    if (!handle) return -1;
+    if (!handle)
+    {
+        return -1;
+    }
 
     int whence = SEEK_SET;
     switch (origin)
@@ -175,20 +199,28 @@ long ESP32FileSystem::SeekFile(FileHandle handle, long offset, SeekOrigin origin
     }
 
     if (fseek(static_cast<FILE*>(handle), offset, whence) != 0)
+    {
         return -1;
+    }
 
     return ftell(static_cast<FILE*>(handle));
 }
 
 long ESP32FileSystem::TellFile(FileHandle handle)
 {
-    if (!handle) return -1;
+    if (!handle)
+    {
+        return -1;
+    }
     return ftell(static_cast<FILE*>(handle));
 }
 
 long ESP32FileSystem::GetFileSize(FileHandle handle)
 {
-    if (!handle) return -1;
+    if (!handle)
+    {
+        return -1;
+    }
 
     FILE* f = static_cast<FILE*>(handle);
     long cur = ftell(f);
@@ -200,7 +232,10 @@ long ESP32FileSystem::GetFileSize(FileHandle handle)
 
 bool ESP32FileSystem::FileExists(const char* path)
 {
-    if (!m_Initialized || !path) return false;
+    if (!m_Initialized || !path)
+    {
+        return false;
+    }
 
     std::string real_path = ConvertPathInternal(path);
     struct stat st;
@@ -209,10 +244,16 @@ bool ESP32FileSystem::FileExists(const char* path)
 
 bool ESP32FileSystem::ConvertPath(const char* virtualPath, char* outBuffer, size_t bufferSize)
 {
-    if (!virtualPath || !outBuffer || bufferSize == 0) return false;
+    if (!virtualPath || !outBuffer || bufferSize == 0)
+    {
+        return false;
+    }
 
     std::string converted = ConvertPathInternal(virtualPath);
-    if (converted.length() >= bufferSize) return false;
+    if (converted.length() >= bufferSize)
+    {
+        return false;
+    }
 
     strcpy(outBuffer, converted.c_str());
     return true;
@@ -222,13 +263,19 @@ bool ESP32FileSystem::ConvertPath(const char* virtualPath, char* outBuffer, size
 
 // Non-ESP32 stub implementation
 ESP32FileSystem::ESP32FileSystem()
-    : m_Initialized(false) {}
-ESP32FileSystem::~ESP32FileSystem() {}
+    : m_Initialized(false)
+{
+}
+ESP32FileSystem::~ESP32FileSystem()
+{
+}
 bool ESP32FileSystem::Initialize()
 {
     return false;
 }
-void ESP32FileSystem::Shutdown() {}
+void ESP32FileSystem::Shutdown()
+{
+}
 std::string ESP32FileSystem::ConvertPathInternal(const char*)
 {
     return "";
@@ -237,7 +284,9 @@ IFileSystem::FileHandle ESP32FileSystem::OpenFile(const char*, OpenMode)
 {
     return nullptr;
 }
-void ESP32FileSystem::CloseFile(FileHandle) {}
+void ESP32FileSystem::CloseFile(FileHandle)
+{
+}
 size_t ESP32FileSystem::ReadFile(FileHandle, void*, size_t)
 {
     return 0;

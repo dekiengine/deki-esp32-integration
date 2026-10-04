@@ -18,13 +18,17 @@ inline bool EnsureNvsFlash()
 {
     static bool s_Ready = false;
     if (s_Ready)
+    {
         return true;
+    }
     esp_err_t e = nvs_flash_init();
     if (e == ESP_ERR_NVS_NO_FREE_PAGES || e == ESP_ERR_NVS_NEW_VERSION_FOUND)
     {
         DEKI_LOG_WARNING("[nvs] partition unusable (%d); erasing it", e);
         if (nvs_flash_erase() == ESP_OK)
+        {
             e = nvs_flash_init();
+        }
     }
     if (e != ESP_OK)
     {

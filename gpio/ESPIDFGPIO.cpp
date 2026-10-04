@@ -46,7 +46,9 @@ bool ESPIDFGPIO::Initialize()
 bool ESPIDFGPIO::SetOutput(int pin, bool high)
 {
     if (!ValidPin(pin) || !GPIO_IS_VALID_OUTPUT_GPIO(pin))
+    {
         return false;
+    }
     const auto gpio = static_cast<gpio_num_t>(pin);
     gpio_reset_pin(gpio);
     gpio_set_level(gpio, high ? 1 : 0);
@@ -56,7 +58,9 @@ bool ESPIDFGPIO::SetOutput(int pin, bool high)
 bool ESPIDFGPIO::SetInput(int pin, DekiGpio::Pull pull)
 {
     if (!ValidPin(pin))
+    {
         return false;
+    }
     const auto gpio = static_cast<gpio_num_t>(pin);
     gpio_reset_pin(gpio);
     gpio_set_direction(gpio, GPIO_MODE_INPUT);
@@ -66,21 +70,27 @@ bool ESPIDFGPIO::SetInput(int pin, DekiGpio::Pull pull)
 bool ESPIDFGPIO::Write(int pin, bool high)
 {
     if (!ValidPin(pin))
+    {
         return false;
+    }
     return gpio_set_level(static_cast<gpio_num_t>(pin), high ? 1 : 0) == ESP_OK;
 }
 
 bool ESPIDFGPIO::Read(int pin)
 {
     if (!ValidPin(pin))
+    {
         return false;
+    }
     return gpio_get_level(static_cast<gpio_num_t>(pin)) != 0;
 }
 
 bool ESPIDFGPIO::CountEdges(int pin, DekiGpio::Edge edge, DekiGpio::Pull pull)
 {
     if (!ValidPin(pin))
+    {
         return false;
+    }
 
     if (!m_IsrServiceInstalled)
     {
@@ -107,7 +117,9 @@ bool ESPIDFGPIO::CountEdges(int pin, DekiGpio::Edge edge, DekiGpio::Pull pull)
         default: cfg.intr_type = GPIO_INTR_ANYEDGE; break;
     }
     if (gpio_config(&cfg) != ESP_OK)
+    {
         return false;
+    }
 
     s_EdgeCounts[pin] = 0;
     gpio_isr_handler_remove(gpio);
@@ -123,7 +135,9 @@ bool ESPIDFGPIO::CountEdges(int pin, DekiGpio::Edge edge, DekiGpio::Pull pull)
 uint32_t ESPIDFGPIO::TakeEdges(int pin)
 {
     if (!ValidPin(pin))
+    {
         return 0;
+    }
     // Read then subtract rather than read then zero: an edge landing between
     // the two would be lost by a plain store of 0.
     const uint32_t count = s_EdgeCounts[pin];
@@ -134,7 +148,9 @@ uint32_t ESPIDFGPIO::TakeEdges(int pin)
 void ESPIDFGPIO::StopCounting(int pin)
 {
     if (!ValidPin(pin))
+    {
         return;
+    }
     const auto gpio = static_cast<gpio_num_t>(pin);
     gpio_isr_handler_remove(gpio);
     gpio_set_intr_type(gpio, GPIO_INTR_DISABLE);
@@ -143,14 +159,37 @@ void ESPIDFGPIO::StopCounting(int pin)
 
 #else
 
-bool ESPIDFGPIO::Initialize() { return false; }
-bool ESPIDFGPIO::SetOutput(int, bool) { return false; }
-bool ESPIDFGPIO::SetInput(int, DekiGpio::Pull) { return false; }
-bool ESPIDFGPIO::Write(int, bool) { return false; }
-bool ESPIDFGPIO::Read(int) { return false; }
-bool ESPIDFGPIO::CountEdges(int, DekiGpio::Edge, DekiGpio::Pull) { return false; }
-uint32_t ESPIDFGPIO::TakeEdges(int) { return 0; }
-void ESPIDFGPIO::StopCounting(int) {}
+bool ESPIDFGPIO::Initialize()
+{
+    return false;
+}
+bool ESPIDFGPIO::SetOutput(int, bool)
+{
+    return false;
+}
+bool ESPIDFGPIO::SetInput(int, DekiGpio::Pull)
+{
+    return false;
+}
+bool ESPIDFGPIO::Write(int, bool)
+{
+    return false;
+}
+bool ESPIDFGPIO::Read(int)
+{
+    return false;
+}
+bool ESPIDFGPIO::CountEdges(int, DekiGpio::Edge, DekiGpio::Pull)
+{
+    return false;
+}
+uint32_t ESPIDFGPIO::TakeEdges(int)
+{
+    return 0;
+}
+void ESPIDFGPIO::StopCounting(int)
+{
+}
 
 #endif
 

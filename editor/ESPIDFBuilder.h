@@ -32,8 +32,7 @@ public:
     bool SupportsDeploy() const override { return true; }
     const char* GetDeployLabel() const override { return m_BuildOptions.simulate ? "Run" : "Flash"; }
     std::vector<DeployTarget> EnumerateDeployTargets() const override;
-    void Deploy(const std::string& projectPath, const std::string& port,
-                BuildOutputCallback outputCallback = nullptr,
+    void Deploy(const std::string& projectPath, const std::string& port, BuildOutputCallback outputCallback = nullptr,
                 BuildProgressCallback progressCallback = nullptr) override;
     std::vector<std::pair<std::string, std::string>> DescribePlatform(const PlatformConfig& config) const override;
 
@@ -50,8 +49,7 @@ public:
     bool IsToolchainInstalled() const override;
     std::string GetToolchainStatus() const override;
     // Build file generation
-    bool GenerateBuildFiles(const std::string& projectPath,
-                            const PlatformConfig& config,
+    bool GenerateBuildFiles(const std::string& projectPath, const PlatformConfig& config,
                             const std::vector<std::string>& packageDefines) override;
 
     // Identity
@@ -60,10 +58,7 @@ public:
     // hold these strings for the backends it shipped; a backend describes
     // itself now, so one it has never heard of is not anonymous.
     const char* GetIcon() const override { return ICON_TI_CPU; }
-    const char* GetDescription() const override
-    {
-        return "Build for ESP32, ESP32-S3 and other Espressif chips";
-    }
+    const char* GetDescription() const override { return "Build for ESP32, ESP32-S3 and other Espressif chips"; }
 
     // The generated project packs this directory into the data partition.
     std::string GetBootPayloadDirectory(const std::string& projectPath) const override
@@ -91,16 +86,15 @@ private:
                  BuildProgressCallback progressCallback);
     void DoRunQemu(const std::string& projectPath, BuildOutputCallback outputCallback,
                    BuildProgressCallback progressCallback);
-    void DoFlash(const std::string& projectPath, const std::string& port,
-                 BuildOutputCallback outputCallback, BuildProgressCallback progressCallback);
+    void DoFlash(const std::string& projectPath, const std::string& port, BuildOutputCallback outputCallback,
+                 BuildProgressCallback progressCallback);
     void DoClean(const std::string& projectPath, BuildOutputCallback outputCallback,
                  BuildProgressCallback progressCallback);
 
     // Build file generation helpers
     bool GenerateRootCMakeLists(const std::string& espIdfPath, const PlatformConfig& config);
     bool GenerateMainCMakeLists(const std::string& mainPath, const std::string& projectPath,
-                                const PlatformConfig& config,
-                                const std::vector<std::string>& packageDefines);
+                                const PlatformConfig& config, const std::vector<std::string>& packageDefines);
     bool GenerateSdkConfigDefaults(const std::string& boardPath, const PlatformConfig& config);
     bool GeneratePartitionsCsv(const std::string& boardPath, const PlatformConfig& config);
 };

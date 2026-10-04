@@ -10,7 +10,7 @@
 #include "sd_protocol_types.h"
 #include "driver/gpio.h"
 #include "esp_rom_sys.h"
-#endif // ESP32
+#endif  // ESP32
 
 #if defined(ESP32)
 #include "esp_log.h"
@@ -18,7 +18,6 @@
 
 namespace DekiEsp32
 {
-
 
 // ESP-IDF native SD card APIs
 
@@ -29,7 +28,6 @@ static const char* TAG = "ESPIDFSD";
 // ============================================================================
 // Package Metadata (for editor UI generation)
 // ============================================================================
-
 
 // ============================================================================
 // ESPIDFSDCard Implementation
@@ -93,8 +91,8 @@ bool ESPIDFSDCard::Initialize()
 #if defined(ESP32)
     if (m_Mode == DekiSdCard::SDCardMode::SDMMC_4BIT)
     {
-        ESP_LOGI(TAG, "Initialize SDMMC 4-bit: CLK=%d, CMD=%d, D0=%d, D1=%d, D2=%d, D3=%d, CD=%d",
-                 m_PinCLK, m_PinCMD, m_PinD0, m_PinD1, m_PinD2, m_PinD3, m_PinCD);
+        ESP_LOGI(TAG, "Initialize SDMMC 4-bit: CLK=%d, CMD=%d, D0=%d, D1=%d, D2=%d, D3=%d, CD=%d", m_PinCLK, m_PinCMD,
+                 m_PinD0, m_PinD1, m_PinD2, m_PinD3, m_PinCD);
 
         if (m_PinCLK < 0 || m_PinCMD < 0 || m_PinD0 < 0 || m_PinD1 < 0 || m_PinD2 < 0 || m_PinD3 < 0)
         {
@@ -105,8 +103,7 @@ bool ESPIDFSDCard::Initialize()
     }
     else if (m_Mode == DekiSdCard::SDCardMode::SDMMC_1BIT)
     {
-        ESP_LOGI(TAG, "Initialize SDMMC 1-bit: CLK=%d, CMD=%d, D0=%d, CD=%d",
-                 m_PinCLK, m_PinCMD, m_PinD0, m_PinCD);
+        ESP_LOGI(TAG, "Initialize SDMMC 1-bit: CLK=%d, CMD=%d, D0=%d, CD=%d", m_PinCLK, m_PinCMD, m_PinD0, m_PinCD);
 
         if (m_PinCLK < 0 || m_PinCMD < 0 || m_PinD0 < 0)
         {
@@ -117,9 +114,8 @@ bool ESPIDFSDCard::Initialize()
     }
     else
     {
-        ESP_LOGI(TAG, "Initialize SPI: MOSI=%d, MISO=%d, CLK=%d, CS=%d, CD=%d, SPI=%d MHz",
-                 m_PinMOSI, m_PinMISO, m_PinCLK, m_PinCS, m_PinCD,
-                 static_cast<int>(m_SpiFrequency / 1000000));
+        ESP_LOGI(TAG, "Initialize SPI: MOSI=%d, MISO=%d, CLK=%d, CS=%d, CD=%d, SPI=%d MHz", m_PinMOSI, m_PinMISO,
+                 m_PinCLK, m_PinCS, m_PinCD, static_cast<int>(m_SpiFrequency / 1000000));
 
         // Validate required pins
         if (m_PinCS < 0)
@@ -261,7 +257,9 @@ void ESPIDFSDCard::Shutdown()
         if (m_Mode == DekiSdCard::SDCardMode::SPI && m_SpiHostSlot >= 0)
         {
             if (m_OwnsSpiBus)
+            {
                 spi_bus_free(static_cast<spi_host_device_t>(m_SpiHostSlot));
+            }
             m_SpiHostSlot = -1;
             m_OwnsSpiBus = false;
         }
@@ -297,7 +295,9 @@ void ESPIDFSDCard::Update(float deltaTime)
 bool ESPIDFSDCard::Mount()
 {
     if (m_CardState == DekiSdCard::SDCardState::Mounted)
+    {
         return true;
+    }
 
     m_CardState = DekiSdCard::SDCardState::Mounting;
     m_LastError.clear();
@@ -326,15 +326,14 @@ bool ESPIDFSDCard::Mount()
             slot_config.d1 = static_cast<gpio_num_t>(m_PinD1);
             slot_config.d2 = static_cast<gpio_num_t>(m_PinD2);
             slot_config.d3 = static_cast<gpio_num_t>(m_PinD3);
-            ESP_LOGI(TAG, "Mounting SD card SDMMC 4-bit (CLK=%d, CMD=%d, D0=%d, D1=%d, D2=%d, D3=%d)...",
-                     m_PinCLK, m_PinCMD, m_PinD0, m_PinD1, m_PinD2, m_PinD3);
+            ESP_LOGI(TAG, "Mounting SD card SDMMC 4-bit (CLK=%d, CMD=%d, D0=%d, D1=%d, D2=%d, D3=%d)...", m_PinCLK,
+                     m_PinCMD, m_PinD0, m_PinD1, m_PinD2, m_PinD3);
         }
         else
         {
             host.flags = SDMMC_HOST_FLAG_1BIT;
             slot_config.width = 1;
-            ESP_LOGI(TAG, "Mounting SD card SDMMC 1-bit (CLK=%d, CMD=%d, D0=%d)...",
-                     m_PinCLK, m_PinCMD, m_PinD0);
+            ESP_LOGI(TAG, "Mounting SD card SDMMC 1-bit (CLK=%d, CMD=%d, D0=%d)...", m_PinCLK, m_PinCMD, m_PinD0);
         }
 
         if (m_PinCD >= 0)
@@ -342,8 +341,7 @@ bool ESPIDFSDCard::Mount()
             slot_config.cd = static_cast<gpio_num_t>(m_PinCD);
         }
 
-        ret = esp_vfs_fat_sdmmc_mount(
-            m_MountPoint.c_str(), &host, &slot_config, &mount_config, &m_Card);
+        ret = esp_vfs_fat_sdmmc_mount(m_MountPoint.c_str(), &host, &slot_config, &mount_config, &m_Card);
     }
     else
     {
@@ -360,8 +358,7 @@ bool ESPIDFSDCard::Mount()
         host.max_freq_khz = static_cast<int>(m_SpiFrequency / 1000);
 
         ESP_LOGI(TAG, "Mounting SD card SPI (max %d KHz)...", host.max_freq_khz);
-        ret = esp_vfs_fat_sdspi_mount(
-            m_MountPoint.c_str(), &host, &slot_config, &mount_config, &m_Card);
+        ret = esp_vfs_fat_sdspi_mount(m_MountPoint.c_str(), &host, &slot_config, &mount_config, &m_Card);
     }
 
     if (ret == ESP_OK)
@@ -387,7 +384,9 @@ bool ESPIDFSDCard::Mount()
 void ESPIDFSDCard::Unmount()
 {
     if (m_CardState != DekiSdCard::SDCardState::Mounted)
+    {
         return;
+    }
 
 #if defined(ESP32)
     if (m_Card)
@@ -427,7 +426,9 @@ bool ESPIDFSDCard::CheckCardDetect() const
 uint64_t ESPIDFSDCard::GetTotalBytes() const
 {
     if (m_CardState != DekiSdCard::SDCardState::Mounted)
+    {
         return 0;
+    }
 
 #if defined(ESP32)
     if (m_Card)
@@ -441,12 +442,16 @@ uint64_t ESPIDFSDCard::GetTotalBytes() const
 uint64_t ESPIDFSDCard::GetFreeBytes() const
 {
     if (m_CardState != DekiSdCard::SDCardState::Mounted)
+    {
         return 0;
+    }
 
 #if defined(ESP32)
     uint64_t totalBytes = 0, freeBytes = 0;
     if (esp_vfs_fat_info(m_MountPoint.c_str(), &totalBytes, &freeBytes) == ESP_OK)
+    {
         return freeBytes;
+    }
 #endif
     return 0;
 }
@@ -454,7 +459,9 @@ uint64_t ESPIDFSDCard::GetFreeBytes() const
 Deki::IFileSystem* ESPIDFSDCard::GetFileSystem()
 {
     if (m_CardState != DekiSdCard::SDCardState::Mounted)
+    {
         return nullptr;
+    }
 
     return m_FileSystem.get();
 }
