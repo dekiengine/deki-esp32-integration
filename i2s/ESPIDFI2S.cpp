@@ -36,6 +36,8 @@ bool ESPIDFI2S::Initialize()
         return false;
     }
 
+    Shutdown();  // a second Initialize leaked the first channel
+
     i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(m_Port, I2S_ROLE_MASTER);  // an int since ESP-IDF 6; i2s_port_t is gone
     if (i2s_new_channel(&chan_cfg, &m_TxHandle, nullptr) != ESP_OK)
     {

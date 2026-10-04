@@ -4,6 +4,7 @@
 #ifdef ESP32
 #include "esp_littlefs.h"
 #include "esp_log.h"
+#include "esp_partition.h"
 #include <cstdio>
 #include <sys/stat.h>
 #endif
@@ -15,6 +16,28 @@ namespace Deki
 
 
 static const char* TAG = "ESP32FS";
+
+// True when the partition's first two blocks (where LittleFS keeps its
+// superblocks) were never written: erased flash reads as 0xFF.
+static bool PartitionIsBlank(const char* label)
+{
+    const esp_partition_t* part =
+        esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, label);
+    if (!part)
+        return false;
+    uint8_t buf[256];
+    const size_t span = part->size < 8192 ? part->size : 8192;
+    for (size_t off = 0; off < span; off += sizeof(buf))
+    {
+        const size_t n = (span - off) < sizeof(buf) ? (span - off) : sizeof(buf);
+        if (esp_partition_read(part, off, buf, n) != ESP_OK)
+            return false;
+        for (size_t i = 0; i < n; ++i)
+            if (buf[i] != 0xFF)
+                return false;
+    }
+    return true;
+}
 
 ESP32FileSystem::ESP32FileSystem()
     : m_Initialized(false)
@@ -34,13 +57,27 @@ bool ESP32FileSystem::Initialize()
     esp_vfs_littlefs_conf_t conf = {};
     conf.base_path = "/littlefs";
     conf.partition_label = "spiffs";
-    conf.format_if_mount_failed = true;
+    // Never format on a failed mount: the partition holds the boot payload,
+    // the assets and whatever the game saved there, and formatting wiped all
+    // of it on any fault. Only a partition never written is formatted.
+    conf.format_if_mount_failed = false;
 
     esp_err_t ret = esp_vfs_littlefs_register(&conf);
+    if (ret != ESP_OK && PartitionIsBlank("spiffs"))
+    {
+        ESP_LOGI(TAG, "LittleFS partition is blank; formatting it");
+        if (esp_littlefs_format("spiffs") == ESP_OK)
+            ret = esp_vfs_littlefs_register(&conf);
+    }
     if (ret != ESP_OK)
     {
-        ESP_LOGE(TAG, "LittleFS mount failed: %s", esp_err_to_name(ret));
-        return true;  // Allow engine to continue without filesystem
+        // The engine runs on without F:/, so the error shows on the console
+        // rather than the board stopping at boot. Flashing the firmware again
+        // rewrites the partition.
+        ESP_LOGE(TAG, "LittleFS mount failed: %s. Running without F:/; nothing on it was changed. "
+                      "Flash the firmware again to rewrite it.",
+                 esp_err_to_name(ret));
+        return true;
     }
 
     size_t total = 0, used = 0;

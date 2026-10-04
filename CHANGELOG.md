@@ -8,6 +8,26 @@ breaking change bumps the minor across the editor, the engine and every
 package together, so a package with no changes of its own is still released
 alongside one that has them.
 
+## Unreleased
+
+### Fixed
+- **A flash partition that fails to mount is no longer formatted.** It holds
+  the boot payload, the assets and anything the game saved there, and any
+  mount fault wiped all of it. Only a partition that was never written is
+  formatted now; otherwise the board runs on without `F:/`, nothing on it is
+  changed, and the console says to flash the firmware again.
+- **HTTP responses are capped at 512 KB**, and a response is dropped (status
+  -1, logged) when the board has no room left to hold it. With no limit, a
+  large response grew until an allocation failed, which aborts the board.
+- I2S: initializing twice leaked the first channel.
+- External memory on the classic ESP32 (with PSRAM) works: every allocation
+  asked for DMA-capable PSRAM, which only the S2 and S3 have, so all of them
+  failed.
+- WiFi and Bluetooth initialise NVS first. `esp_wifi_init` needs it, so
+  connecting failed.
+- Bluetooth starts on first use. It started from a static constructor, before
+  FreeRTOS was running, where its wait loop asserts.
+
 ## 0.17.0
 
 ### Added

@@ -1,10 +1,12 @@
 #include "ESPIDFHttpClient.h"
 #include <deki/LogSystem.h>
+#include <algorithm>
 
 #if defined(ESP32)
 #include "esp_http_client.h"
 #include "esp_crt_bundle.h"
 #include "esp_err.h"
+#include "esp_heap_caps.h"
 #endif
 
 namespace DekiEsp32
@@ -14,15 +16,41 @@ namespace DekiEsp32
 namespace {
 
 #if defined(ESP32)
-// esp_http_client event handler: appends response body to a std::string passed
+// Largest response body kept. With no limit a large response grew the string
+// until an allocation failed, which aborts on the device (no exceptions).
+constexpr size_t kMaxBodyBytes = 512 * 1024;
+
+struct BodySink {
+    std::string text;
+    bool tooLarge = false;
+};
+
+// esp_http_client event handler: appends response body to the BodySink passed
 // via user_data. Avoids the need to pre-size a response buffer.
 esp_err_t HttpEventCb(esp_http_client_event_t* evt)
 {
     if (!evt) return ESP_OK;
-    auto* out = static_cast<std::string*>(evt->user_data);
-    if (evt->event_id == HTTP_EVENT_ON_DATA && out && evt->data && evt->data_len > 0) {
-        out->append(static_cast<const char*>(evt->data), static_cast<size_t>(evt->data_len));
+    auto* out = static_cast<BodySink*>(evt->user_data);
+    if (evt->event_id != HTTP_EVENT_ON_DATA || !out || !evt->data || evt->data_len <= 0 || out->tooLarge)
+        return ESP_OK;
+
+    const size_t len = static_cast<size_t>(evt->data_len);
+    const size_t needed = out->text.size() + len;
+    if (needed > kMaxBodyBytes) {
+        out->tooLarge = true;
+    } else if (needed > out->text.capacity()) {
+        // Growing copies into a block up to twice the size; refuse rather
+        // than let that allocation fail.
+        const size_t grown = std::max(needed, out->text.capacity() * 2) + 1;
+        if (heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT) < grown + 16 * 1024)
+            out->tooLarge = true;
     }
+    if (out->tooLarge) {
+        out->text.clear();
+        out->text.shrink_to_fit();
+        return ESP_OK;
+    }
+    out->text.append(static_cast<const char*>(evt->data), len);
     return ESP_OK;
 }
 
@@ -33,7 +61,7 @@ DekiHttp::IDekiHttpClient::Response Perform(const std::string& url,
                                   uint32_t timeoutMs)
 {
     DekiHttp::IDekiHttpClient::Response out;
-    std::string body;
+    BodySink body;
 
     esp_http_client_config_t cfg = {};
     cfg.url               = url.c_str();
@@ -60,9 +88,13 @@ DekiHttp::IDekiHttpClient::Response Perform(const std::string& url,
     }
 
     esp_err_t err = esp_http_client_perform(client);
-    if (err == ESP_OK) {
+    if (err == ESP_OK && body.tooLarge) {
+        // A transport error, as far as the caller can tell: the body is gone.
+        DEKI_LOG_ERROR("[http] response too large for this board's memory (limit %u KB), dropped (url=%s)",
+                       static_cast<unsigned>(kMaxBodyBytes / 1024), url.c_str());
+    } else if (err == ESP_OK) {
         out.status = esp_http_client_get_status_code(client);
-        out.body   = std::move(body);
+        out.body   = std::move(body.text);
     } else {
         DEKI_LOG_ERROR("[http] perform failed: %s (url=%s)", esp_err_to_name(err), url.c_str());
     }
