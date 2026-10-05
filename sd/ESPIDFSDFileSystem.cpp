@@ -56,11 +56,6 @@ std::string ESPIDFSDFileSystem::ConvertVirtualPath(const char* virtualPath)
     {
         path = m_MountPoint + "/" + path.substr(3);
     }
-    // Legacy "D:/" prefix
-    else if (path.length() >= 3 && (path[0] == 'D' || path[0] == 'd') && path[1] == ':' && path[2] == '/')
-    {
-        path = m_MountPoint + "/" + path.substr(3);
-    }
 
     // Forward slashes only
     for (char& c : path)

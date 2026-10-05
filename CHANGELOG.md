@@ -35,6 +35,9 @@ alongside one that has them.
 - Bluetooth starts on first use. It started from a static constructor, before
   FreeRTOS was running, where its wait loop asserts.
 
+### Removed
+- The `D:/` path prefix on the SD card. Paths use `S:/`.
+
 ## 0.17.0
 
 ### Added
