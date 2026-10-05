@@ -37,6 +37,8 @@ alongside one that has them.
 
 ### Removed
 - The `D:/` path prefix on the SD card. Paths use `S:/`.
+- The former names from before 0.16.0 (bare class names, and deki-gpio's
+  `DekiEsp32::ESP32PinSetup`). A scene that old is upgraded with 0.17 first.
 
 ## 0.17.0
 

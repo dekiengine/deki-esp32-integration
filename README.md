@@ -15,8 +15,6 @@ using namespace DekiEsp32;
 obj->AddComponent<SomeComponent>();
 ```
 
-Scenes saved before 0.16.0 used bare names and still load; saving writes the current one.
-
 ## Pins
 
 The ESP-IDF side of `deki-gpio`: drive, read and count a pin's edges by

@@ -15,7 +15,6 @@ namespace DekiEsp32
 /// handles incoming serial commands.
 DEKI_CATEGORY("ESP32 HAL")
 DEKI_DESCRIPTION("Answers the editor's commands over the ESP32's serial port.")
-DEKI_FORMER_NAME("ESP32SerialSetup")
 class DEKI_ESP32_HAL_API ESP32SerialSetup : public Deki::SetupComponent
 {
 public:
