@@ -8,6 +8,28 @@ breaking change bumps the minor across the editor, the engine and every
 package together, so a package with no changes of its own is still released
 alongside one that has them.
 
+## Unreleased
+
+### Fixed
+- Windows: an installed esptool showed as not installed. The editor unpacks
+  its archive straight into `espressif/esptool`, and the toolchain definition
+  looked for `esptool.exe` a folder deeper.
+- Windows: ESP-IDF's setup and builds work on a machine with no Python of its
+  own. The Python component was python.org's embeddable build, which has no
+  venv, ensurepip or pip, so ESP-IDF's install.bat could not create its
+  environment; and nothing put it on PATH, so install.bat and export.bat found
+  only the Microsoft Store's stub and stopped with 9009. It is now the Python
+  Software Foundation's full portable build (the `python` package on
+  nuget.org, pinned by SHA-256), on PATH for install.bat (`pathEntries`, which
+  needs the editor that reads them) and for export.bat in every build. An
+  installed copy of the old one shows as not installed; install it again.
+- The build's PATH is set in one `set`: a second `set PATH=...%PATH%...` on
+  the same cmd line expands %PATH% to the value before the first and dropped
+  what it added.
+- A flash with no board connected, or with a refused port, fails with the
+  reason ("No board found on a serial port..."). It used to stop without a
+  result, so the build status stayed "Flashing firmware..." for good.
+
 ## 0.18.0
 
 ### Changed

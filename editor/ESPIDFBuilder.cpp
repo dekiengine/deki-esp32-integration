@@ -853,16 +853,36 @@ void ESPIDFBuilder::DoFlash(const std::string& projectPath, const std::string& p
 
     std::string buildDir = GetBuildDirectory(projectPath);
     std::string enginePath = GetEnginePath(projectPath);
+    // Every way out below sets the result: a flash that returned without one
+    // was left "Flashing firmware..." for good, and the reason never reached a
+    // caller polling the build status (MCP, the CLI).
+    auto fail = [&](const std::string& why)
+    {
+        SetError(why);
+        if (outputCallback)
+        {
+            outputCallback(why, true);
+        }
+        if (progressCallback)
+        {
+            progressCallback(GetProgress());
+        }
+    };
+
+    // No port: nothing to flash to, most often a board that is not plugged in,
+    // switched off, or on a charge-only cable.
+    if (port.empty())
+    {
+        fail("No board found on a serial port. Connect it with a USB data cable and switch it on, then flash again.");
+        return;
+    }
     // The port is user input (a text field, the CLI, an MCP call) that lands in
     // a shell line beside idf.py; COM<n> or /dev/<name> only.
     {
         std::string reason;
         if (!SafeNames::IsSafeSerialPort(port, reason))
         {
-            if (outputCallback)
-            {
-                outputCallback("Refusing to flash: " + reason + " ('" + port + "')", true);
-            }
+            fail("Refusing to flash: " + reason + " ('" + port + "')");
             return;
         }
     }

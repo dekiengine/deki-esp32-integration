@@ -251,6 +251,30 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
     // behind them.
     std::string preExportSettings;
 
+    // PATH is set once, from these two: a second `set PATH=...%PATH%...` on the
+    // same line would expand %PATH% to the value before the first and drop it.
+    std::string pathFirst;  // before the inherited PATH
+    std::string pathLast;   // after it
+
+    // The toolchain's own Python first (see ESPIDFToolchainDefinition.h):
+    // export.bat runs `python` to set up ESP-IDF's environment, and on a
+    // machine with no Python of its own that finds the Microsoft Store's stub,
+    // which exits with 9009. First, unlike the compiler below: it must be the
+    // python export.bat finds.
+    {
+        const fs::path pythonDir = fs::path(GetToolchainsDir()) / "espressif" / "python" / "tools";
+        if (fs::exists(pythonDir / "python.exe"))
+        {
+            std::string dir = pythonDir.string();
+            std::replace(dir.begin(), dir.end(), '/', '\\');
+            pathFirst += dir + ";" + dir + "\\Scripts;";
+            if (outputCallback)
+            {
+                outputCallback("[Toolchain] Python: " + dir, false);
+            }
+        }
+    }
+
     // The reflection generator's compiler, passed down explicitly.
     //
     // A stripped firmware build regenerates the reflection tables, which needs
@@ -293,7 +317,7 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
             std::replace(compilerDir.begin(), compilerDir.end(), '/', '\\');
             if (!compilerDir.empty())
             {
-                preExportSettings += "set \"PATH=%PATH%;" + compilerDir + "\" && ";
+                pathLast += ";" + compilerDir;
             }
 
             if (outputCallback)
@@ -301,6 +325,11 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
                 outputCallback("[Codegen] DEKI_GXX16=" + gxx16 + " (PATH += " + compilerDir + ")", false);
             }
         }
+    }
+
+    if (!pathFirst.empty() || !pathLast.empty())
+    {
+        preExportSettings += "set \"PATH=" + pathFirst + "%PATH%" + pathLast + "\" && ";
     }
 
     envSettings += "set \"DEKI_LOG_ENABLED=" + logEnabled + "\" && ";

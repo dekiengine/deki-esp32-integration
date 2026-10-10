@@ -10,6 +10,14 @@
 //
 // It is JSON so it reads as the data it is; ToolchainComponentManager parses it
 // through DekiEditor::ParseBuilderDefinition.
+//
+// Python on Windows is the Python Software Foundation's full portable build,
+// published as the `python` package on nuget.org (a signed zip). ESP-IDF's
+// install.bat creates a virtual environment and installs into it with pip;
+// python.org's embeddable build has no venv, ensurepip or pip, so it cannot.
+// Its pathEntries put it on PATH for install.bat, and ESPIDFToolchain does the
+// same for export.bat, since a fresh Windows has no python but the Microsoft
+// Store's stub, which exits with 9009.
 
 namespace DekiEditor
 {
@@ -90,12 +98,15 @@ inline constexpr const char* kESPIDFToolchainDefinition = R"json(
       },
       "fallback": {
         "version": "3.11.9",
-        "url": "https://www.python.org/ftp/python/3.11.9/python-3.11.9-embed-amd64.zip",
-        "sha256": "009d6bf7e3b2ddca3d784fa09f90fe54336d5b60f0e0f305c37f400bf83cfd3b"
+        "url": "https://www.nuget.org/api/v2/package/python/3.11.9",
+        "sha256": "9283876d58c017e0e846f95b490da3bca0fc0a6ee1134b2870677cfb7eec3c67"
       },
       "detection": {
-        "windows": "{installPath}/python.exe",
+        "windows": "{installPath}/tools/python.exe",
         "unix": "{installPath}/bin/python3"
+      },
+      "pathEntries": {
+        "windows": ["{installPath}/tools", "{installPath}/tools/Scripts"]
       },
       "tooltip": "Python interpreter (needed by ESP-IDF)"
     },
@@ -117,7 +128,7 @@ inline constexpr const char* kESPIDFToolchainDefinition = R"json(
         "sha256": "2483d409e241d8826ae0ff023eecf31a7d4de6c10ca5ee855b1420cdfd53aaf6"
       },
       "detection": {
-        "windows": "espressif/esptool/*/esptool.exe",
+        "windows": "{installPath}/esptool.exe",
         "unix": "espressif/esptool/*/esptool.py"
       },
       "tooltip": "Flash tool for ESP32 devices"
