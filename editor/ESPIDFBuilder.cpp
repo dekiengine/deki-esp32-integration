@@ -869,27 +869,42 @@ void ESPIDFBuilder::DoFlash(const std::string& projectPath, const std::string& p
         }
     };
 
-    // No port: nothing to flash to, most often a board that is not plugged in,
-    // switched off, or on a charge-only cable.
-    if (port.empty())
+    // No port named (an MCP call or the CLI leaves the choice to the backend):
+    // the only serial port there is, or, with several, esptool tries each and
+    // flashes the first that answers as an ESP32. No port at all is most often
+    // a board that is not plugged in, switched off, or on a charge-only cable.
+    std::string chosenPort = port;
+    if (chosenPort.empty())
     {
-        fail("No board found on a serial port. Connect it with a USB data cable and switch it on, then flash again.");
-        return;
+        const std::vector<std::string> ports = EnumerateSerialPorts();
+        if (ports.empty())
+        {
+            fail("No board found on a serial port. Connect it with a USB data cable and switch it on, then flash "
+                 "again.");
+            return;
+        }
+        if (ports.size() == 1)
+        {
+            chosenPort = ports.front();
+        }
     }
     // The port is user input (a text field, the CLI, an MCP call) that lands in
     // a shell line beside idf.py; COM<n> or /dev/<name> only.
+    if (!chosenPort.empty())
     {
         std::string reason;
-        if (!SafeNames::IsSafeSerialPort(port, reason))
+        if (!SafeNames::IsSafeSerialPort(chosenPort, reason))
         {
-            fail("Refusing to flash: " + reason + " ('" + port + "')");
+            fail("Refusing to flash: " + reason + " ('" + chosenPort + "')");
             return;
         }
     }
-    std::string command = "idf.py -p " + port + " flash";
+    std::string command = chosenPort.empty() ? "idf.py flash" : "idf.py -p " + chosenPort + " flash";
     if (outputCallback)
     {
-        outputCallback("Flashing to " + port + "...", false);
+        outputCallback(chosenPort.empty() ? "Flashing to the first serial port with an ESP32 on it..."
+                                          : "Flashing to " + chosenPort + "...",
+                       false);
     }
 
     int exitCode = m_Toolchain.ExecuteIDF(command, buildDir, enginePath, outputCallback, MakeExecContext());

@@ -117,6 +117,7 @@
       "sdmmc",
       "esp_driver_gpio",
       "esp_driver_uart",
+      "esp_hal_usb",
       "esp_driver_i2c",
       "esp_driver_i2s",
       "esp_driver_spi",

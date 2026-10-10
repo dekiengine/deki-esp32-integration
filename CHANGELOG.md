@@ -10,7 +10,19 @@ alongside one that has them.
 
 ## Unreleased
 
+### Added
+- **Screen capture over serial**: the firmware answers the line
+  `DEKI:SCREENSHOT` on its console with the frame on screen (base64, with a
+  CRC), for the editor's `device_screenshot`. Started at boot
+  (`DekiESP32HALInitSystem`, `PACKAGE_HAS_SYSTEM_INIT`); a USB Serial/JTAG
+  console is read from its FIFO, a UART one through stdin. A frame takes about
+  a second to send; the game waits for it, and that second is not counted as
+  frame time, so nothing timed jumps ahead.
+
 ### Fixed
+- A flash with no port named (MCP's `deploy_build`, the CLI) picks one: the
+  only serial port there is, or, with several, the first that answers as an
+  ESP32. It failed with "No board found" even with a board plugged in.
 - Windows: an installed esptool showed as not installed. The editor unpacks
   its archive straight into `espressif/esptool`, and the toolchain definition
   looked for `esptool.exe` a folder deeper.
