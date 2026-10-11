@@ -8,7 +8,7 @@ breaking change bumps the minor across the editor, the engine and every
 package together, so a package with no changes of its own is still released
 alongside one that has them.
 
-## Unreleased
+## 0.18.2
 
 ### Added
 - **Frame statistics over serial**: the line `DEKI:STATS` is answered with
@@ -28,6 +28,8 @@ alongside one that has them.
   pressing through the game.
 
 ### Changed
+- `minEngine` 0.18.2: the frame statistics read the engine's
+  `GetLastFrameTimings`.
 - ESP32-S3 builds use 64-byte data cache lines, which make a frame in PSRAM
   quicker to draw and send. The cache stays 32 KB: 64 KB takes 32 KB more of
   internal RAM, which a scene with many sprites ran out of.
