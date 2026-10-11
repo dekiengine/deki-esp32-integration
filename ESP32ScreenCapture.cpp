@@ -3,7 +3,15 @@
 #if defined(ESP32)
 
 #include <deki/Engine.h>
+#include <deki/Scene.h>
 #include <deki/Time.h>
+#include <deki/assets/AssetManager.h>
+#include <deki/reflection/ComponentRegistry.h>
+
+#include "RenderProfiler.h"  // from deki-rendering
+
+#include <string>
+#include <vector>
 
 #include <cstdint>
 #include <cstdio>
@@ -11,7 +19,9 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "esp_heap_caps.h"
 #include "esp_rom_crc.h"
+#include "esp_timer.h"
 #include "sdkconfig.h"
 
 // The console the editor talks to. ESP-IDF reads the USB Serial/JTAG console
@@ -31,8 +41,30 @@ namespace
 
 constexpr char kRequest[] = "DEKI:SCREENSHOT";
 constexpr size_t kRequestLength = sizeof(kRequest) - 1;
+constexpr char kStatsRequest[] = "DEKI:STATS";
+constexpr size_t kStatsRequestLength = sizeof(kStatsRequest) - 1;
+constexpr char kProfileRequest[] = "DEKI:PROFILE";
+constexpr size_t kProfileRequestLength = sizeof(kProfileRequest) - 1;
+constexpr char kSceneRequest[] = "DEKI:SCENE ";
+constexpr size_t kSceneRequestLength = sizeof(kSceneRequest) - 1;
 
-char s_Line[32];
+// Frame statistics over windows of about a second: how many frames, how long
+// they took from one update to the next, and the engine's split of each.
+struct FrameWindow
+{
+    uint32_t frames = 0;
+    int64_t frameUs = 0;
+    uint32_t updateMs = 0;
+    uint32_t renderMs = 0;
+    uint32_t presentMs = 0;
+};
+FrameWindow s_Window;
+FrameWindow s_LastWindow;  // the last complete one, for DEKI:STATS
+int64_t s_WindowStartUs = 0;
+int64_t s_LastPollUs = 0;
+
+// "DEKI:SCENE " and a GUID is the longest request.
+char s_Line[64];
 size_t s_LineLength = 0;
 bool s_LineTooLong = false;
 
@@ -100,13 +132,144 @@ void SendFrame()
     Deki::Time::ResetFrameTime();
 }
 
+void SendStats()
+{
+    const FrameWindow& w = s_LastWindow;
+    if (w.frames == 0)
+    {
+        std::printf("\nDEKI:STATS:ERROR no frames counted yet\n");
+        std::fflush(stdout);
+        return;
+    }
+    const double frames = static_cast<double>(w.frames);
+    const double frameMs = static_cast<double>(w.frameUs) / 1000.0 / frames;
+    std::printf("\nDEKI:STATS fps=%.1f frameMs=%.2f updateMs=%.2f renderMs=%.2f presentMs=%.2f frames=%u "
+                "internalFree=%u externalFree=%u\n",
+                frameMs > 0.0 ? 1000.0 / frameMs : 0.0, frameMs, w.updateMs / frames, w.renderMs / frames,
+                w.presentMs / frames, static_cast<unsigned>(w.frames),
+                static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL)),
+                static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_SPIRAM)));
+    std::fflush(stdout);
+}
+
+// Counts the frame that just ended. Called once a frame, from Poll.
+void CountFrame()
+{
+    const int64_t now = esp_timer_get_time();
+    if (s_LastPollUs != 0)
+    {
+        const Deki::Engine::FrameTimings t = Deki::Engine::GetInstance().GetLastFrameTimings();
+        ++s_Window.frames;
+        s_Window.frameUs += now - s_LastPollUs;
+        s_Window.updateMs += t.update;
+        s_Window.renderMs += t.render;
+        s_Window.presentMs += t.present;
+    }
+    else
+    {
+        s_WindowStartUs = now;
+    }
+    s_LastPollUs = now;
+    if (now - s_WindowStartUs >= 1000000 && s_Window.frames > 0)
+    {
+        s_LastWindow = s_Window;
+        s_Window = FrameWindow{};
+        s_WindowStartUs = now;
+    }
+}
+
+// After a pause that is not the game's (sending a screenshot), counting starts
+// afresh, so the pause is not taken for a slow frame.
+void RestartCount()
+{
+    s_Window = FrameWindow{};
+    s_LastPollUs = 0;
+}
+
+// Opens the scene asset `guid` as the game's scene, as a scene link would:
+// for measuring each scene without someone there to press its button.
+void OpenScene(const std::string& guid)
+{
+    auto* assets = Deki::AssetManager::Get();
+    auto* scene = assets ? static_cast<Deki::Scene*>(assets->LoadByGuidAndType(guid, Deki::Scene::kAssetTypeName))
+                         : nullptr;
+    if (!scene)
+    {
+        std::printf("\nDEKI:SCENE:ERROR no scene %s\n", guid.c_str());
+        std::fflush(stdout);
+        return;
+    }
+    Deki::Engine::GetInstance().SetRootScene(scene, true);
+    std::printf("\nDEKI:SCENE:OK %s\n", guid.c_str());
+    std::fflush(stdout);
+}
+
+uint64_t MicrosNow()
+{
+    return static_cast<uint64_t>(esp_timer_get_time());
+}
+
+// The first request turns the render profiler on; each one after reports
+// what it measured since the one before, per frame, and starts again.
+void SendProfile()
+{
+    namespace Profiler = DekiRendering::RenderProfiler;
+    if (!Profiler::IsEnabled())
+    {
+        Profiler::Enable(&MicrosNow);
+        std::printf("\nDEKI:PROFILE:ON\n");
+        std::fflush(stdout);
+        return;
+    }
+    uint32_t frames = 0;
+    const std::vector<Profiler::Entry> entries = Profiler::Take(frames);
+    std::printf("\nDEKI:PROFILE frames=%u\n", static_cast<unsigned>(frames));
+    const double perFrame = frames > 0 ? 1.0 / frames : 0.0;
+    for (const Profiler::Entry& e : entries)
+    {
+        const char* name = "?";
+        if (e.typeId == Profiler::kClear)
+        {
+            name = "Clear";
+        }
+        else if (const Deki::ComponentMeta* meta = Deki::ComponentRegistry::Instance().GetMeta(e.typeId))
+        {
+            name = meta->name;
+        }
+        std::printf("DEKI:PROFILE:ITEM %s draws=%.1f contentUs=%.0f blitUs=%.0f pixels=%.0f\n", name,
+                    e.draws * perFrame, e.contentUs * perFrame, e.blitUs * perFrame, e.pixels * perFrame);
+    }
+    std::printf("DEKI:PROFILE:END\n");
+    std::fflush(stdout);
+}
+
+bool LineIs(const char* request, size_t length)
+{
+    return !s_LineTooLong && s_LineLength == length && std::memcmp(s_Line, request, length) == 0;
+}
+
 void Feed(char c)
 {
     if (c == '\n' || c == '\r')
     {
-        if (!s_LineTooLong && s_LineLength == kRequestLength && std::memcmp(s_Line, kRequest, kRequestLength) == 0)
+        if (LineIs(kRequest, kRequestLength))
         {
             SendFrame();
+            RestartCount();
+        }
+        else if (LineIs(kStatsRequest, kStatsRequestLength))
+        {
+            SendStats();
+        }
+        else if (LineIs(kProfileRequest, kProfileRequestLength))
+        {
+            SendProfile();
+        }
+        else if (!s_LineTooLong && s_LineLength > kSceneRequestLength &&
+                 std::memcmp(s_Line, kSceneRequest, kSceneRequestLength) == 0)
+        {
+            OpenScene(std::string(s_Line + kSceneRequestLength, s_LineLength - kSceneRequestLength));
+            RestartCount();
         }
         s_LineLength = 0;
         s_LineTooLong = false;
@@ -126,6 +289,7 @@ void Feed(char c)
 // screen.
 void Poll(uint32_t)
 {
+    CountFrame();
 #if defined(DEKI_CAPTURE_USB_SERIAL_JTAG)
     while (usb_serial_jtag_ll_rxfifo_data_available())
     {

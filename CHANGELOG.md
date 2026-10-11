@@ -11,6 +11,10 @@ alongside one that has them.
 ## Unreleased
 
 ### Added
+- **Frame statistics over serial**: the line `DEKI:STATS` is answered with
+  the frames per second and the average frame, update, render and present
+  times over the last second, and the free internal and external memory, for
+  the editor's `device_stats`.
 - **Screen capture over serial**: the firmware answers the line
   `DEKI:SCREENSHOT` on its console with the frame on screen (base64, with a
   CRC), for the editor's `device_screenshot`. Started at boot

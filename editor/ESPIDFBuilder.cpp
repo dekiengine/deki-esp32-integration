@@ -1618,6 +1618,13 @@ bool ESPIDFBuilder::GenerateSdkConfigDefaults(const std::string& boardPath, cons
     file << "# FAT Filesystem (SD card)\n";
     file << "CONFIG_FATFS_LFN_HEAP=y\n";
     file << "CONFIG_FATFS_MAX_LFN=255\n";
+    file << "\n";
+
+    // Optimised for speed (-O2). ESP-IDF's default is for debugging (-Og),
+    // which left the engine's per-pixel work several times slower: a menu
+    // took 42 ms to draw on an ESP32-S3.
+    file << "# Compiler\n";
+    file << "CONFIG_COMPILER_OPTIMIZATION_PERF=y\n";
 
     // The board's own options, last so they override anything chosen above.
     // This file is rewritten on every build, so this is how a board says

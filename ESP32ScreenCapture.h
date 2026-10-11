@@ -17,6 +17,14 @@ namespace DekiEsp32
 /// as it sits in memory (RGB565 is little-endian), as last presented: the
 /// request is answered from a per-frame update, before the frame is drawn.
 ///
+/// Two more requests, for measuring a game on the hardware:
+///
+///     DEKI:STATS          -> DEKI:STATS fps=.. frameMs=.. updateMs=.. renderMs=..
+///                            presentMs=.. frames=.. internalFree=.. externalFree=..
+///                            (averages over the last second or so)
+///     DEKI:SCENE <guid>   -> DEKI:SCENE:OK <guid>, having opened that scene asset
+///                            as the game's scene, or DEKI:SCENE:ERROR ...
+///
 /// The game pauses while the frame is sent (about a second for 320x240), and
 /// that time is not counted as a frame: nothing timed jumps ahead.
 ///
