@@ -68,6 +68,22 @@ char s_Line[64];
 size_t s_LineLength = 0;
 bool s_LineTooLong = false;
 
+// Sends what was written. The USB Serial/JTAG console sends a packet when its
+// 64-byte FIFO fills or is flushed, and a flush made while the packet before
+// is still going out is lost: a reply's last packet then waited for the next
+// reply to push it out. Flushing again once the FIFO takes it sends it now.
+void Flush()
+{
+    std::fflush(stdout);
+#if defined(DEKI_CAPTURE_USB_SERIAL_JTAG)
+    const int64_t until = esp_timer_get_time() + 50000;
+    while (!usb_serial_jtag_ll_txfifo_writable() && esp_timer_get_time() < until)
+    {
+    }
+    usb_serial_jtag_ll_txfifo_flush();
+#endif
+}
+
 const char* FormatName(Deki::ColorFormat format)
 {
     switch (format)
@@ -89,7 +105,7 @@ void SendFrame()
     if (!frame || width <= 0 || height <= 0)
     {
         std::printf("\nDEKI:SCREENSHOT:ERROR no frame has been drawn yet\n");
-        std::fflush(stdout);
+        Flush();
         return;
     }
 
@@ -125,7 +141,7 @@ void SendFrame()
     }
 
     std::printf("DEKI:SCREENSHOT:END %08x\n", static_cast<unsigned>(crc));
-    std::fflush(stdout);
+    Flush();
 
     // Sending took about a second the game did not see go by: without this
     // the next frame is a second long, and everything timed jumps ahead.
@@ -138,18 +154,30 @@ void SendStats()
     if (w.frames == 0)
     {
         std::printf("\nDEKI:STATS:ERROR no frames counted yet\n");
-        std::fflush(stdout);
+        Flush();
         return;
     }
-    const double frames = static_cast<double>(w.frames);
-    const double frameMs = static_cast<double>(w.frameUs) / 1000.0 / frames;
-    std::printf("\nDEKI:STATS fps=%.1f frameMs=%.2f updateMs=%.2f renderMs=%.2f presentMs=%.2f frames=%u "
-                "internalFree=%u externalFree=%u\n",
-                frameMs > 0.0 ? 1000.0 / frameMs : 0.0, frameMs, w.updateMs / frames, w.renderMs / frames,
-                w.presentMs / frames, static_cast<unsigned>(w.frames),
-                static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL)),
-                static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_SPIRAM)));
-    std::fflush(stdout);
+    // In hundredths, formatted as integers, and the line written whole.
+    const uint32_t frames = w.frames;
+    const uint32_t frameCs = static_cast<uint32_t>(w.frameUs / 10 / frames);
+    const uint32_t fpsDs = frameCs > 0 ? 1000000u / frameCs : 0;  // tenths
+    const uint32_t updateCs = w.updateMs * 100 / frames;
+    const uint32_t renderCs = w.renderMs * 100 / frames;
+    const uint32_t presentCs = w.presentMs * 100 / frames;
+    char line[200];
+    const int n = std::snprintf(
+        line, sizeof(line),
+        "\nDEKI:STATS fps=%u.%u frameMs=%u.%02u updateMs=%u.%02u renderMs=%u.%02u presentMs=%u.%02u frames=%u "
+        "internalFree=%u externalFree=%u\n",
+        static_cast<unsigned>(fpsDs / 10), static_cast<unsigned>(fpsDs % 10), static_cast<unsigned>(frameCs / 100),
+        static_cast<unsigned>(frameCs % 100), static_cast<unsigned>(updateCs / 100),
+        static_cast<unsigned>(updateCs % 100), static_cast<unsigned>(renderCs / 100),
+        static_cast<unsigned>(renderCs % 100), static_cast<unsigned>(presentCs / 100),
+        static_cast<unsigned>(presentCs % 100), static_cast<unsigned>(frames),
+        static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL)),
+        static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_SPIRAM)));
+    std::fwrite(line, 1, n > 0 ? static_cast<size_t>(n) : 0, stdout);
+    Flush();
 }
 
 // Counts the frame that just ended. Called once a frame, from Poll.
@@ -196,12 +224,12 @@ void OpenScene(const std::string& guid)
     if (!scene)
     {
         std::printf("\nDEKI:SCENE:ERROR no scene %s\n", guid.c_str());
-        std::fflush(stdout);
+        Flush();
         return;
     }
     Deki::Engine::GetInstance().SetRootScene(scene, true);
     std::printf("\nDEKI:SCENE:OK %s\n", guid.c_str());
-    std::fflush(stdout);
+    Flush();
 }
 
 uint64_t MicrosNow()
@@ -218,7 +246,7 @@ void SendProfile()
     {
         Profiler::Enable(&MicrosNow);
         std::printf("\nDEKI:PROFILE:ON\n");
-        std::fflush(stdout);
+        Flush();
         return;
     }
     uint32_t frames = 0;
@@ -240,7 +268,7 @@ void SendProfile()
                     e.draws * perFrame, e.contentUs * perFrame, e.blitUs * perFrame, e.pixels * perFrame);
     }
     std::printf("DEKI:PROFILE:END\n");
-    std::fflush(stdout);
+    Flush();
 }
 
 bool LineIs(const char* request, size_t length)

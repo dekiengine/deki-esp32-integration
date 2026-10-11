@@ -1626,6 +1626,16 @@ bool ESPIDFBuilder::GenerateSdkConfigDefaults(const std::string& boardPath, cons
     file << "# Compiler\n";
     file << "CONFIG_COMPILER_OPTIMIZATION_PERF=y\n";
 
+    // ESP32-S3: 64-byte data cache lines. A game reads and writes external
+    // memory (PSRAM) a frame at a time, and ESP-IDF's 32-byte lines leave that
+    // slower. The cache stays 32 KB: 64 KB takes another 32 KB of internal
+    // RAM, which a scene with many sprites ran out of.
+    if (idfTarget == "esp32s3")
+    {
+        file << "\n# Cache (ESP32-S3)\n";
+        file << "CONFIG_ESP32S3_DATA_CACHE_LINE_64B=y\n";
+    }
+
     // The board's own options, last so they override anything chosen above.
     // This file is rewritten on every build, so this is how a board says
     // what the generator does not know; boards differ in ways it should not

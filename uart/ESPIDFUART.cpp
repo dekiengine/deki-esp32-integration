@@ -13,7 +13,9 @@ void ESPIDFUART::Configure(const Deki::PackageConfig& config)
     m_PinTX = config.GetPin("TX", -1);
     m_PinRX = config.GetPin("RX", -1);
     m_Port = config.GetInt("uartPort", 1);
-    m_Baud = (uint32_t)config.GetInt("baud", 9600);
+    // "baudRate", as deki-gps and the components name it; "baud" was read
+    // alone, so every UART ran at 9600 whatever was configured.
+    m_Baud = (uint32_t)config.GetInt("baudRate", config.GetInt("baud", 9600));
     m_RxBufSize = (size_t)config.GetInt("rx_buf_size", 1024);
 }
 

@@ -22,8 +22,25 @@ alongside one that has them.
   console is read from its FIFO, a UART one through stdin. A frame takes about
   a second to send; the game waits for it, and that second is not counted as
   frame time, so nothing timed jumps ahead.
+- `DEKI:PROFILE` turns on deki-rendering's render profiler and then reports
+  where the render time went since the request before, per component type.
+  `DEKI:SCENE <guid>` opens that scene, for measuring each scene without
+  pressing through the game.
+
+### Changed
+- ESP32-S3 builds use 64-byte data cache lines, which make a frame in PSRAM
+  quicker to draw and send. The cache stays 32 KB: 64 KB takes 32 KB more of
+  internal RAM, which a scene with many sprites ran out of.
 
 ### Fixed
+- **A UART ignored its `baudRate` and ran at 9600.** Only the key `baud` was
+  read, and deki-gps and the components name it `baudRate`, so a GPS sending
+  at 38400 (the T-Deck Plus's) was never understood. Both keys are read.
+- A console reply's last bytes stayed on the board until the next reply
+  pushed them out, so `device_stats` said the board did not answer. The USB
+  Serial/JTAG console sends what it holds when flushed, and a flush made
+  while the packet before is still going out is lost; it is now made again
+  once the console takes it.
 - A flash with no port named (MCP's `deploy_build`, the CLI) picks one: the
   only serial port there is, or, with several, the first that answers as an
   ESP32. It failed with "No board found" even with a board plugged in.
