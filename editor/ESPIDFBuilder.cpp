@@ -1382,7 +1382,10 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
             outdirs += " \"${CMAKE_BINARY_DIR}/refl/" + pkg.dirName + "/generated\"";
         }
         file << "\n# Reflection regenerated for this configuration (stripping is on)\n";
-        file << "if(NOT DEKI_GXX16)\n    set(DEKI_GXX16 \"$ENV{DEKI_GXX16}\")\nendif()\n";
+        // Only a non-empty environment value: an empty normal variable would
+        // make the find_program below skip its search (CMP0125).
+        file << "if(NOT DEKI_GXX16 AND NOT \"$ENV{DEKI_GXX16}\" STREQUAL \"\")\n"
+                "    set(DEKI_GXX16 \"$ENV{DEKI_GXX16}\")\nendif()\n";
         file << "if(NOT DEKI_GXX16)\n    find_program(DEKI_GXX16 NAMES g++-16 g++)\nendif()\n";
         file << "if(NOT DEKI_GXX16)\n"
                 "    message(FATAL_ERROR \"Stripping regenerates the reflection tables and needs GCC 16.1+: "
