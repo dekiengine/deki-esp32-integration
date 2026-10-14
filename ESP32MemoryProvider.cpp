@@ -30,6 +30,9 @@ void OnAllocationFailed(size_t size, uint32_t caps, const char* functionName)
                    (unsigned)internal.total_free_bytes, (unsigned)internal.largest_free_block,
                    (unsigned)internal.minimum_free_bytes, (unsigned)dma.total_free_bytes,
                    (unsigned)dma.largest_free_block);
+    const MemoryStats engine = Memory::GetStats();
+    esp_rom_printf("Deki: of which the engine placed %u bytes internal and %u external.\n",
+                   (unsigned)engine.internalRamAllocated, (unsigned)engine.externalAllocated);
 }
 }  // namespace
 

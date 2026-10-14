@@ -14,6 +14,10 @@ alongside one that has them.
 - Big-endian RGB565 (`DEKI_RGB565_BIG_ENDIAN`): `DEKI:SCREENSHOT` names the format
   `RGB565_BE` or `RGB565A8_BE`. `ESP32QemuDisplay` refuses such a build: the
   QEMU panel is little-endian.
+- A failed allocation prints its size, caps and caller, the internal and
+  DMA-capable heaps' free bytes, largest block and low-water mark, and how
+  much the engine placed in each region. ESP-IDF aborts when it cannot make
+  a FreeRTOS lock, and the abort alone does not say memory ran out.
 
 ## 0.18.2
 
