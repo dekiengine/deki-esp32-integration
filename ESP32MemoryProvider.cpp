@@ -2,6 +2,7 @@
 
 #if defined(ESP32)
 #include "esp_heap_caps.h"
+#include "esp_rom_sys.h"
 #include "esp_system.h"
 #include "soc/soc_caps.h"
 #endif
@@ -11,10 +12,32 @@ namespace Deki
 
 #if defined(ESP32)
 
+namespace
+{
+// Says what a failed allocation asked for and what the heap had left. ESP-IDF
+// aborts on some of these (a FreeRTOS lock it cannot create), and the abort
+// alone does not say that memory ran out, or which memory. Printed with the
+// ROM's printf: logging could itself allocate.
+void OnAllocationFailed(size_t size, uint32_t caps, const char* functionName)
+{
+    multi_heap_info_t internal = {};
+    heap_caps_get_info(&internal, MALLOC_CAP_INTERNAL);
+    multi_heap_info_t dma = {};
+    heap_caps_get_info(&dma, MALLOC_CAP_DMA);
+    esp_rom_printf("Deki: %u bytes (caps 0x%x) could not be allocated in %s. Internal: %u free, largest block %u, "
+                   "lowest ever %u. DMA-capable: %u free, largest block %u.\n",
+                   (unsigned)size, (unsigned)caps, functionName ? functionName : "?",
+                   (unsigned)internal.total_free_bytes, (unsigned)internal.largest_free_block,
+                   (unsigned)internal.minimum_free_bytes, (unsigned)dma.total_free_bytes,
+                   (unsigned)dma.largest_free_block);
+}
+}  // namespace
+
 bool ESP32MemoryProvider::Initialize()
 {
     size_t psramSize = heap_caps_get_total_size(MALLOC_CAP_SPIRAM);
     m_HasPSRAM = (psramSize > 0);
+    heap_caps_register_failed_alloc_callback(&OnAllocationFailed);
     return true;
 }
 
