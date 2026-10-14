@@ -252,6 +252,7 @@ void SendProfile()
         return;
     }
     uint32_t frames = 0;
+    const std::vector<Profiler::PathEntry> paths = Profiler::TakePaths();
     const std::vector<Profiler::Entry> entries = Profiler::Take(frames);
     std::printf("\nDEKI:PROFILE frames=%u\n", static_cast<unsigned>(frames));
     const double perFrame = frames > 0 ? 1.0 / frames : 0.0;
@@ -262,12 +263,22 @@ void SendProfile()
         {
             name = "Clear";
         }
+        else if (e.name)
+        {
+            name = e.name;
+        }
         else if (const Deki::ComponentMeta* meta = Deki::ComponentRegistry::Instance().GetMeta(e.typeId))
         {
             name = meta->name;
         }
         std::printf("DEKI:PROFILE:ITEM %s draws=%.1f contentUs=%.0f blitUs=%.0f pixels=%.0f\n", name,
                     e.draws * perFrame, e.contentUs * perFrame, e.blitUs * perFrame, e.pixels * perFrame);
+    }
+    for (const Profiler::PathEntry& p : paths)
+    {
+        std::printf("DEKI:PROFILE:PATH %s blits=%.1f pixels=%.0f us=%.0f nsPerPixel=%.1f\n", p.name ? p.name : "?",
+                    p.blits * perFrame, p.pixels * perFrame, p.us * perFrame,
+                    p.pixels ? 1000.0 * static_cast<double>(p.us) / static_cast<double>(p.pixels) : 0.0);
     }
     std::printf("DEKI:PROFILE:END\n");
     Flush();

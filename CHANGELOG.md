@@ -18,6 +18,8 @@ alongside one that has them.
   DMA-capable heaps' free bytes, largest block and low-water mark, and how
   much the engine placed in each region. ESP-IDF aborts when it cannot make
   a FreeRTOS lock, and the abort alone does not say memory ran out.
+- `DEKI:PROFILE` names each component type and adds a
+  `DEKI:PROFILE:PATH` line per blitter path, with nanoseconds per pixel.
 
 ## 0.18.2
 
