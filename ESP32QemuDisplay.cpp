@@ -46,6 +46,12 @@ bool ESP32QemuDisplay::Initialize(int32_t width, int32_t height)
         DEKI_LOG_ERROR("ESP32QemuDisplay: the QEMU panel shows RGB565 or ARGB8888");
         return false;
     }
+    if (m_Format == Deki::ColorFormat::RGB565 && Deki::kRGB565BigEndian)
+    {
+        DEKI_LOG_ERROR("ESP32QemuDisplay: the QEMU panel shows RGB565 little-endian; this build draws it big-endian "
+                       "(DEKI_RGB565_BIG_ENDIAN)");
+        return false;
+    }
     if (width <= 0 || height <= 0 || width > 0xFFFF || height > 0xFFFF)
     {
         DEKI_LOG_ERROR("ESP32QemuDisplay: %dx%d is not a panel size", (int)width, (int)height);

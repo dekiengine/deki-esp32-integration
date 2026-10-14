@@ -8,6 +8,13 @@ breaking change bumps the minor across the editor, the engine and every
 package together, so a package with no changes of its own is still released
 alongside one that has them.
 
+## Unreleased
+
+### Added
+- Big-endian RGB565 (`DEKI_RGB565_BIG_ENDIAN`): `DEKI:SCREENSHOT` names the format
+  `RGB565_BE` or `RGB565A8_BE`. `ESP32QemuDisplay` refuses such a build: the
+  QEMU panel is little-endian.
+
 ## 0.18.2
 
 ### Added

@@ -88,10 +88,12 @@ const char* FormatName(Deki::ColorFormat format)
 {
     switch (format)
     {
-        case Deki::ColorFormat::RGB565: return "RGB565";
+        // A big-endian build (DEKI_RGB565_BIG_ENDIAN) says so, since the
+        // bytes are sent as they sit in memory.
+        case Deki::ColorFormat::RGB565: return Deki::kRGB565BigEndian ? "RGB565_BE" : "RGB565";
         case Deki::ColorFormat::RGB888: return "RGB888";
         case Deki::ColorFormat::ARGB8888: return "ARGB8888";
-        case Deki::ColorFormat::RGB565A8: return "RGB565A8";
+        case Deki::ColorFormat::RGB565A8: return Deki::kRGB565BigEndian ? "RGB565A8_BE" : "RGB565A8";
     }
     return "UNKNOWN";
 }

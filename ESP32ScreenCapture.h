@@ -14,7 +14,8 @@ namespace DekiEsp32
 ///     DEKI:SCREENSHOT:END <crc32 of the bytes, 8 hex digits>
 ///
 /// or `DEKI:SCREENSHOT:ERROR <reason>`. The bytes are the engine's framebuffer
-/// as it sits in memory (RGB565 is little-endian), as last presented: the
+/// as it sits in memory (RGB565 is little-endian; RGB565_BE and RGB565A8_BE
+/// on a board built with DEKI_RGB565_BIG_ENDIAN), as last presented: the
 /// request is answered from a per-frame update, before the frame is drawn.
 ///
 /// Two more requests, for measuring a game on the hardware:
