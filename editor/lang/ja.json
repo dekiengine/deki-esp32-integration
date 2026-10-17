@@ -27,5 +27,8 @@
     "The screen's width in pixels.": "画面の幅 (ピクセル) です。",
     "Use IRAM for fast functions (IRAM_ATTR)": "高速な関数に IRAM を使う (IRAM_ATTR)",
     "Width": "幅",
-    "Flash Size": "フラッシュサイズ"
+    "Flash Size": "フラッシュサイズ",
+    "Answers the editor's commands over the ESP32's serial port.": "ESP32 のシリアルポートで、エディターからのコマンドに応答します。",
+    "ESP32 HAL": "ESP32 HAL",
+    "Opens the screen of Espressif's QEMU, for running a firmware build without a board.": "Espressif の QEMU の画面を開きます。ボードなしでファームウェアのビルドを実行するためのものです。"
 }

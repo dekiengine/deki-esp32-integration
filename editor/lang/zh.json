@@ -27,5 +27,8 @@
     "The screen's width in pixels.": "屏幕的宽度，单位为像素。",
     "Use IRAM for fast functions (IRAM_ATTR)": "为高速函数使用 IRAM (IRAM_ATTR)",
     "Width": "宽度",
-    "Flash Size": "Flash 大小"
+    "Flash Size": "Flash 大小",
+    "Answers the editor's commands over the ESP32's serial port.": "通过 ESP32 的串口响应编辑器的命令。",
+    "ESP32 HAL": "ESP32 HAL",
+    "Opens the screen of Espressif's QEMU, for running a firmware build without a board.": "打开 Espressif QEMU 的屏幕，无需开发板即可运行固件构建。"
 }

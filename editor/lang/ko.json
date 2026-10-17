@@ -27,5 +27,8 @@
     "The screen's width in pixels.": "화면의 너비(픽셀)입니다.",
     "Use IRAM for fast functions (IRAM_ATTR)": "빠른 함수에 IRAM 사용 (IRAM_ATTR)",
     "Width": "너비",
-    "Flash Size": "플래시 크기"
+    "Flash Size": "플래시 크기",
+    "Answers the editor's commands over the ESP32's serial port.": "ESP32의 시리얼 포트로 에디터의 명령에 응답합니다.",
+    "ESP32 HAL": "ESP32 HAL",
+    "Opens the screen of Espressif's QEMU, for running a firmware build without a board.": "보드 없이 펌웨어 빌드를 실행할 수 있도록 Espressif QEMU의 화면을 엽니다."
 }
