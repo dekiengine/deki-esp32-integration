@@ -19,6 +19,8 @@
 // same for export.bat, since a fresh Windows has no python but the Microsoft
 // Store's stub, which exits with 9009.
 
+#include <deki-editor/Localization.h>
+
 namespace DekiEditor
 {
 
@@ -136,5 +138,13 @@ inline constexpr const char* kESPIDFToolchainDefinition = R"json(
   ]
 }
 )json";
+
+// The tooltips above, marked so the translation table has them. The Platforms
+// panel shows them through Tr().
+[[maybe_unused]] inline constexpr const char* kESPIDFToolchainTooltips[] = {
+    TrMark("Espressif IoT Development Framework"),
+    TrMark("Python interpreter (needed by ESP-IDF)"),
+    TrMark("Flash tool for ESP32 devices"),
+};
 
 }  // namespace DekiEditor
