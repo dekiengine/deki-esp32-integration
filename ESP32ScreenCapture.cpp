@@ -173,18 +173,22 @@ void SendStats()
     const uint32_t updateCs = w.updateMs * 100 / frames;
     const uint32_t renderCs = w.renderMs * 100 / frames;
     const uint32_t presentCs = w.presentMs * 100 / frames;
-    char line[200];
+    // How frames reach the screen (RenderingProjectSettings::frameMode as
+    // the render system decided it); the reason is in the boot log.
+    const int32_t bandRows = DekiRendering::DekiRenderSystem::LastFrameModeRows();
+    char line[240];
     const int n = std::snprintf(
         line, sizeof(line),
         "\nDEKI:STATS fps=%u.%u frameMs=%u.%02u updateMs=%u.%02u renderMs=%u.%02u presentMs=%u.%02u frames=%u "
-        "internalFree=%u externalFree=%u\n",
+        "internalFree=%u externalFree=%u frameMode=%s bandRows=%d\n",
         static_cast<unsigned>(fpsDs / 10), static_cast<unsigned>(fpsDs % 10), static_cast<unsigned>(frameCs / 100),
         static_cast<unsigned>(frameCs % 100), static_cast<unsigned>(updateCs / 100),
         static_cast<unsigned>(updateCs % 100), static_cast<unsigned>(renderCs / 100),
         static_cast<unsigned>(renderCs % 100), static_cast<unsigned>(presentCs / 100),
         static_cast<unsigned>(presentCs % 100), static_cast<unsigned>(frames),
         static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL)),
-        static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_SPIRAM)));
+        static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_SPIRAM)), bandRows > 0 ? "strips" : "whole",
+        static_cast<int>(bandRows));
     std::fwrite(line, 1, n > 0 ? static_cast<size_t>(n) : 0, stdout);
     Flush();
 }
