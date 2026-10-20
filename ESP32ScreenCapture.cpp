@@ -8,7 +8,8 @@
 #include <deki/assets/AssetManager.h>
 #include <deki/reflection/ComponentRegistry.h>
 
-#include "RenderProfiler.h"  // from deki-rendering
+#include "DekiRenderSystem.h"  // from deki-rendering
+#include "RenderProfiler.h"    // from deki-rendering
 
 #include <string>
 #include <vector>
@@ -67,6 +68,10 @@ int64_t s_LastPollUs = 0;
 char s_Line[64];
 size_t s_LineLength = 0;
 bool s_LineTooLong = false;
+
+// Frames left to wait for a screenshot asked of a frame drawn in strips,
+// which has no whole frame until the next one is put together for it.
+int s_ScreenshotWait = 0;
 
 // Sends what was written. The USB Serial/JTAG console sends a packet when its
 // 64-byte FIFO fills or is flushed, and a flush made while the packet before
@@ -295,8 +300,18 @@ void Feed(char c)
     {
         if (LineIs(kRequest, kRequestLength))
         {
-            SendFrame();
-            RestartCount();
+            if (Deki::Engine::GetInstance().GetFrameBuffer())
+            {
+                SendFrame();
+                RestartCount();
+            }
+            else
+            {
+                // Drawn in strips: the next frame is put together whole too,
+                // and sent from the next Poll.
+                DekiRendering::DekiRenderSystem::RequestFrameCapture();
+                s_ScreenshotWait = 3;
+            }
         }
         else if (LineIs(kStatsRequest, kStatsRequestLength))
         {
@@ -331,6 +346,12 @@ void Feed(char c)
 void Poll(uint32_t)
 {
     CountFrame();
+    if (s_ScreenshotWait > 0 && (Deki::Engine::GetInstance().GetFrameBuffer() || --s_ScreenshotWait == 0))
+    {
+        s_ScreenshotWait = 0;
+        SendFrame();  // reports an error if there is still no frame
+        RestartCount();
+    }
 #if defined(DEKI_CAPTURE_USB_SERIAL_JTAG)
     while (usb_serial_jtag_ll_rxfifo_data_available())
     {
