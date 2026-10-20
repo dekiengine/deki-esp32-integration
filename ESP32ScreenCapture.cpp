@@ -46,6 +46,8 @@ constexpr char kStatsRequest[] = "DEKI:STATS";
 constexpr size_t kStatsRequestLength = sizeof(kStatsRequest) - 1;
 constexpr char kProfileRequest[] = "DEKI:PROFILE";
 constexpr size_t kProfileRequestLength = sizeof(kProfileRequest) - 1;
+constexpr char kProfileOffRequest[] = "DEKI:PROFILE:OFF";
+constexpr size_t kProfileOffRequestLength = sizeof(kProfileOffRequest) - 1;
 constexpr char kSceneRequest[] = "DEKI:SCENE ";
 constexpr size_t kSceneRequestLength = sizeof(kSceneRequest) - 1;
 
@@ -320,6 +322,15 @@ void Feed(char c)
         else if (LineIs(kProfileRequest, kProfileRequestLength))
         {
             SendProfile();
+        }
+        else if (LineIs(kProfileOffRequest, kProfileOffRequestLength))
+        {
+            // A report leaves the profiler on, timing every draw, until it is
+            // switched off here or the board restarts.
+            DekiRendering::RenderProfiler::Enable(nullptr);
+            std::printf("\nDEKI:PROFILE:OFF\n");
+            Flush();
+            RestartCount();
         }
         else if (!s_LineTooLong && s_LineLength > kSceneRequestLength &&
                  std::memcmp(s_Line, kSceneRequest, kSceneRequestLength) == 0)

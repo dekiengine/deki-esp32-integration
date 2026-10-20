@@ -20,6 +20,9 @@ alongside one that has them.
   a FreeRTOS lock, and the abort alone does not say memory ran out.
 - `DEKI:PROFILE` names each component type and adds a
   `DEKI:PROFILE:PATH` line per blitter path, with nanoseconds per pixel.
+- `DEKI:PROFILE:OFF` switches the render profiler off again. A report leaves
+  it on, and it times every draw, which costs a few frames a second, so a
+  measurement after profiling read low until the board restarted.
 
 ## 0.18.2
 
