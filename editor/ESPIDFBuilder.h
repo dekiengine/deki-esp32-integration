@@ -1,6 +1,7 @@
 #pragma once
 
 #include <deki-editor/IconsTabler.h>
+#include <deki-editor/Localization.h>
 
 #include <deki-editor/build/FirmwareBuilderBase.h>
 #include "ESPIDFToolchain.h"
@@ -51,9 +52,13 @@ public:
     // Identity
     const char* GetName() const override { return "ESP-IDF"; }
     // Shown in the platform editor's framework picker. Each backend
-    // describes itself, so the editor needs no list of them.
+    // describes itself, so the editor needs no list of them. The editor shows
+    // the description in its own language.
     const char* GetIcon() const override { return ICON_TI_CPU; }
-    const char* GetDescription() const override { return "Build for ESP32, ESP32-S3 and other Espressif chips"; }
+    const char* GetDescription() const override
+    {
+        return TrMark("Build for ESP32, ESP32-S3 and other Espressif chips");
+    }
 
     // The generated project packs this directory into the data partition.
     std::string GetBootPayloadDirectory(const std::string& projectPath) const override

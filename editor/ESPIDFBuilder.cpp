@@ -8,6 +8,7 @@
 #include <deki-editor/build/ProjectPaths.h>
 #include <deki-editor/EditorTheme.h>
 #include <deki-editor/EditorUI.h>
+#include <deki-editor/Localization.h>
 #include <deki-editor/build/CMakeGenUtils.h>
 #include <deki-editor/build/BuilderDefinition.h>
 #include <deki-editor/EditorPaths.h>
@@ -187,11 +188,11 @@ std::vector<std::pair<std::string, std::string>> ESPIDFBuilder::DescribePlatform
     std::vector<std::pair<std::string, std::string>> rows;
     if (!config.Option("mcuChip").empty())
     {
-        rows.emplace_back("Chip", config.Option("mcuChip"));
+        rows.emplace_back(TrMark("Chip"), config.Option("mcuChip"));
     }
     if (config.OptionU32("flashSize") > 0)
     {
-        rows.emplace_back("Flash", std::to_string(config.OptionU32("flashSize") / (1024 * 1024)) + " MB");
+        rows.emplace_back(TrMark("Flash Size"), std::to_string(config.OptionU32("flashSize") / (1024 * 1024)) + " MB");
     }
     if (config.externalMemorySize > 0)
     {
@@ -199,7 +200,7 @@ std::vector<std::pair<std::string, std::string>> ESPIDFBuilder::DescribePlatform
     }
     if (!config.Option("displayDriver").empty())
     {
-        rows.emplace_back("Driver", config.Option("displayDriver"));
+        rows.emplace_back(TrMark("Driver"), config.Option("displayDriver"));
     }
     return rows;
 }
@@ -1831,7 +1832,7 @@ public:
                 }
                 ImGui::PopID();
             };
-            presetRow("Flash (MB)", "flash", &m_FlashSizeMB, { 4, 8, 16 });
+            presetRow(TrMark("Flash (MB)"), "flash", &m_FlashSizeMB, { 4, 8, 16 });
             presetRow("PSRAM (MB)", "psram", &m_PsramSizeMB, { 0, 2, 8 });
             if (m_PsramSizeMB > 0)
             {
@@ -1848,9 +1849,10 @@ public:
         // --- Compiler ---
         if (DekiEditor::SchematicSectionBegin("Compiler & Build", 0))
         {
-            DekiEditor::SchematicCheckbox("Use IRAM for fast functions (IRAM_ATTR)", &m_UseIramAttr);
-            DrawStringListEditor("Preprocessor Defines", m_Defines, m_NewItemBuf, sizeof(m_NewItemBuf));
-            DrawStringListEditor("Required Libraries", m_RequiredLibraries, m_NewItemBuf2, sizeof(m_NewItemBuf2));
+            DekiEditor::SchematicCheckbox(TrLabel("Use IRAM for fast functions (IRAM_ATTR)"), &m_UseIramAttr);
+            DrawStringListEditor(TrMark("Preprocessor Defines"), m_Defines, m_NewItemBuf, sizeof(m_NewItemBuf));
+            DrawStringListEditor(TrMark("Required Libraries"), m_RequiredLibraries, m_NewItemBuf2,
+                                 sizeof(m_NewItemBuf2));
             DekiEditor::SchematicSectionEnd();
         }
     }
