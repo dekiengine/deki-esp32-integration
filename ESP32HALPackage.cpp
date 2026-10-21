@@ -19,6 +19,8 @@
 #include "DekiSDCard.h"  // from deki-sdcard
 #include "i2c/ESPIDFI2C.h"
 #include "DekiI2C.h"  // from deki-i2c
+#include "spi/ESPIDFSPI.h"
+#include "DekiSPI.h"  // from deki-spi
 #include "gpio/ESPIDFGPIO.h"
 #include "DekiGPIO.h"  // from deki-gpio
 #include "uart/ESPIDFUART.h"
@@ -61,6 +63,7 @@ struct ESP32BackendInit
         Deki::Time::SetTimeProvider(std::make_unique<Deki::ESP32TimeProvider>());
         DekiSdCard::DekiSDCard::SetFactory([]() -> DekiSdCard::IDekiSDCard* { return new ESPIDFSDCard(); });
         DekiI2c::DekiI2C::SetFactory([]() -> DekiI2c::IDekiI2C* { return new ESPIDFI2C(); });
+        DekiSpi::DekiSPI::SetFactory([]() -> DekiSpi::IDekiSPIBus* { return new ESPIDFSPIBus(); });
         DekiUart::DekiUART::SetFactory([]() -> DekiUart::IDekiUART* { return new ESPIDFUART(); });
         DekiI2s::DekiI2S::SetFactory([]() -> DekiI2s::IDekiI2S* { return new ESPIDFI2S(); });
 

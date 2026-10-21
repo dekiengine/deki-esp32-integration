@@ -10,6 +10,7 @@
     "deki-i2s",
     "deki-uart",
     "deki-i2c",
+    "deki-spi",
     "deki-gpio",
     "deki-sdcard",
     "deki-rendering"
@@ -56,6 +57,13 @@
       "id": "i2c",
       "displayName": "I²C (ESP-IDF)",
       "buildDefine": "DEKI_FEATURE_ESP32_I2C",
+      "defaultEnabled": true,
+      "componentTypes": []
+    },
+    {
+      "id": "spi",
+      "displayName": "SPI (ESP-IDF)",
+      "buildDefine": "DEKI_FEATURE_ESP32_SPI",
       "defaultEnabled": true,
       "componentTypes": []
     },

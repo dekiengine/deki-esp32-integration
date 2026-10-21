@@ -11,6 +11,12 @@ alongside one that has them.
 ## Unreleased
 
 ### Added
+- `ESPIDFSPIBus` and `ESPIDFSPIDevice`: deki-spi on ESP-IDF's `spi_master`,
+  registered as deki-spi's factory. Long writes are queued and go out by DMA
+  back to back; the data/command pin is set in the driver's pre-transfer
+  callback as each transfer starts; chip select can stay low across a run of
+  transfers while the bus is held. A bus another driver already started is
+  joined. Requires deki-spi.
 - Big-endian RGB565 (`DEKI_RGB565_BIG_ENDIAN`): `DEKI:SCREENSHOT` names the format
   `RGB565_BE` or `RGB565A8_BE`. `ESP32QemuDisplay` refuses such a build: the
   QEMU panel is little-endian.
