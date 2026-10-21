@@ -16,7 +16,14 @@ alongside one that has them.
   back to back; the data/command pin is set in the driver's pre-transfer
   callback as each transfer starts; chip select can stay low across a run of
   transfers while the bus is held. A bus another driver already started is
-  joined. Requires deki-spi.
+  joined. Requires deki-spi. A transfer of four bytes or less travels in the
+  transaction itself, queued or not.
+- deki-display's present worker: a FreeRTOS task pinned to the core the
+  engine is not on, which sends a frame while the next is drawn. None on a
+  single-core chip. Requires deki-display.
+- `ESPIDFI2C::WriteRead` and `WriteRaw`, deki-i2c's reads and writes for
+  devices with wider registers (`i2c_master_transmit_receive`,
+  `i2c_master_transmit`).
 - Big-endian RGB565 (`DEKI_RGB565_BIG_ENDIAN`): `DEKI:SCREENSHOT` names the format
   `RGB565_BE` or `RGB565A8_BE`. `ESP32QemuDisplay` refuses such a build: the
   QEMU panel is little-endian.

@@ -6,6 +6,7 @@
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
 #include "esp_attr.h"
+#include "esp_memory_utils.h"
 #include "freertos/FreeRTOS.h"
 #endif
 
@@ -71,11 +72,13 @@ ESPIDFSPIDevice::~ESPIDFSPIDevice()
     }
 }
 
-// Fills `out` for `t`. `small` lets a transfer of up to four bytes travel in
-// the transaction itself: the driver would otherwise copy a buffer that is
-// not in DMA memory (a command's parameters on the stack) into one it
-// allocates, for every command.
-static bool Fill(spi_transaction_ext_t& out, const DekiSpi::Transfer& t, bool halfDuplex, int32_t dcPin, bool small)
+// Fills `out` for `t`. A write of up to four bytes travels in the
+// transaction itself: the driver would otherwise copy a buffer that is not in
+// DMA memory (a command's parameters on the stack) into one it allocates, for
+// every command, and a queued one outlives the caller's buffer. `smallRx`
+// does the same for a read, which only a blocking transfer can copy back.
+static bool Fill(spi_transaction_ext_t& out, const DekiSpi::Transfer& t, bool halfDuplex, int32_t dcPin,
+                 bool smallRx)
 {
     memset(&out, 0, sizeof(out));
     spi_transaction_t& b = out.base;
@@ -103,7 +106,7 @@ static bool Fill(spi_transaction_ext_t& out, const DekiSpi::Transfer& t, bool ha
         return false;  // full duplex reads only while it writes
     }
     b.rxlength = t.rxBytes * 8;
-    if (small && t.tx && t.txBytes <= 4)
+    if (t.tx && t.txBytes <= 4)
     {
         b.flags |= SPI_TRANS_USE_TXDATA;
         memcpy(b.tx_data, t.tx, t.txBytes);
@@ -111,8 +114,16 @@ static bool Fill(spi_transaction_ext_t& out, const DekiSpi::Transfer& t, bool ha
     else
     {
         b.tx_buffer = t.tx;
+        // A buffer in PSRAM is read by DMA where it is (the S3's GDMA reaches
+        // external memory), after the driver writes the CPU's cache back, and
+        // not copied into internal RAM first. Aligned as AllocateDma
+        // aligns it, nothing is copied at all.
+        if (esp_ptr_external_ram(t.tx))
+        {
+            b.flags |= SPI_TRANS_DMA_USE_PSRAM;
+        }
     }
-    if (small && t.rx && t.rxBytes <= 4)
+    if (smallRx && t.rx && t.rxBytes <= 4)
     {
         b.flags |= SPI_TRANS_USE_RXDATA;
     }

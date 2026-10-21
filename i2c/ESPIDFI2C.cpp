@@ -153,6 +153,50 @@ bool ESPIDFI2C::Read(uint8_t addr, uint8_t reg, uint8_t* dst, size_t len)
 #endif
 }
 
+bool ESPIDFI2C::WriteRead(uint8_t addr, const uint8_t* tx, size_t txLen, uint8_t* rx, size_t rxLen)
+{
+#if defined(ESP32)
+    if (!tx || txLen == 0 || !rx || rxLen == 0 || !m_Bus)
+    {
+        return false;
+    }
+    auto dev = (i2c_master_dev_handle_t)DeviceFor(addr);
+    if (!dev)
+    {
+        return false;
+    }
+    return i2c_master_transmit_receive(dev, tx, txLen, rx, rxLen, 50) == ESP_OK;
+#else
+    (void)addr;
+    (void)tx;
+    (void)txLen;
+    (void)rx;
+    (void)rxLen;
+    return false;
+#endif
+}
+
+bool ESPIDFI2C::WriteRaw(uint8_t addr, const uint8_t* tx, size_t len)
+{
+#if defined(ESP32)
+    if (!tx || len == 0 || !m_Bus)
+    {
+        return false;
+    }
+    auto dev = (i2c_master_dev_handle_t)DeviceFor(addr);
+    if (!dev)
+    {
+        return false;
+    }
+    return i2c_master_transmit(dev, tx, len, 50) == ESP_OK;
+#else
+    (void)addr;
+    (void)tx;
+    (void)len;
+    return false;
+#endif
+}
+
 bool ESPIDFI2C::ReadRaw(uint8_t addr, uint8_t* dst, size_t len)
 {
 #if defined(ESP32)

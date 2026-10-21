@@ -11,6 +11,7 @@
     "deki-uart",
     "deki-i2c",
     "deki-spi",
+    "deki-display",
     "deki-gpio",
     "deki-sdcard",
     "deki-rendering"

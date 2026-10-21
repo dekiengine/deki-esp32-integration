@@ -21,6 +21,7 @@
 #include "DekiI2C.h"  // from deki-i2c
 #include "spi/ESPIDFSPI.h"
 #include "DekiSPI.h"  // from deki-spi
+#include "display/ESPIDFPresentWorker.h"
 #include "gpio/ESPIDFGPIO.h"
 #include "DekiGPIO.h"  // from deki-gpio
 #include "uart/ESPIDFUART.h"
@@ -64,6 +65,7 @@ struct ESP32BackendInit
         DekiSdCard::DekiSDCard::SetFactory([]() -> DekiSdCard::IDekiSDCard* { return new ESPIDFSDCard(); });
         DekiI2c::DekiI2C::SetFactory([]() -> DekiI2c::IDekiI2C* { return new ESPIDFI2C(); });
         DekiSpi::DekiSPI::SetFactory([]() -> DekiSpi::IDekiSPIBus* { return new ESPIDFSPIBus(); });
+        DekiDisplay::PanelDisplay::SetWorkerBackend(&ESPIDFPresentWorker());
         DekiUart::DekiUART::SetFactory([]() -> DekiUart::IDekiUART* { return new ESPIDFUART(); });
         DekiI2s::DekiI2S::SetFactory([]() -> DekiI2s::IDekiI2S* { return new ESPIDFI2S(); });
 
