@@ -2,6 +2,7 @@
 
 #include "IDekiSPI.h"  // from deki-spi
 #include <deki/PackageConfig.h>
+#include <deki/providers/Buffer.h>
 #include <memory>
 #include <string>
 #include <vector>
@@ -41,7 +42,7 @@ private:
     // One spi_transaction_ext_t per queue slot: the driver keeps a pointer to
     // a queued transaction until it is waited for. Transfers finish in the
     // order they were queued, so slots are reused round the ring.
-    std::unique_ptr<uint8_t[]> m_Slots;
+    Deki::Buffer<uint8_t> m_Slots;  // m_SlotCount spi_transaction_ext_t, internal RAM
     size_t m_SlotCount = 0;
     size_t m_NextSlot = 0;
     size_t m_InFlight = 0;

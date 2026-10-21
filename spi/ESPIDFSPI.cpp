@@ -56,7 +56,10 @@ ESPIDFSPIDevice::ESPIDFSPIDevice(void* handle, const DekiSpi::DeviceConfig& conf
       m_MaxTransferBytes(maxTransferBytes),
       m_SlotCount(config.queueDepth > 0 ? config.queueDepth : 1)
 {
-    m_Slots.reset(new uint8_t[m_SlotCount * sizeof(spi_transaction_ext_t)]);
+    if (!m_Slots.Allocate(m_SlotCount * sizeof(spi_transaction_ext_t), Deki::Memory::Internal))
+    {
+        DEKI_LOG_ERROR("ESPIDFSPI: no memory for %u transfer slots", (unsigned)m_SlotCount);
+    }
 }
 
 ESPIDFSPIDevice::~ESPIDFSPIDevice()
@@ -164,7 +167,7 @@ bool ESPIDFSPIDevice::Transmit(const DekiSpi::Transfer& t)
 
 bool ESPIDFSPIDevice::Queue(const DekiSpi::Transfer& t)
 {
-    if (!m_Handle || (t.keepCs && m_AcquireDepth == 0))
+    if (!m_Handle || !m_Slots || (t.keepCs && m_AcquireDepth == 0))
     {
         return false;
     }
@@ -180,7 +183,7 @@ bool ESPIDFSPIDevice::Queue(const DekiSpi::Transfer& t)
     {
         return false;
     }
-    auto* slot = reinterpret_cast<spi_transaction_ext_t*>(m_Slots.get()) + m_NextSlot;
+    auto* slot = reinterpret_cast<spi_transaction_ext_t*>(m_Slots.Data()) + m_NextSlot;
     if (!Fill(*slot, t, m_HalfDuplex, m_DcPin, false))
     {
         return false;
@@ -319,6 +322,12 @@ bool ESPIDFSPIBus::Initialize()
     cfg.miso_io_num = m_PinMiso;
     cfg.quadwp_io_num = m_PinIo2;
     cfg.quadhd_io_num = m_PinIo3;
+    // Unused, not GPIO 0: zeroed, spi_common would route GPIO 0 (the BOOT
+    // button on most boards) to the bus as an octal data line.
+    cfg.data4_io_num = -1;
+    cfg.data5_io_num = -1;
+    cfg.data6_io_num = -1;
+    cfg.data7_io_num = -1;
     cfg.max_transfer_sz = static_cast<int>(m_MaxTransferBytes);
     cfg.flags = SPICOMMON_BUSFLAG_MASTER | (IsQuad() ? SPICOMMON_BUSFLAG_QUAD : 0);
 
