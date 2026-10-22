@@ -10,8 +10,6 @@
     "deki-i2s",
     "deki-uart",
     "deki-i2c",
-    "deki-spi",
-    "deki-display",
     "deki-gpio",
     "deki-sdcard",
     "deki-rendering"
@@ -66,7 +64,20 @@
       "displayName": "SPI (ESP-IDF)",
       "buildDefine": "DEKI_FEATURE_ESP32_SPI",
       "defaultEnabled": true,
-      "componentTypes": []
+      "componentTypes": [],
+      "requires": [
+        "deki-spi"
+      ]
+    },
+    {
+      "id": "display_worker",
+      "displayName": "Display present worker (ESP-IDF)",
+      "buildDefine": "DEKI_FEATURE_ESP32_DISPLAY_WORKER",
+      "defaultEnabled": true,
+      "componentTypes": [],
+      "requires": [
+        "deki-display"
+      ]
     },
     {
       "id": "uart",

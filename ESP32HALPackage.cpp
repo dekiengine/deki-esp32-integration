@@ -19,9 +19,17 @@
 #include "DekiSDCard.h"  // from deki-sdcard
 #include "i2c/ESPIDFI2C.h"
 #include "DekiI2C.h"  // from deki-i2c
+// deki-spi and deki-display are optional: the board that uses them brings
+// them (deki-lilygo-boards does for the T-Deck Plus).
+#if __has_include("DekiSPI.h")
+#define DEKI_ESP32_HAS_SPI 1
 #include "spi/ESPIDFSPI.h"
 #include "DekiSPI.h"  // from deki-spi
+#endif
+#if __has_include("PanelDisplay.h")
+#define DEKI_ESP32_HAS_DISPLAY 1
 #include "display/ESPIDFPresentWorker.h"
+#endif
 #include "gpio/ESPIDFGPIO.h"
 #include "DekiGPIO.h"  // from deki-gpio
 #include "uart/ESPIDFUART.h"
@@ -64,8 +72,12 @@ struct ESP32BackendInit
         Deki::Time::SetTimeProvider(std::make_unique<Deki::ESP32TimeProvider>());
         DekiSdCard::DekiSDCard::SetFactory([]() -> DekiSdCard::IDekiSDCard* { return new ESPIDFSDCard(); });
         DekiI2c::DekiI2C::SetFactory([]() -> DekiI2c::IDekiI2C* { return new ESPIDFI2C(); });
+#if defined(DEKI_ESP32_HAS_SPI)
         DekiSpi::DekiSPI::SetFactory([]() -> DekiSpi::IDekiSPIBus* { return new ESPIDFSPIBus(); });
+#endif
+#if defined(DEKI_ESP32_HAS_DISPLAY)
         DekiDisplay::PanelDisplay::SetWorkerBackend(&ESPIDFPresentWorker());
+#endif
         DekiUart::DekiUART::SetFactory([]() -> DekiUart::IDekiUART* { return new ESPIDFUART(); });
         DekiI2s::DekiI2S::SetFactory([]() -> DekiI2s::IDekiI2S* { return new ESPIDFI2S(); });
 

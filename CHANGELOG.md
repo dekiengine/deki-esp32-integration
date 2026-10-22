@@ -16,11 +16,14 @@ alongside one that has them.
   back to back; the data/command pin is set in the driver's pre-transfer
   callback as each transfer starts; chip select can stay low across a run of
   transfers while the bus is held. A bus another driver already started is
-  joined. Requires deki-spi. A transfer of four bytes or less travels in the
+  joined. Optional, as the `spi` feature: installing this package does not
+  bring deki-spi; the board that uses it does. A transfer of four bytes or less travels in the
   transaction itself, queued or not.
 - deki-display's present worker: a FreeRTOS task pinned to the core the
   engine is not on, which sends a frame while the next is drawn. None on a
-  single-core chip. Requires deki-display.
+  single-core chip. Optional, as the `display_worker` feature: installing this
+  package does not bring deki-display; the board that uses it does, so a
+  project on LovyanGFX gets no new packages.
 - `ESPIDFI2C::WriteRead` and `WriteRaw`, deki-i2c's reads and writes for
   devices with wider registers (`i2c_master_transmit_receive`,
   `i2c_master_transmit`).

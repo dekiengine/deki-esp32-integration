@@ -1,5 +1,7 @@
 #include "ESPIDFPresentWorker.h"
 
+#if __has_include("PanelDisplay.h")
+
 #if defined(ESP32)
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -65,3 +67,5 @@ const DekiDisplay::PanelDisplay::WorkerBackend& ESPIDFPresentWorker()
 }
 
 }  // namespace DekiEsp32
+
+#endif  // __has_include("PanelDisplay.h")

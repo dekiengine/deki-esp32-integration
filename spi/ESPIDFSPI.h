@@ -1,5 +1,10 @@
 #pragma once
 
+// deki-spi on ESP-IDF. Installing this package does not bring deki-spi: a
+// project without it (one whose board has no SPI device of Deki's) builds
+// nothing here.
+#if __has_include("IDekiSPI.h")
+
 #include "IDekiSPI.h"  // from deki-spi
 #include <deki/PackageConfig.h>
 #include <deki/providers/Buffer.h>
@@ -98,3 +103,5 @@ private:
 };
 
 }  // namespace DekiEsp32
+
+#endif  // __has_include("IDekiSPI.h")

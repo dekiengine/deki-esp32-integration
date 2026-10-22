@@ -1,5 +1,10 @@
 #pragma once
 
+// deki-display's present worker on ESP-IDF. Installing this package does not
+// bring deki-display: a project without it (a board on LovyanGFX) builds
+// nothing here.
+#if __has_include("PanelDisplay.h")
+
 #include "PanelDisplay.h"  // from deki-display
 
 namespace DekiEsp32
@@ -11,3 +16,5 @@ namespace DekiEsp32
 const DekiDisplay::PanelDisplay::WorkerBackend& ESPIDFPresentWorker();
 
 }  // namespace DekiEsp32
+
+#endif  // __has_include("PanelDisplay.h")

@@ -1,4 +1,6 @@
 #include "ESPIDFSPI.h"
+
+#if __has_include("IDekiSPI.h")
 #include <deki/LogSystem.h>
 #include <cstring>
 
@@ -423,3 +425,5 @@ DekiSpi::IDekiSPIDevice* ESPIDFSPIBus::AddDevice(const DekiSpi::DeviceConfig& co
 }
 
 }  // namespace DekiEsp32
+
+#endif  // __has_include("IDekiSPI.h")
