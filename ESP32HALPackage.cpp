@@ -110,14 +110,12 @@ struct ESP32BackendInit
         Deki::Power::SetCurrent(&s_Power);
 
 #if defined(CONFIG_IDF_TARGET_ESP32S3)
-        // S3 PIE SIMD blit kernels. Only verified kernels are registered;
-        // QuadBlit runs its scalar inner loop for the other ops. See
-        // blit/S3PIEBlitKernels.cpp.
+        // S3 PIE SIMD blit kernels. See blit/S3PIEBlitKernels.cpp. (A PIE
+        // blend kernel was tried and dropped: in the demo's menu on a
+        // T-Display S3 AMOLED it was slower than QuadBlit's scalar loop,
+        // which reads a clear pixel's alpha and moves on, where the kernel
+        // first gathers eight 3-byte pixels.)
         QuadBlit::RegisterKernel(QuadBlit::KernelOp::RGB565CopyRow, &DekiEsp32::Blit::S3PIERGB565CopyRow);
-        // S3PIERGB565A8BlendRow is exact but not registered: measured in a
-        // frame (the demo's menu on a T-Display S3 AMOLED) it was slower than
-        // QuadBlit's scalar loop, which reads a clear pixel's alpha and moves
-        // on, where the kernel first gathers eight 3-byte pixels.
 #endif
     }
 };

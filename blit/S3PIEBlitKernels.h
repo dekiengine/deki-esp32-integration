@@ -15,13 +15,6 @@ namespace DekiEsp32::Blit
 void S3PIERGB565CopyRow(const uint8_t* src, uint8_t* dst, int32_t pixelCount, uint8_t tintR, uint8_t tintG,
                         uint8_t tintB, uint8_t tintA);
 
-/// RGB565A8 → RGB565 1:1 row alpha blend with tint and alpha tint, as
-/// QuadBlit::KernelOp::RGB565A8BlendRow describes: the scalar blend's pixels,
-/// bit for bit. src is 3 bytes per pixel (RGB565 plus alpha), dst 2 bytes per
-/// pixel; neither needs more than its natural alignment.
-void S3PIERGB565A8BlendRow(const uint8_t* src, uint8_t* dst, int32_t pixelCount, uint8_t tintR, uint8_t tintG,
-                           uint8_t tintB, uint8_t tintA);
-
 /// True if this build registers kernels, decided at compile time.
 /// ESP32HALPackage.cpp uses it to skip registration on non-S3 builds.
 constexpr bool HasS3PIEKernels()
