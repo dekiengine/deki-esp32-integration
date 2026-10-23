@@ -114,6 +114,10 @@ struct ESP32BackendInit
         // QuadBlit runs its scalar inner loop for the other ops. See
         // blit/S3PIEBlitKernels.cpp.
         QuadBlit::RegisterKernel(QuadBlit::KernelOp::RGB565CopyRow, &DekiEsp32::Blit::S3PIERGB565CopyRow);
+        // S3PIERGB565A8BlendRow is exact but not registered: measured in a
+        // frame (the demo's menu on a T-Display S3 AMOLED) it was slower than
+        // QuadBlit's scalar loop, which reads a clear pixel's alpha and moves
+        // on, where the kernel first gathers eight 3-byte pixels.
 #endif
     }
 };
