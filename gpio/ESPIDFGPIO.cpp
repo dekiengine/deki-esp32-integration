@@ -5,6 +5,9 @@
 #include "driver/gpio.h"
 #include "esp_attr.h"
 #include "esp_log.h"
+#include "esp_timer.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #endif
 
 namespace DekiEsp32
@@ -16,11 +19,24 @@ static const char* TAG = "ESP32GPIO";
 
 // One counter per pin, indexed by pin number. Written from interrupt context.
 static volatile uint32_t s_EdgeCounts[GPIO_NUM_MAX];
+// A pin's semaphore once a task has waited on it; given on every edge.
+static SemaphoreHandle_t s_EdgeWaits[GPIO_NUM_MAX];
+// When a pin last saw an edge: esp_timer's microseconds, low 32 bits (one
+// store, so a reader on the other core never sees half of it). 0: none yet.
+static volatile uint32_t s_EdgeTimes[GPIO_NUM_MAX];
 
 static void IRAM_ATTR OnEdge(void* arg)
 {
     const int pin = static_cast<int>(reinterpret_cast<intptr_t>(arg));
     s_EdgeCounts[pin] = s_EdgeCounts[pin] + 1;
+    s_EdgeTimes[pin] = static_cast<uint32_t>(esp_timer_get_time()) | 1;
+    SemaphoreHandle_t wait = s_EdgeWaits[pin];
+    if (wait)
+    {
+        BaseType_t woken = pdFALSE;
+        xSemaphoreGiveFromISR(wait, &woken);
+        portYIELD_FROM_ISR(woken);
+    }
 }
 
 static bool ValidPin(int pin)
@@ -155,6 +171,49 @@ void ESPIDFGPIO::StopCounting(int pin)
     gpio_isr_handler_remove(gpio);
     gpio_set_intr_type(gpio, GPIO_INTR_DISABLE);
     s_EdgeCounts[pin] = 0;
+    s_EdgeTimes[pin] = 0;
+}
+
+bool ESPIDFGPIO::TimeSinceEdge(int pin, uint32_t& microseconds)
+{
+    if (!ValidPin(pin))
+    {
+        return false;
+    }
+    const uint32_t at = s_EdgeTimes[pin];
+    if (at == 0)
+    {
+        return false;
+    }
+    microseconds = static_cast<uint32_t>(esp_timer_get_time()) - at;
+    return true;
+}
+
+bool ESPIDFGPIO::WaitForEdge(int pin, uint32_t timeoutMs)
+{
+    if (!ValidPin(pin))
+    {
+        return false;
+    }
+    if (!s_EdgeWaits[pin])
+    {
+        // Made once and kept: the handler may read it at any time after.
+        SemaphoreHandle_t wait = xSemaphoreCreateBinary();
+        if (!wait)
+        {
+            return false;
+        }
+        s_EdgeWaits[pin] = wait;
+    }
+    SemaphoreHandle_t wait = s_EdgeWaits[pin];
+    // An edge given before this call is not the one waited for.
+    xSemaphoreTake(wait, 0);
+    TickType_t ticks = pdMS_TO_TICKS(timeoutMs);
+    if (ticks == 0)
+    {
+        ticks = 1;
+    }
+    return xSemaphoreTake(wait, ticks) == pdTRUE;
 }
 
 #else
@@ -189,6 +248,14 @@ uint32_t ESPIDFGPIO::TakeEdges(int)
 }
 void ESPIDFGPIO::StopCounting(int)
 {
+}
+bool ESPIDFGPIO::WaitForEdge(int, uint32_t)
+{
+    return false;
+}
+bool ESPIDFGPIO::TimeSinceEdge(int, uint32_t&)
+{
+    return false;
 }
 
 #endif

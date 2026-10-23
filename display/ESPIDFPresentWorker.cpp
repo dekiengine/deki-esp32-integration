@@ -4,6 +4,7 @@
 
 #if defined(ESP32)
 #include <freertos/FreeRTOS.h>
+#include <esp_timer.h>
 #include <freertos/task.h>
 #include <soc/soc_caps.h>
 #endif
@@ -57,7 +58,16 @@ void YieldWorker()
 #endif
 }
 
-const DekiDisplay::PanelDisplay::WorkerBackend kWorker{ &StartWorker, &YieldWorker };
+uint64_t MicrosNow()
+{
+#if defined(ESP32)
+    return static_cast<uint64_t>(esp_timer_get_time());
+#else
+    return 0;
+#endif
+}
+
+const DekiDisplay::PanelDisplay::WorkerBackend kWorker{ &StartWorker, &YieldWorker, &MicrosNow };
 
 }  // namespace
 

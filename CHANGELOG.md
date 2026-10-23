@@ -11,6 +11,10 @@ alongside one that has them.
 ## Unreleased
 
 ### Added
+- `ESPIDFGPIO::WaitForEdge`: the edge interrupt that counts a pin's edges
+  also gives the pin's semaphore, made the first time a task waits on it.
+- `ESPIDFGPIO::TimeSinceEdge`: the edge interrupt also notes when it ran.
+- The present worker gives deki-display a microsecond clock (esp_timer).
 - `ESPIDFSPIBus` and `ESPIDFSPIDevice`: deki-spi on ESP-IDF's `spi_master`,
   registered as deki-spi's factory. Long writes are queued and go out by DMA
   back to back; the data/command pin is set in the driver's pre-transfer
