@@ -8,7 +8,10 @@ breaking change bumps the minor across the editor, the engine and every
 package together, so a package with no changes of its own is still released
 alongside one that has them.
 
-## Unreleased
+## 0.20.0
+
+### Changed
+- `minEngine` 0.20.0: built against engine 0.20.0. A build of this package from before does not load and is rebuilt.
 
 ### Added
 - `ESPIDFGPIO::WaitForEdge`: the edge interrupt that counts a pin's edges
