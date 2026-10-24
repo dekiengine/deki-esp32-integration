@@ -20,27 +20,49 @@ namespace DekiEsp32
 namespace
 {
 
-// A transfer's DC level travels in the transaction's user field: bit 1 says
-// the pin is driven, bit 0 is its level, the pin number sits above them. No
-// allocation, and the pre-transfer callback needs nothing else.
+// What the callbacks drive travels in the transaction's user field, so they
+// need no allocation and nothing else: bit 0 is the DC level and bit 1 says
+// DC is driven; bit 2 says chip select is driven here, bit 3 that the
+// transfer keeps it low after; the DC pin is bits 8-15, chip select's 16-23.
 constexpr uintptr_t kDcDrive = 2;
+constexpr uintptr_t kCsDrive = 4;
+constexpr uintptr_t kCsKeep = 8;
 
-void* EncodeDc(int32_t pin, int8_t level)
+void* EncodeUser(int32_t dcPin, int8_t dcLevel, int32_t csPin, bool keepCs)
 {
-    if (pin < 0 || level < 0)
+    uintptr_t user = 0;
+    if (dcPin >= 0 && dcLevel >= 0)
     {
-        return nullptr;
+        user |= (static_cast<uintptr_t>(dcPin) << 8) | kDcDrive | (dcLevel ? 1u : 0u);
     }
-    return reinterpret_cast<void*>((static_cast<uintptr_t>(pin) << 8) | kDcDrive | (level ? 1u : 0u));
+    if (csPin >= 0)
+    {
+        user |= (static_cast<uintptr_t>(csPin) << 16) | kCsDrive | (keepCs ? kCsKeep : 0u);
+    }
+    return reinterpret_cast<void*>(user);
 }
 
 // Runs in the driver's interrupt, just before the transaction is clocked.
-void IRAM_ATTR SetDcBeforeTransfer(spi_transaction_t* t)
+void IRAM_ATTR BeforeTransfer(spi_transaction_t* t)
 {
     const auto user = reinterpret_cast<uintptr_t>(t->user);
     if (user & kDcDrive)
     {
-        gpio_set_level(static_cast<gpio_num_t>(user >> 8), static_cast<uint32_t>(user & 1));
+        gpio_set_level(static_cast<gpio_num_t>((user >> 8) & 0xFF), static_cast<uint32_t>(user & 1));
+    }
+    if (user & kCsDrive)
+    {
+        gpio_set_level(static_cast<gpio_num_t>((user >> 16) & 0xFF), 0);
+    }
+}
+
+// Runs in the driver's interrupt once the transaction is done.
+void IRAM_ATTR AfterTransfer(spi_transaction_t* t)
+{
+    const auto user = reinterpret_cast<uintptr_t>(t->user);
+    if ((user & kCsDrive) && !(user & kCsKeep))
+    {
+        gpio_set_level(static_cast<gpio_num_t>((user >> 16) & 0xFF), 1);
     }
 }
 
@@ -51,8 +73,11 @@ TickType_t ToTicks(uint32_t timeoutMs)
 
 }  // namespace
 
-ESPIDFSPIDevice::ESPIDFSPIDevice(void* handle, const DekiSpi::DeviceConfig& config, size_t maxTransferBytes)
+ESPIDFSPIDevice::ESPIDFSPIDevice(void* handle, void* readHandle, int32_t softCsPin, const DekiSpi::DeviceConfig& config,
+                                 size_t maxTransferBytes)
     : m_Handle(handle),
+      m_ReadHandle(readHandle),
+      m_SoftCsPin(softCsPin),
       m_DcPin(config.dcPin),
       m_HalfDuplex(config.halfDuplex),
       m_MaxTransferBytes(maxTransferBytes),
@@ -75,6 +100,10 @@ ESPIDFSPIDevice::~ESPIDFSPIDevice()
     {
         spi_bus_remove_device(static_cast<spi_device_handle_t>(m_Handle));
     }
+    if (m_ReadHandle)
+    {
+        spi_bus_remove_device(static_cast<spi_device_handle_t>(m_ReadHandle));
+    }
 }
 
 // Fills `out` for `t`. A write of up to four bytes travels in the
@@ -83,7 +112,7 @@ ESPIDFSPIDevice::~ESPIDFSPIDevice()
 // every command, and a queued one outlives the caller's buffer. `smallRx`
 // does the same for a read, which only a blocking transfer can copy back.
 static bool Fill(spi_transaction_ext_t& out, const DekiSpi::Transfer& t, bool halfDuplex, int32_t dcPin,
-                 bool smallRx)
+                 int32_t softCsPin, bool smallRx)
 {
     memset(&out, 0, sizeof(out));
     spi_transaction_t& b = out.base;
@@ -100,7 +129,7 @@ static bool Fill(spi_transaction_ext_t& out, const DekiSpi::Transfer& t, bool ha
     out.address_bits = t.addrBits;
     b.cmd = t.cmd;
     b.addr = t.addr;
-    if (t.keepCs)
+    if (t.keepCs && softCsPin < 0)
     {
         b.flags |= SPI_TRANS_CS_KEEP_ACTIVE;
     }
@@ -136,7 +165,7 @@ static bool Fill(spi_transaction_ext_t& out, const DekiSpi::Transfer& t, bool ha
     {
         b.rx_buffer = t.rx;
     }
-    b.user = EncodeDc(dcPin, t.dc);
+    b.user = EncodeUser(dcPin, t.dc, softCsPin, t.keepCs);
     return true;
 }
 
@@ -152,11 +181,25 @@ bool ESPIDFSPIDevice::Transmit(const DekiSpi::Transfer& t)
         return false;
     }
     spi_transaction_ext_t trans;
-    if (!Fill(trans, t, m_HalfDuplex, m_DcPin, true))
+    if (!Fill(trans, t, m_HalfDuplex, m_DcPin, m_SoftCsPin, true))
     {
         return false;
     }
-    if (spi_device_polling_transmit(static_cast<spi_device_handle_t>(m_Handle), &trans.base) != ESP_OK)
+    // A read at the read clock goes through the read handle. The bus is
+    // held by this device's other handle, if by any: let it go meanwhile,
+    // chip select high, and take it back.
+    const bool read = m_ReadHandle && t.rxBytes > 0;
+    if (read && m_AcquireDepth > 0)
+    {
+        spi_device_release_bus(static_cast<spi_device_handle_t>(m_Handle));
+    }
+    const esp_err_t err =
+        spi_device_polling_transmit(static_cast<spi_device_handle_t>(read ? m_ReadHandle : m_Handle), &trans.base);
+    if (read && m_AcquireDepth > 0)
+    {
+        spi_device_acquire_bus(static_cast<spi_device_handle_t>(m_Handle), portMAX_DELAY);
+    }
+    if (err != ESP_OK)
     {
         return false;
     }
@@ -186,7 +229,7 @@ bool ESPIDFSPIDevice::Queue(const DekiSpi::Transfer& t)
         return false;
     }
     auto* slot = reinterpret_cast<spi_transaction_ext_t*>(m_Slots.Data()) + m_NextSlot;
-    if (!Fill(*slot, t, m_HalfDuplex, m_DcPin, false))
+    if (!Fill(*slot, t, m_HalfDuplex, m_DcPin, m_SoftCsPin, false))
     {
         return false;
     }
@@ -256,8 +299,14 @@ uint32_t ESPIDFSPIDevice::GetClockHz() const
 
 #else  // !ESP32: a desktop build compiles the backend to stubs.
 
-ESPIDFSPIDevice::ESPIDFSPIDevice(void* handle, const DekiSpi::DeviceConfig& config, size_t maxTransferBytes)
-    : m_Handle(handle), m_DcPin(config.dcPin), m_HalfDuplex(config.halfDuplex), m_MaxTransferBytes(maxTransferBytes)
+ESPIDFSPIDevice::ESPIDFSPIDevice(void* handle, void* readHandle, int32_t softCsPin, const DekiSpi::DeviceConfig& config,
+                                 size_t maxTransferBytes)
+    : m_Handle(handle),
+      m_ReadHandle(readHandle),
+      m_SoftCsPin(softCsPin),
+      m_DcPin(config.dcPin),
+      m_HalfDuplex(config.halfDuplex),
+      m_MaxTransferBytes(maxTransferBytes)
 {
 }
 ESPIDFSPIDevice::~ESPIDFSPIDevice() = default;
@@ -277,7 +326,9 @@ bool ESPIDFSPIDevice::Acquire()
 {
     return false;
 }
-void ESPIDFSPIDevice::Release() {}
+void ESPIDFSPIDevice::Release()
+{
+}
 uint32_t ESPIDFSPIDevice::GetClockHz() const
 {
     return 0;
@@ -398,25 +449,58 @@ DekiSpi::IDekiSPIDevice* ESPIDFSPIBus::AddDevice(const DekiSpi::DeviceConfig& co
         gpio_config(&dc);
     }
 
+    // Read at a clock of its own: a second handle for the reads, and chip
+    // select driven by the callbacks for both, held high between transfers.
+    const bool readHandle = config.readClockHz > 0 && config.readClockHz != config.clockHz;
+    const int32_t softCs = readHandle ? config.csPin : -1;
+    if (softCs >= 0)
+    {
+        gpio_config_t cs = {};
+        cs.pin_bit_mask = 1ULL << softCs;
+        cs.mode = GPIO_MODE_OUTPUT;
+        gpio_config(&cs);
+        gpio_set_level(static_cast<gpio_num_t>(softCs), 1);
+    }
+
     spi_device_interface_config_t dev = {};
     dev.clock_speed_hz = static_cast<int>(config.clockHz);
     dev.mode = config.mode;
-    dev.spics_io_num = config.csPin;
+    dev.spics_io_num = readHandle ? -1 : config.csPin;
     dev.queue_size = config.queueDepth > 0 ? config.queueDepth : 1;
     // Half duplex and no dummy cycle: a write-only device then runs at
     // 80 MHz on GPIO-matrix pins, which the driver refuses in full duplex.
     dev.flags = config.halfDuplex ? (SPI_DEVICE_HALFDUPLEX | SPI_DEVICE_NO_DUMMY) : 0;
-    dev.pre_cb = config.dcPin >= 0 ? &SetDcBeforeTransfer : nullptr;
+    if (config.threeWire)
+    {
+        dev.flags |= SPI_DEVICE_3WIRE;
+    }
+    dev.pre_cb = (config.dcPin >= 0 || softCs >= 0) ? &BeforeTransfer : nullptr;
+    dev.post_cb = softCs >= 0 ? &AfterTransfer : nullptr;
 
     spi_device_handle_t handle = nullptr;
-    const esp_err_t err = spi_bus_add_device(static_cast<spi_host_device_t>(m_Host), &dev, &handle);
+    esp_err_t err = spi_bus_add_device(static_cast<spi_host_device_t>(m_Host), &dev, &handle);
     if (err != ESP_OK)
     {
         m_LastError = std::string("ESPIDFSPI: spi_bus_add_device: ") + esp_err_to_name(err);
         DEKI_LOG_ERROR("%s", m_LastError.c_str());
         return nullptr;
     }
-    m_Devices.push_back(std::make_unique<ESPIDFSPIDevice>(handle, config, m_MaxTransferBytes));
+    spi_device_handle_t read = nullptr;
+    if (readHandle)
+    {
+        spi_device_interface_config_t r = dev;
+        r.clock_speed_hz = static_cast<int>(config.readClockHz);
+        r.queue_size = 1;
+        err = spi_bus_add_device(static_cast<spi_host_device_t>(m_Host), &r, &read);
+        if (err != ESP_OK)
+        {
+            spi_bus_remove_device(handle);
+            m_LastError = std::string("ESPIDFSPI: spi_bus_add_device (reads): ") + esp_err_to_name(err);
+            DEKI_LOG_ERROR("%s", m_LastError.c_str());
+            return nullptr;
+        }
+    }
+    m_Devices.push_back(std::make_unique<ESPIDFSPIDevice>(handle, read, softCs, config, m_MaxTransferBytes));
     return m_Devices.back().get();
 #else
     (void)config;

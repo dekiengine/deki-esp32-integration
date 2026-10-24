@@ -23,10 +23,18 @@ namespace DekiEsp32
 /// The data/command pin is set in the driver's pre-transfer callback, from
 /// the level stored in the transaction, so it changes exactly as that
 /// transfer starts.
+///
+/// A device read at its own, slower clock (DeviceConfig::readClockHz) has a
+/// second driver handle at that clock for its reads. The two share the
+/// device's chip select, which the callbacks then drive themselves: low as a
+/// transfer starts, high after it unless the transfer keeps it.
 class ESPIDFSPIDevice : public DekiSpi::IDekiSPIDevice
 {
 public:
-    ESPIDFSPIDevice(void* handle, const DekiSpi::DeviceConfig& config, size_t maxTransferBytes);
+    /// `readHandle` is the second handle, or null; `softCsPin` is the chip
+    /// select the callbacks drive with it, or -1.
+    ESPIDFSPIDevice(void* handle, void* readHandle, int32_t softCsPin, const DekiSpi::DeviceConfig& config,
+                    size_t maxTransferBytes);
     ~ESPIDFSPIDevice() override;
 
     bool Transmit(const DekiSpi::Transfer& t) override;
@@ -41,6 +49,8 @@ public:
 private:
     // void* keeps driver/spi_master.h out of the desktop build.
     void* m_Handle = nullptr;
+    void* m_ReadHandle = nullptr;
+    int32_t m_SoftCsPin = -1;
     int32_t m_DcPin = -1;
     bool m_HalfDuplex = true;
     size_t m_MaxTransferBytes = 0;

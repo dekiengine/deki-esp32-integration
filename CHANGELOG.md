@@ -15,6 +15,18 @@ alongside one that has them.
   also gives the pin's semaphore, made the first time a task waits on it.
 - `ESPIDFGPIO::TimeSinceEdge`: the edge interrupt also notes when it ran.
 - The present worker gives deki-display a microsecond clock (esp_timer).
+- `ESPIDFSPIDevice` reads at the device's `readClockHz` through a second
+  driver handle at that clock. The two share the device's chip select, which
+  the driver callbacks then drive themselves, low as a transfer starts and
+  high after it unless the transfer keeps it; a read lets the bus go from
+  the other handle and takes it back. `threeWire` sets `SPI_DEVICE_3WIRE`.
+- deki-display's parallel panel bus on ESP-IDF's esp_lcd i80 driver (the
+  ESP32-S3's LCD peripheral, I2S on an ESP32), 8 or 16 data lines,
+  registered as deki-display's `ParallelBus` factory with the present worker.
+  Pixels are queued for DMA and counted back as each transfer finishes; the
+  few bytes at either end of a part that are off the DMA's alignment go out
+  as parameter bytes. Brings ESP-IDF's `esp_lcd` component. Built, not yet
+  run on a board.
 - `ESPIDFSPIBus` and `ESPIDFSPIDevice`: deki-spi on ESP-IDF's `spi_master`,
   registered as deki-spi's factory. Long writes are queued and go out by DMA
   back to back; the data/command pin is set in the driver's pre-transfer

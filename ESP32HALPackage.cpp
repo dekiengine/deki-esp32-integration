@@ -28,6 +28,7 @@
 #endif
 #if __has_include("PanelDisplay.h")
 #define DEKI_ESP32_HAS_DISPLAY 1
+#include "display/ESPIDFParallelBus.h"
 #include "display/ESPIDFPresentWorker.h"
 #endif
 #include "gpio/ESPIDFGPIO.h"
@@ -77,6 +78,7 @@ struct ESP32BackendInit
 #endif
 #if defined(DEKI_ESP32_HAS_DISPLAY)
         DekiDisplay::PanelDisplay::SetWorkerBackend(&ESPIDFPresentWorker());
+        DekiDisplay::ParallelBus::SetFactory(&CreateESPIDFParallelBus);
 #endif
         DekiUart::DekiUART::SetFactory([]() -> DekiUart::IDekiUART* { return new ESPIDFUART(); });
         DekiI2s::DekiI2S::SetFactory([]() -> DekiI2s::IDekiI2S* { return new ESPIDFI2S(); });

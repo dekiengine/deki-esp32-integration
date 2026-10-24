@@ -71,7 +71,7 @@
     },
     {
       "id": "display_worker",
-      "displayName": "Display present worker (ESP-IDF)",
+      "displayName": "Display present worker and parallel bus (ESP-IDF)",
       "buildDefine": "DEKI_FEATURE_ESP32_DISPLAY_WORKER",
       "defaultEnabled": true,
       "componentTypes": [],
@@ -141,6 +141,7 @@
       "esp_driver_i2c",
       "esp_driver_i2s",
       "esp_driver_spi",
+      "esp_lcd",
       "esp_driver_sdmmc",
       "esp_driver_sdspi",
       "esp_wifi",
