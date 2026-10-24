@@ -57,7 +57,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">deki-esp32-integration<span id="projectnumber">&#160;0.19.0</span>
+   <div id="projectname">deki-esp32-integration<span id="projectnumber">&#160;0.20.2</span>
    </div>
    <div id="projectbrief">Deki パッケージリファレンス</div>
   </td>
@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded',() => { initNavTree('index.html',''
 <img src="deki-esp32-integration.png" alt=""/>
 </div>
     <p>ESP32 用のプラットフォーム HAL：ESP-IDF の SDMMC による SD カード、FATFS ファイルシステム、シリアルコマンド、メモリとファイルシステムのセットアップ。</p>
-<p>リポジトリ: <a href="https://github.com/dekiengine/deki-esp32-integration">github.com/dekiengine/deki-esp32-integration</a> · 最新リリース: 0.19.0 · エンジン 0.19.0 以降が必要 · 依存: <a href="https://dekiengine.github.io/deki-wifi/ja/">deki-wifi</a>, <a href="https://dekiengine.github.io/deki-ble/ja/">deki-ble</a>, <a href="https://dekiengine.github.io/deki-http/ja/">deki-http</a>, <a href="https://dekiengine.github.io/deki-i2s/ja/">deki-i2s</a>, <a href="https://dekiengine.github.io/deki-uart/ja/">deki-uart</a>, <a href="https://dekiengine.github.io/deki-i2c/ja/">deki-i2c</a>, <a href="https://dekiengine.github.io/deki-gpio/ja/">deki-gpio</a>, <a href="https://dekiengine.github.io/deki-sdcard/ja/">deki-sdcard</a>, <a href="https://dekiengine.github.io/deki-rendering/ja/">deki-rendering</a></p>
+<p>リポジトリ: <a href="https://github.com/dekiengine/deki-esp32-integration">github.com/dekiengine/deki-esp32-integration</a> · 最新リリース: 0.20.0 · エンジン 0.20.0 以降が必要 · 依存: <a href="https://dekiengine.github.io/deki-wifi/ja/">deki-wifi</a>, <a href="https://dekiengine.github.io/deki-ble/ja/">deki-ble</a>, <a href="https://dekiengine.github.io/deki-http/ja/">deki-http</a>, <a href="https://dekiengine.github.io/deki-i2s/ja/">deki-i2s</a>, <a href="https://dekiengine.github.io/deki-uart/ja/">deki-uart</a>, <a href="https://dekiengine.github.io/deki-i2c/ja/">deki-i2c</a>, <a href="https://dekiengine.github.io/deki-gpio/ja/">deki-gpio</a>, <a href="https://dekiengine.github.io/deki-sdcard/ja/">deki-sdcard</a>, <a href="https://dekiengine.github.io/deki-rendering/ja/">deki-rendering</a></p>
 <p><span class="tt">DekiEditor --packages-add deki-esp32-integration &lt;project&gt;</span> か、パッケージマネージャーからインストールします。エンジン自身のコンポーネントと C++ API は <a href="https://dekiengine.github.io/docs/ja/">Deki のドキュメント</a>にあります。</p>
 <p>エディターでは <b>ESP32 Integration</b> と表示されます。</p>
 <h1 class="doxsection"><a class="anchor" id="components"></a>
@@ -146,6 +146,10 @@ document.addEventListener('DOMContentLoaded',() => { initNavTree('index.html',''
 <td class="markdownTableBodyNone">GPIO (ESP-IDF)  </td><td class="markdownTableBodyNone"><span class="tt">DEKI_FEATURE_ESP32_GPIO</span>  </td><td class="markdownTableBodyNone">オン  </td></tr>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone">I²C (ESP-IDF)  </td><td class="markdownTableBodyNone"><span class="tt">DEKI_FEATURE_ESP32_I2C</span>  </td><td class="markdownTableBodyNone">オン  </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">SPI (ESP-IDF)  </td><td class="markdownTableBodyNone"><span class="tt">DEKI_FEATURE_ESP32_SPI</span>  </td><td class="markdownTableBodyNone">オン  </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">Display present worker and parallel bus (ESP-IDF)  </td><td class="markdownTableBodyNone"><span class="tt">DEKI_FEATURE_ESP32_DISPLAY_WORKER</span>  </td><td class="markdownTableBodyNone">オン  </td></tr>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">UART (ESP-IDF)  </td><td class="markdownTableBodyNone"><span class="tt">DEKI_FEATURE_ESP32_UART</span>  </td><td class="markdownTableBodyNone">オン  </td></tr>
 <tr class="markdownTableRowEven">
@@ -191,47 +195,44 @@ ESP32SerialSetup</h2>
 変更履歴</h1>
 <p>変更履歴は英語です。</p>
 <h2 class="doxsection"><a class="anchor" id="autotoc_md0"></a>
-0.19.0</h2>
+0.20.0</h2>
 <h2 class="doxsection"><a class="anchor" id="autotoc_md1"></a>
+Changed</h2>
+<ul>
+<li><span class="tt">minEngine</span> 0.20.0: built against engine 0.20.0. A build of this package from before does not load and is rebuilt.</li>
+</ul>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md2"></a>
+Added</h2>
+<ul>
+<li><span class="tt">ESPIDFGPIO::WaitForEdge</span>: the edge interrupt that counts a pin's edges also gives the pin's semaphore, made the first time a task waits on it.</li>
+<li><span class="tt">ESPIDFGPIO::TimeSinceEdge</span>: the edge interrupt also notes when it ran.</li>
+<li>The present worker gives deki-display a microsecond clock (esp_timer).</li>
+<li><span class="tt">ESPIDFSPIDevice</span> reads at the device's <span class="tt">readClockHz</span> through a second driver handle at that clock. The two share the device's chip select, which the driver callbacks then drive themselves, low as a transfer starts and high after it unless the transfer keeps it; a read lets the bus go from the other handle and takes it back. <span class="tt">threeWire</span> sets <span class="tt">SPI_DEVICE_3WIRE</span>.</li>
+<li>deki-display's parallel panel bus on ESP-IDF's esp_lcd i80 driver (the ESP32-S3's LCD peripheral, I2S on an ESP32), 8 or 16 data lines, registered as deki-display's <span class="tt">ParallelBus</span> factory with the present worker. Pixels are queued for DMA and counted back as each transfer finishes; the few bytes at either end of a part that are off the DMA's alignment go out as parameter bytes. Brings ESP-IDF's <span class="tt">esp_lcd</span> component. Built, not yet run on a board.</li>
+<li><span class="tt">ESPIDFSPIBus</span> and <span class="tt">ESPIDFSPIDevice</span>: deki-spi on ESP-IDF's <span class="tt">spi_master</span>, registered as deki-spi's factory. Long writes are queued and go out by DMA back to back; the data/command pin is set in the driver's pre-transfer callback as each transfer starts; chip select can stay low across a run of transfers while the bus is held. A bus another driver already started is joined. Optional, as the <span class="tt">spi</span> feature: installing this package does not bring deki-spi; the board that uses it does. A transfer of four bytes or less travels in the transaction itself, queued or not.</li>
+<li>deki-display's present worker: a FreeRTOS task pinned to the core the engine is not on, which sends a frame while the next is drawn. None on a single-core chip. Optional, as the <span class="tt">display_worker</span> feature: installing this package does not bring deki-display; the board that uses it does, so a project on LovyanGFX gets no new packages.</li>
+<li><span class="tt">ESPIDFI2C::WriteRead</span> and <span class="tt">WriteRaw</span>, deki-i2c's reads and writes for devices with wider registers (<span class="tt">i2c_master_transmit_receive</span>, <span class="tt">i2c_master_transmit</span>).</li>
+<li>Big-endian RGB565 (<span class="tt">DEKI_RGB565_BIG_ENDIAN</span>): <span class="tt">DEKI:SCREENSHOT</span> names the format <span class="tt">RGB565_BE</span> or <span class="tt">RGB565A8_BE</span>. <span class="tt">ESP32QemuDisplay</span> refuses such a build: the QEMU panel is little-endian.</li>
+<li>A failed allocation prints its size, caps and caller, the internal and DMA-capable heaps' free bytes, largest block and low-water mark, and how much the engine placed in each region. ESP-IDF aborts when it cannot make a FreeRTOS lock, and the abort alone does not say memory ran out.</li>
+<li><span class="tt">DEKI:PROFILE</span> names each component type and adds a <span class="tt">DEKI:PROFILE:PATH</span> line per blitter path, with nanoseconds per pixel.</li>
+<li><span class="tt">DEKI:PROFILE:OFF</span> switches the render profiler off again. A report leaves it on, and it times every draw, which costs a few frames a second, so a measurement after profiling read low until the board restarted.</li>
+</ul>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md3"></a>
+0.19.0</h2>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md4"></a>
 Changed</h2>
 <ul>
 <li><span class="tt">minEngine</span> 0.19.0: built against engine 0.19.0, whose component metadata records the package each class is in. A build of this package from before does not load and is rebuilt.</li>
 </ul>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md2"></a>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md5"></a>
 Added</h2>
 <ul>
 <li>Japanese, Simplified Chinese and Korean: <span class="tt">editor/lang/ja.json</span>, <span class="tt">zh.json</span> and <span class="tt">ko.json</span> translate the names, tooltips and enum values this package's components show in the Inspector.</li>
 <li>The package's editor text goes through the editor's translation (<span class="tt">Tr</span>), so it shows in the editor's language. Needs the editor release that adds <span class="tt">Localization.h</span>; raise <span class="tt">minEngine</span> to it when releasing.</li>
 </ul>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md3"></a>
-0.18.2</h2>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md4"></a>
-Added</h2>
-<ul>
-<li><b>Frame statistics over serial</b>: the line <span class="tt">DEKI:STATS</span> is answered with the frames per second and the average frame, update, render and present times over the last second, and the free internal and external memory, for the editor's <span class="tt">device_stats</span>.</li>
-<li><b>Screen capture over serial</b>: the firmware answers the line <span class="tt">DEKI:SCREENSHOT</span> on its console with the frame on screen (base64, with a CRC), for the editor's <span class="tt">device_screenshot</span>. Started at boot (<span class="tt">DekiESP32HALInitSystem</span>, <span class="tt">PACKAGE_HAS_SYSTEM_INIT</span>); a USB Serial/JTAG console is read from its FIFO, a UART one through stdin. A frame takes about a second to send; the game waits for it, and that second is not counted as frame time, so nothing timed jumps ahead.</li>
-<li><span class="tt">DEKI:PROFILE</span> turns on deki-rendering's render profiler and then reports where the render time went since the request before, per component type. <span class="tt">DEKI:SCENE &lt;guid&gt;</span> opens that scene, for measuring each scene without pressing through the game.</li>
-</ul>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md5"></a>
-Changed</h2>
-<ul>
-<li><span class="tt">minEngine</span> 0.18.2: the frame statistics read the engine's <span class="tt">GetLastFrameTimings</span>.</li>
-<li>ESP32-S3 builds use 64-byte data cache lines, which make a frame in PSRAM quicker to draw and send. The cache stays 32 KB: 64 KB takes 32 KB more of internal RAM, which a scene with many sprites ran out of.</li>
-</ul>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md6"></a>
-Fixed</h2>
-<ul>
-<li><b>A UART ignored its <span class="tt">baudRate</span> and ran at 9600.</b> Only the key <span class="tt">baud</span> was read, and deki-gps and the components name it <span class="tt">baudRate</span>, so a GPS sending at 38400 (the T-Deck Plus's) was never understood. Both keys are read.</li>
-<li>A console reply's last bytes stayed on the board until the next reply pushed them out, so <span class="tt">device_stats</span> said the board did not answer. The USB Serial/JTAG console sends what it holds when flushed, and a flush made while the packet before is still going out is lost; it is now made again once the console takes it.</li>
-<li>A flash with no port named (MCP's <span class="tt">deploy_build</span>, the CLI) picks one: the only serial port there is, or, with several, the first that answers as an ESP32. It failed with "No board found" even with a board plugged in.</li>
-<li>Windows: an installed esptool showed as not installed. The editor unpacks its archive straight into <span class="tt">espressif/esptool</span>, and the toolchain definition looked for <span class="tt">esptool.exe</span> a folder deeper.</li>
-<li>Windows: ESP-IDF's setup and builds work on a machine with no Python of its own. The Python component was python.org's embeddable build, which has no venv, ensurepip or pip, so ESP-IDF's install.bat could not create its environment; and nothing put it on PATH, so install.bat and export.bat found only the Microsoft Store's stub and stopped with 9009. It is now the Python Software Foundation's full portable build (the <span class="tt">python</span> package on nuget.org, pinned by SHA-256), on PATH for install.bat (<span class="tt">pathEntries</span>, which needs the editor that reads them) and for export.bat in every build. An installed copy of the old one shows as not installed; install it again.</li>
-<li>The build's PATH is set in one <span class="tt">set</span>: a second <span class="tt">set PATH=...PATH%...</span> on the same cmd line expands PATH% to the value before the first and dropped what it added.</li>
-<li>A flash with no board connected, or with a refused port, fails with the reason ("No board found on a serial port..."). It used to stop without a result, so the build status stayed "Flashing firmware..." for good.</li>
-</ul>
 <p>それ以前のリリース: <a href="https://github.com/dekiengine/deki-esp32-integration/blob/master/CHANGELOG.md">CHANGELOG.md</a></p>
 <hr  />
-<p>パッケージのリフレクションデータから生成しています (エンジン 0.19.0)。プロパティ名はシーンファイルで使われるキーです。名前を変えても別名が残ります (<a href="https://github.com/dekiengine/deki-editor/blob/master/COMPATIBILITY.md">互換性</a>)。 </p>
+<p>パッケージのリフレクションデータから生成しています (エンジン 0.20.2)。プロパティ名はシーンファイルで使われるキーです。名前を変えても別名が残ります (<a href="https://github.com/dekiengine/deki-editor/blob/master/COMPATIBILITY.md">互換性</a>)。 </p>
 </div></div><!-- PageDoc -->
 <a href="doxygen_crawl.html"></a>
 </div><!-- contents -->
