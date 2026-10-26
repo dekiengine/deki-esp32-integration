@@ -10,6 +10,8 @@
 
 #include "editor/ESPIDFBuilder.h"
 
+#include <deki/FileImage.h>
+
 #include <deki-editor/build/PlatformConfig.h>
 
 #include <filesystem>
@@ -193,7 +195,12 @@ TEST_F(ESPIDFBuildFilesTest, TheDefaultPartitionTableFillsTheFlash)
         const std::string csv = ReadFile(Generate(c) / "partitions.csv");
         EXPECT_TRUE(Contains(csv, "app0,     app,  ota_0,   0x10000,  0x300000,")) << csv;
         std::ostringstream data;
-        data << "spiffs,   data, spiffs,  0x310000, 0x" << std::hex << (mb * 1024 * 1024 - 0x310000) << ",";
+        data << "gamedata, data, 0x40,    0x310000, 0x" << std::hex
+             << (mb * 1024 * 1024 - 0x310000 -
+                 (mb >= 16  ? 0x100000
+                  : mb >= 8 ? 0x80000
+                            : 0x20000))
+             << ",";
         EXPECT_TRUE(Contains(csv, data.str())) << mb << " MB:\n" << csv;
     }
 }
@@ -220,4 +227,40 @@ TEST_F(ESPIDFBuildFilesTest, AChangedDefaultRemovesTheStaleSdkconfig)
     c.SetOptionU32("flashSize", 16u * 1024 * 1024);
     Generate(c);
     EXPECT_FALSE(fs::exists(sdkconfig));
+}
+
+// The game's data (the exported boot payload and assets) is packed into the
+// file image the device maps as F:/, every file under its own path.
+TEST_F(ESPIDFBuildFilesTest, TheGamesDataIsPackedIntoTheImage)
+{
+    const fs::path payload = builder.GetBootPayloadDirectory(m_Project.string());
+    fs::create_directories(payload / "assets");
+    std::ofstream(payload / "boot.scene", std::ios::binary) << "boot";
+    std::ofstream(payload / "assets" / "5a7800eb", std::ios::binary) << "meadow";
+
+    const fs::path board = Generate(Board());
+    const std::string image = ReadFile(board.parent_path() / "gamedata.bin");
+    Deki::FileImage reader;
+    ASSERT_TRUE(reader.Open(reinterpret_cast<const uint8_t*>(image.data()), image.size()));
+    EXPECT_EQ(reader.GetFileCount(), 2u);
+    const uint8_t* data = nullptr;
+    size_t size = 0;
+    ASSERT_TRUE(reader.Find("assets/5a7800eb", 15, data, size));
+    EXPECT_EQ(std::string(reinterpret_cast<const char*>(data), size), "meadow");
+    ASSERT_TRUE(reader.Find("boot.scene", 10, data, size));
+    EXPECT_EQ(std::string(reinterpret_cast<const char*>(data), size), "boot");
+
+    // Flashed into its partition with the firmware.
+    const std::string cmake = ReadFile(board.parent_path() / "main" / "CMakeLists.txt");
+    EXPECT_TRUE(Contains(cmake, "esptool_py_flash_to_partition(flash gamedata ${DEKI_GAME_DATA})")) << cmake;
+}
+
+TEST_F(ESPIDFBuildFilesTest, ABoardsOwnPartitionTableNeedsTheGameDataPartition)
+{
+    fs::create_directories(builder.GetBootPayloadDirectory(m_Project.string()));
+    PlatformConfig c = Board();
+    c.SetOption("partitionTable", "nvs, data, nvs, 0x9000, 0x6000,\n");
+    EXPECT_FALSE(builder.GenerateBuildFiles(m_Project.string(), c, {}));
+    c.SetOption("partitionTable", "nvs, data, nvs, 0x9000, 0x6000,\ngamedata, data, 0x40, 0x310000, 0x100000,\n");
+    EXPECT_TRUE(builder.GenerateBuildFiles(m_Project.string(), c, {}));
 }

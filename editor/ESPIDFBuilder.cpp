@@ -17,6 +17,7 @@
 #include "ESPIDFInstaller.h"
 #include "ESPIDFToolchainDefinition.h"
 #include <deki-editor/SerialPorts.h>
+#include <deki/FileImage.h>
 #include <deki/LogSystem.h>
 #include "imgui.h"
 #include <filesystem>
@@ -1003,16 +1004,31 @@ static uint32_t ConfiguredFlashBytes(const PlatformConfig& config)
     return (mb >= 16 ? 16u : mb >= 8 ? 8u : 4u) * 1024u * 1024u;
 }
 
-// The default table's data partition (LittleFS, F:/) starts after the app and
-// runs to the end of the flash.
+// The default table's data partition (F:/, the game's data) starts after the
+// app and runs up to the user data partition.
 static constexpr uint32_t kDataPartitionOffset = 0x310000;
 
-// Roughly what a folder takes in LittleFS: whole 4 KB blocks per file, a
-// block of metadata each, and the two superblocks.
-static uint64_t LittleFsFootprint(const fs::path& dir)
+// The partitions F:/ is made of, as ESP32FileSystem finds them: the game's
+// data, flashed with the firmware and never written, and what the game
+// writes, which no flashing touches.
+static constexpr const char* kGameDataPartition = "gamedata";
+static constexpr const char* kUserDataPartition = "userdata";
+
+// The user data partition: the end of the flash, the same size for every game
+// on a flash size, so it stays where it is however the game's data grows.
+static uint32_t UserDataBytes(uint32_t flashBytes)
 {
-    constexpr uint64_t kBlock = 4096;
-    uint64_t total = 2 * kBlock;
+    const uint32_t mb = flashBytes / (1024 * 1024);
+    return (mb >= 16 ? 1024u : mb >= 8 ? 512u : 128u) * 1024u;
+}
+
+// Packs every file under `dir` (the boot payload, and the assets when they
+// are kept inside) into a read-only file image, named by their paths under
+// it ("boot.scene", "assets/<guid>"). The device maps it and finds a file by
+// binary search; a filesystem on flash spent 6 to 13 ms on every open.
+static bool MakeGameDataImage(const fs::path& dir, std::vector<uint8_t>& image, std::string& error)
+{
+    std::vector<Deki::FileImage::File> files;
     std::error_code ec;
     for (fs::recursive_directory_iterator it(dir, ec), end; !ec && it != end; it.increment(ec))
     {
@@ -1020,10 +1036,43 @@ static uint64_t LittleFsFootprint(const fs::path& dir)
         {
             continue;
         }
-        const uint64_t size = it->file_size(ec);
-        total += (size + kBlock - 1) / kBlock * kBlock + kBlock;
+        Deki::FileImage::File file;
+        file.name = fs::relative(it->path(), dir, ec).generic_string();
+        std::ifstream in(it->path(), std::ios::binary);
+        if (ec || !in)
+        {
+            error = "cannot read " + it->path().string();
+            return false;
+        }
+        file.bytes.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+        files.push_back(std::move(file));
     }
-    return total;
+    if (ec)
+    {
+        error = "cannot list " + dir.string() + ": " + ec.message();
+        return false;
+    }
+    return Deki::FileImage::Write(std::move(files), image, error);
+}
+
+// Writes `bytes` to `path` unless it already holds them, so an unchanged
+// image is not flashed as new.
+static bool WriteFileIfChanged(const fs::path& path, const std::vector<uint8_t>& bytes)
+{
+    {
+        std::ifstream in(path, std::ios::binary);
+        if (in)
+        {
+            const std::vector<uint8_t> old((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+            if (old == bytes)
+            {
+                return true;
+            }
+        }
+    }
+    std::ofstream out(path, std::ios::binary | std::ios::trunc);
+    out.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+    return static_cast<bool>(out);
 }
 
 bool ESPIDFBuilder::GenerateBuildFiles(const std::string& projectPath, const PlatformConfig& config,
@@ -1092,18 +1141,43 @@ bool ESPIDFBuilder::GenerateBuildFiles(const std::string& projectPath, const Pla
         return false;
     }
 
-    // What goes into the data partition has to fit it: the boot payload, and
-    // on internal storage every asset. A board with its own partitionTable is
-    // not checked here; mklittlefs still refuses what does not fit.
-    if (config.Option("partitionTable").empty())
+    // The game's data: the boot payload, and on internal storage every asset,
+    // packed into the image that is flashed into the data partition. It has
+    // to fit it. A board with its own partitionTable is checked by the flash
+    // tool instead, but must still have the partition.
+    const fs::path payloadDir = GetBootPayloadDirectory(projectPath);
+    const fs::path imagePath = buildersPath / "gamedata.bin";
+    if (fs::is_directory(payloadDir))
     {
-        const uint64_t need = LittleFsFootprint(GetBootPayloadDirectory(projectPath));
-        const uint64_t have = ConfiguredFlashBytes(config) - kDataPartitionOffset;
-        if (need > have)
+        std::vector<uint8_t> image;
+        std::string why;
+        if (!MakeGameDataImage(payloadDir, image, why))
         {
-            DEKI_LOG_ERROR("The game needs about %.1f MB of internal storage and '%s' has %.1f MB. "
-                           "Keep its assets on external storage, or use a board with more flash.",
-                           need / (1024.0 * 1024.0), config.id.c_str(), have / (1024.0 * 1024.0));
+            DEKI_LOG_ERROR("Cannot pack the game's data for '%s': %s", config.id.c_str(), why.c_str());
+            return false;
+        }
+        const std::string& ownTable = config.Option("partitionTable");
+        if (ownTable.empty())
+        {
+            const uint32_t flashBytes = ConfiguredFlashBytes(config);
+            const uint64_t have = flashBytes - UserDataBytes(flashBytes) - kDataPartitionOffset;
+            if (image.size() > have)
+            {
+                DEKI_LOG_ERROR("The game needs %.1f MB of internal storage and '%s' has %.1f MB. "
+                               "Keep its assets on external storage, or use a board with more flash.",
+                               image.size() / (1024.0 * 1024.0), config.id.c_str(), have / (1024.0 * 1024.0));
+                return false;
+            }
+        }
+        else if (ownTable.find(std::string(kGameDataPartition) + ",") == std::string::npos)
+        {
+            DEKI_LOG_ERROR("The partition table of '%s' has no '%s' data partition for the game's data.",
+                           config.id.c_str(), kGameDataPartition);
+            return false;
+        }
+        if (!WriteFileIfChanged(imagePath, image))
+        {
+            DEKI_LOG_ERROR("Cannot write %s", imagePath.string().c_str());
             return false;
         }
     }
@@ -1142,6 +1216,7 @@ bool ESPIDFBuilder::GenerateBuildFiles(const std::string& projectPath, const Pla
         std::ostringstream file;
         file << "# Deki Game - Component Dependencies\n";
         file << "dependencies:\n";
+        // What the game writes on F:/, in the user data partition.
         file << "  joltwallet/littlefs:\n";
         file << "    version: \"*\"\n";
         for (const auto& dep : EditorSettings::GetPlatformDependencies("espidf", depOverrides))
@@ -1505,14 +1580,16 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
         file << "target_compile_options(${COMPONENT_LIB} PRIVATE -include esp_attr.h)\n";
     }
 
-    // LittleFS data partition: an image made from spiffs_data/, flashed with the firmware
+    // The game's data: the file image GenerateBuildFiles packed, flashed into
+    // its partition with the firmware (and in flash_args, so QEMU's flash
+    // has it too).
     file << "\n";
     file << "# =============================================================================\n";
-    file << "# LittleFS Data Partition (boot.scene, project_data.bin, assets/)\n";
+    file << "# Game data (boot.scene, project_data.bin, assets/): F:/ on the device\n";
     file << "# =============================================================================\n";
-    file << "set(SPIFFS_DATA_DIR \"${CMAKE_CURRENT_SOURCE_DIR}/../spiffs_data\")\n";
-    file << "if(EXISTS ${SPIFFS_DATA_DIR})\n";
-    file << "    littlefs_create_partition_image(spiffs ${SPIFFS_DATA_DIR} FLASH_IN_PROJECT)\n";
+    file << "set(DEKI_GAME_DATA \"${CMAKE_CURRENT_SOURCE_DIR}/../gamedata.bin\")\n";
+    file << "if(EXISTS ${DEKI_GAME_DATA})\n";
+    file << "    esptool_py_flash_to_partition(flash " << kGameDataPartition << " ${DEKI_GAME_DATA})\n";
     file << "endif()\n";
 
     return CMakeGen::WriteIfChanged(fs::path(mainPath) / "CMakeLists.txt", file.str());
@@ -1655,7 +1732,7 @@ bool ESPIDFBuilder::GenerateSdkConfigDefaults(const std::string& boardPath, cons
     }
 
     // A simulated build runs in QEMU, which reads the flash in DIO at 40 MHz:
-    // a board's QIO build boots there but cannot mount its LittleFS partition.
+    // a board's QIO build boots there but cannot read its data partition.
     // Its PSRAM is quad: QEMU (esp_develop_9.2.2) crashes booting an octal
     // PSRAM build with 8 MB. The game sees the same PSRAM size. Its console is
     // UART0, the serial port QEMU has (a board's may be USB).
@@ -1690,17 +1767,24 @@ bool ESPIDFBuilder::GeneratePartitionsCsv(const std::string& boardPath, const Pl
     }
     else
     {
-        // Default partition table. The data partition (F:/: the boot payload,
+        // Default partition table. The game's data (F:/: the boot payload,
         // and the assets when they are kept inside) takes the rest of the
-        // flash, so a 16 MB board has about 13 MB for them.
-        const uint32_t dataSize = ConfiguredFlashBytes(config) - kDataPartitionOffset;
+        // flash but the user data at its end, so a 16 MB board has about
+        // 12 MB for it and 1 MB for what the game writes. The game data's
+        // subtype is one of the range ESP-IDF leaves to applications.
+        const uint32_t flashBytes = ConfiguredFlashBytes(config);
+        const uint32_t userSize = UserDataBytes(flashBytes);
+        const uint32_t userOffset = flashBytes - userSize;
+        const uint32_t dataSize = userOffset - kDataPartitionOffset;
         file << "# Deki Game Partition Table\n";
         file << "# Name,   Type, SubType, Offset,   Size,     Flags\n";
         file << "nvs,      data, nvs,     0x9000,   0x5000,\n";
         file << "otadata,  data, ota,     0xe000,   0x2000,\n";
         file << "app0,     app,  ota_0,   0x10000,  0x300000,\n";
-        file << "spiffs,   data, spiffs,  0x" << std::hex << kDataPartitionOffset << ", 0x" << dataSize << std::dec
-             << ",\n";
+        file << std::hex;
+        file << kGameDataPartition << ", data, 0x40,    0x" << kDataPartitionOffset << ", 0x" << dataSize << ",\n";
+        file << kUserDataPartition << ", data, littlefs, 0x" << userOffset << ", 0x" << userSize << ",\n";
+        file << std::dec;
     }
 
     return CMakeGen::WriteIfChanged(filePath, file.str());

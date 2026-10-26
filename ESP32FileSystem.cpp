@@ -1,49 +1,100 @@
 #include "ESP32FileSystem.h"
+#include <deki/LogSystem.h>
+#include <cstdio>
 #include <cstring>
+#include <sys/stat.h>
 
 #ifdef ESP32
 #include "esp_littlefs.h"
 #include "esp_log.h"
-#include "esp_partition.h"
-#include <cstdio>
-#include <sys/stat.h>
 #endif
 
 namespace Deki
 {
 
-#ifdef ESP32
-
-static const char* TAG = "ESP32FS";
-
-// True when the partition's first two blocks (where LittleFS keeps its
-// superblocks) were never written: erased flash reads as 0xFF.
-static bool PartitionIsBlank(const char* label)
+namespace
 {
-    const esp_partition_t* part = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, label);
-    if (!part)
-    {
-        return false;
-    }
-    uint8_t buf[256];
+
+constexpr char kFlashPrefix[] = "F:/";
+constexpr size_t kFlashPrefixLength = sizeof(kFlashPrefix) - 1;
+
+bool IsFlashPath(const char* path)
+{
+    return path && std::strncmp(path, kFlashPrefix, kFlashPrefixLength) == 0;
+}
+
+#ifdef ESP32
+const char* TAG = "ESP32FS";
+
+// Where the user data partition is mounted in the VFS.
+constexpr char kUserDataMount[] = "/userdata";
+
+// True when the partition has held a LittleFS: its superblock, in one of the
+// first two blocks, names it. Erased flash, or bytes another layout left
+// there, does not.
+bool PartitionHoldsLittleFs(const esp_partition_t* part)
+{
+    static const char kName[] = "littlefs";
+    char buf[257];
     const size_t span = part->size < 8192 ? part->size : 8192;
-    for (size_t off = 0; off < span; off += sizeof(buf))
+    // Overlapping reads, so the name is found across a read's edge.
+    for (size_t off = 0; off < span; off += 256)
     {
-        const size_t n = (span - off) < sizeof(buf) ? (span - off) : sizeof(buf);
-        if (esp_partition_read(part, off, buf, n) != ESP_OK)
+        const size_t n = (span - off) < 256 ? (span - off) : 256;
+        const size_t take = n + (off + n < span ? sizeof(kName) - 1 : 0);
+        if (esp_partition_read(part, off, buf, take) != ESP_OK)
         {
-            return false;
+            return true;  // unknown: never format what might be the game's
         }
-        for (size_t i = 0; i < n; ++i)
+        for (size_t i = 0; i + sizeof(kName) - 1 <= take; ++i)
         {
-            if (buf[i] != 0xFF)
+            if (std::memcmp(buf + i, kName, sizeof(kName) - 1) == 0)
             {
-                return false;
+                return true;
             }
         }
     }
+    return false;
+}
+
+// Mounts what the game writes. Formats the partition only when it has never
+// held a LittleFS (a new board, or one flashed with an older layout): one that
+// holds a damaged filesystem holds the game's saves, and is left alone.
+bool MountUserData()
+{
+    const esp_partition_t* part = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY,
+                                                           ESP32FileSystem::kUserDataPartition);
+    if (!part)
+    {
+        ESP_LOGW(TAG, "No '%s' partition: F:/ can be read but not written.", ESP32FileSystem::kUserDataPartition);
+        return false;
+    }
+    esp_vfs_littlefs_conf_t conf = {};
+    conf.base_path = kUserDataMount;
+    conf.partition_label = ESP32FileSystem::kUserDataPartition;
+    conf.format_if_mount_failed = false;
+    esp_err_t ret = esp_vfs_littlefs_register(&conf);
+    if (ret != ESP_OK && !PartitionHoldsLittleFs(part))
+    {
+        ESP_LOGI(TAG, "Preparing the '%s' partition for what the game writes", ESP32FileSystem::kUserDataPartition);
+        if (esp_littlefs_format(ESP32FileSystem::kUserDataPartition) == ESP_OK)
+        {
+            ret = esp_vfs_littlefs_register(&conf);
+        }
+    }
+    if (ret != ESP_OK)
+    {
+        ESP_LOGE(TAG,
+                 "Cannot mount the '%s' partition: %s. F:/ can be read but not written; what the game wrote there "
+                 "is left as it is.",
+                 ESP32FileSystem::kUserDataPartition, esp_err_to_name(ret));
+        return false;
+    }
     return true;
 }
+#endif
+
+}  // namespace
 
 ESP32FileSystem::ESP32FileSystem()
     : m_Initialized(false)
@@ -57,55 +108,105 @@ ESP32FileSystem::~ESP32FileSystem()
 
 bool ESP32FileSystem::Initialize()
 {
-    if (m_Initialized)
-    {
-        return true;
-    }
-
-    esp_vfs_littlefs_conf_t conf = {};
-    conf.base_path = "/littlefs";
-    conf.partition_label = "spiffs";
-    // Never format on a failed mount: the partition holds the boot payload,
-    // the assets and whatever the game saved there, and formatting would wipe
-    // all of it on any fault. Only a partition never written is formatted.
-    conf.format_if_mount_failed = false;
-
-    esp_err_t ret = esp_vfs_littlefs_register(&conf);
-    if (ret != ESP_OK && PartitionIsBlank("spiffs"))
-    {
-        ESP_LOGI(TAG, "LittleFS partition is blank; formatting it");
-        if (esp_littlefs_format("spiffs") == ESP_OK)
-        {
-            ret = esp_vfs_littlefs_register(&conf);
-        }
-    }
-    if (ret != ESP_OK)
-    {
-        // The engine runs on without F:/, so the error shows on the console
-        // instead of the board stopping at boot. Flashing the firmware again
-        // rewrites the partition.
-        ESP_LOGE(TAG,
-                 "LittleFS mount failed: %s. Running without F:/; nothing on it was changed. "
-                 "Flash the firmware again to rewrite it.",
-                 esp_err_to_name(ret));
-        return true;
-    }
-
-    size_t total = 0, used = 0;
-    esp_littlefs_info("spiffs", &total, &used);
-    ESP_LOGI(TAG, "LittleFS mounted: %zu/%zu bytes used", used, total);
-
+    // The partitions are mounted on first use (MountStorage): the file system
+    // is installed by a static constructor, before app_main, where nothing it
+    // logs reaches the console, errors included.
     m_Initialized = true;
     return true;
 }
 
+void ESP32FileSystem::MountStorage()
+{
+#ifdef ESP32
+    if (m_MountTried)
+    {
+        return;
+    }
+    m_MountTried = true;
+
+    if (MountUserData())
+    {
+        m_UserDataMounted = true;
+        m_UserRoot = kUserDataMount;
+    }
+
+    // The engine runs on without the game's data when the image is missing
+    // or damaged, so the error shows on the console instead of the board
+    // stopping at boot. Flashing the firmware again writes it.
+    const esp_partition_t* part =
+        esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, kGameDataPartition);
+    if (!part)
+    {
+        ESP_LOGE(TAG, "No '%s' partition: the game's data is missing. Build and flash the firmware again.",
+                 kGameDataPartition);
+        return;
+    }
+    uint8_t header[FileImage::kHeaderSize];
+    const uint32_t size = esp_partition_read(part, 0, header, sizeof(header)) == ESP_OK
+                              ? FileImage::SizeFromHeader(header, sizeof(header))
+                              : 0;
+    if (size == 0 || size > part->size)
+    {
+        ESP_LOGE(TAG, "The game's data is not in the '%s' partition. Flash the firmware again.", kGameDataPartition);
+        return;
+    }
+    // Only what the image takes, not the whole partition: the address space
+    // flash is mapped into is shared with external RAM.
+    const void* mapped = nullptr;
+    const esp_err_t err = esp_partition_mmap(part, 0, size, ESP_PARTITION_MMAP_DATA, &mapped, &m_MapHandle);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Cannot map the game's data (%u bytes): %s", static_cast<unsigned>(size), esp_err_to_name(err));
+        return;
+    }
+    m_Mapped = true;
+    if (!MountImage(static_cast<const uint8_t*>(mapped), size))
+    {
+        ESP_LOGE(TAG, "The game's data in the '%s' partition is damaged. Flash the firmware again.",
+                 kGameDataPartition);
+        return;
+    }
+    ESP_LOGI(TAG, "Game data: %u files, %u bytes, in flash%s", static_cast<unsigned>(m_Image.GetFileCount()),
+             static_cast<unsigned>(size), m_UserDataMounted ? "; the game writes to the user data" : "");
+#endif
+}
+
+bool ESP32FileSystem::MountImage(const uint8_t* data, size_t size)
+{
+    return m_Image.Open(data, size);
+}
+
+void ESP32FileSystem::UseUserDataDirectory(const std::string& directory)
+{
+    m_UserRoot = directory;
+}
+
 void ESP32FileSystem::Shutdown()
 {
-    if (m_Initialized)
+    if (!m_Initialized)
     {
-        esp_vfs_littlefs_unregister("spiffs");
-        m_Initialized = false;
+        return;
     }
+    for (ImageFile& f : m_ImageFiles)
+    {
+        f = ImageFile{};
+    }
+    m_Image = FileImage{};
+    m_UserRoot.clear();
+#ifdef ESP32
+    m_MountTried = false;
+    if (m_Mapped)
+    {
+        esp_partition_munmap(m_MapHandle);
+        m_Mapped = false;
+    }
+    if (m_UserDataMounted)
+    {
+        esp_vfs_littlefs_unregister(kUserDataPartition);
+        m_UserDataMounted = false;
+    }
+#endif
+    m_Initialized = false;
 }
 
 std::string ESP32FileSystem::ConvertPathInternal(const char* virtualPath)
@@ -116,52 +217,93 @@ std::string ESP32FileSystem::ConvertPathInternal(const char* virtualPath)
     }
 
     std::string path(virtualPath);
-
-    // "F:/..." to "/littlefs/..." (the VFS mount point)
-    if (path.length() >= 3 && path.substr(0, 3) == "F:/")
+    if (IsFlashPath(virtualPath))
     {
-        path = "/littlefs/" + path.substr(3);
+        // An F:/ file the game wrote: in the user data.
+        return m_UserRoot.empty() ? std::string() : m_UserRoot + "/" + path.substr(kFlashPrefixLength);
     }
-    else if (path.length() >= 3 && path.substr(0, 3) == "S:/")
+    // "S:/..." to "/storage/..." (the SD card's VFS mount point)
+    if (path.length() >= 3 && path.substr(0, 3) == "S:/")
     {
         path = "/storage/" + path.substr(3);
     }
-
     return path;
+}
+
+bool ESP32FileSystem::FindInImage(const char* path, const uint8_t*& data, size_t& size) const
+{
+    if (!IsFlashPath(path))
+    {
+        return false;
+    }
+    const char* name = path + kFlashPrefixLength;
+    return m_Image.Find(name, std::strlen(name), data, size);
+}
+
+ESP32FileSystem::ImageFile* ESP32FileSystem::AsImageFile(FileHandle handle)
+{
+    for (ImageFile& f : m_ImageFiles)
+    {
+        if (handle == &f)
+        {
+            return f.open ? &f : nullptr;
+        }
+    }
+    return nullptr;
 }
 
 IFileSystem::FileHandle ESP32FileSystem::OpenFile(const char* path, OpenMode mode)
 {
+    MountStorage();
     if (!m_Initialized || !path)
     {
         return nullptr;
     }
 
-    std::string realPath = ConvertPathInternal(path);
-    const char* modeStr = "";
-
-    switch (mode)
+    const bool reading = mode == OpenMode::ReadBinary || mode == OpenMode::ReadText;
+    const uint8_t* data = nullptr;
+    size_t size = 0;
+    if (FindInImage(path, data, size))
     {
-        case OpenMode::ReadBinary:
-        case OpenMode::ReadText: modeStr = "r"; break;
-        case OpenMode::WriteBinary:
-        case OpenMode::WriteText: modeStr = "w"; break;
-    }
-
-    FILE* f = fopen(realPath.c_str(), modeStr);
-    if (!f)
-    {
+        if (!reading)
+        {
+            // The game's data is what was flashed, the same every boot.
+            DEKI_LOG_WARNING("%s is part of the game's data, which is never written; write the game's own files "
+                             "under another name",
+                             path);
+            return nullptr;
+        }
+        for (ImageFile& f : m_ImageFiles)
+        {
+            if (!f.open)
+            {
+                f = ImageFile{ data, size, 0, true };
+                return static_cast<FileHandle>(&f);
+            }
+        }
+        DEKI_LOG_ERROR("More than %d files of the game's data open at once; %s was not opened", kMaxImageFiles, path);
         return nullptr;
     }
 
+    const std::string realPath = ConvertPathInternal(path);
+    if (realPath.empty())
+    {
+        return nullptr;
+    }
+    FILE* f = std::fopen(realPath.c_str(), reading ? "r" : "w");
     return static_cast<FileHandle>(f);
 }
 
 void ESP32FileSystem::CloseFile(FileHandle handle)
 {
+    if (ImageFile* f = AsImageFile(handle))
+    {
+        *f = ImageFile{};
+        return;
+    }
     if (handle)
     {
-        fclose(static_cast<FILE*>(handle));
+        std::fclose(static_cast<FILE*>(handle));
     }
 }
 
@@ -171,16 +313,23 @@ size_t ESP32FileSystem::ReadFile(FileHandle handle, void* buffer, size_t size)
     {
         return 0;
     }
-    return fread(buffer, 1, size, static_cast<FILE*>(handle));
+    if (ImageFile* f = AsImageFile(handle))
+    {
+        const size_t n = size < f->size - f->position ? size : f->size - f->position;
+        std::memcpy(buffer, f->data + f->position, n);
+        f->position += n;
+        return n;
+    }
+    return std::fread(buffer, 1, size, static_cast<FILE*>(handle));
 }
 
 size_t ESP32FileSystem::WriteFile(FileHandle handle, const void* buffer, size_t size)
 {
-    if (!handle || !buffer)
+    if (!handle || !buffer || AsImageFile(handle))
     {
         return 0;
     }
-    return fwrite(buffer, 1, size, static_cast<FILE*>(handle));
+    return std::fwrite(buffer, 1, size, static_cast<FILE*>(handle));
 }
 
 long ESP32FileSystem::SeekFile(FileHandle handle, long offset, SeekOrigin origin)
@@ -190,6 +339,24 @@ long ESP32FileSystem::SeekFile(FileHandle handle, long offset, SeekOrigin origin
         return -1;
     }
 
+    if (ImageFile* f = AsImageFile(handle))
+    {
+        long base = 0;
+        switch (origin)
+        {
+            case SeekOrigin::Begin: base = 0; break;
+            case SeekOrigin::Current: base = static_cast<long>(f->position); break;
+            case SeekOrigin::End: base = static_cast<long>(f->size); break;
+        }
+        const long target = base + offset;
+        if (target < 0 || target > static_cast<long>(f->size))
+        {
+            return -1;
+        }
+        f->position = static_cast<size_t>(target);
+        return target;
+    }
+
     int whence = SEEK_SET;
     switch (origin)
     {
@@ -197,13 +364,11 @@ long ESP32FileSystem::SeekFile(FileHandle handle, long offset, SeekOrigin origin
         case SeekOrigin::Current: whence = SEEK_CUR; break;
         case SeekOrigin::End: whence = SEEK_END; break;
     }
-
-    if (fseek(static_cast<FILE*>(handle), offset, whence) != 0)
+    if (std::fseek(static_cast<FILE*>(handle), offset, whence) != 0)
     {
         return -1;
     }
-
-    return ftell(static_cast<FILE*>(handle));
+    return std::ftell(static_cast<FILE*>(handle));
 }
 
 long ESP32FileSystem::TellFile(FileHandle handle)
@@ -212,7 +377,11 @@ long ESP32FileSystem::TellFile(FileHandle handle)
     {
         return -1;
     }
-    return ftell(static_cast<FILE*>(handle));
+    if (ImageFile* f = AsImageFile(handle))
+    {
+        return static_cast<long>(f->position);
+    }
+    return std::ftell(static_cast<FILE*>(handle));
 }
 
 long ESP32FileSystem::GetFileSize(FileHandle handle)
@@ -221,101 +390,56 @@ long ESP32FileSystem::GetFileSize(FileHandle handle)
     {
         return -1;
     }
+    if (ImageFile* f = AsImageFile(handle))
+    {
+        return static_cast<long>(f->size);
+    }
 
     FILE* f = static_cast<FILE*>(handle);
-    long cur = ftell(f);
-    fseek(f, 0, SEEK_END);
-    long size = ftell(f);
-    fseek(f, cur, SEEK_SET);
+    const long cur = std::ftell(f);
+    std::fseek(f, 0, SEEK_END);
+    const long size = std::ftell(f);
+    std::fseek(f, cur, SEEK_SET);
     return size;
 }
 
 bool ESP32FileSystem::FileExists(const char* path)
 {
+    MountStorage();
     if (!m_Initialized || !path)
     {
         return false;
     }
-
-    std::string realPath = ConvertPathInternal(path);
+    const uint8_t* data = nullptr;
+    size_t size = 0;
+    if (FindInImage(path, data, size))
+    {
+        return true;
+    }
+    const std::string realPath = ConvertPathInternal(path);
     struct stat st;
-    return stat(realPath.c_str(), &st) == 0;
+    return !realPath.empty() && stat(realPath.c_str(), &st) == 0;
 }
 
 bool ESP32FileSystem::ConvertPath(const char* virtualPath, char* outBuffer, size_t bufferSize)
 {
-    if (!virtualPath || !outBuffer || bufferSize == 0)
+    MountStorage();
+    // A file of the game's data is bytes in the image, with no path of its
+    // own.
+    const uint8_t* data = nullptr;
+    size_t size = 0;
+    if (!virtualPath || !outBuffer || bufferSize == 0 || FindInImage(virtualPath, data, size))
     {
         return false;
     }
 
-    std::string converted = ConvertPathInternal(virtualPath);
-    if (converted.length() >= bufferSize)
+    const std::string converted = ConvertPathInternal(virtualPath);
+    if (converted.empty() || converted.length() >= bufferSize)
     {
         return false;
     }
-
-    strcpy(outBuffer, converted.c_str());
+    std::strcpy(outBuffer, converted.c_str());
     return true;
 }
-
-#else
-
-// Stub for non-ESP32 builds
-ESP32FileSystem::ESP32FileSystem()
-    : m_Initialized(false)
-{
-}
-ESP32FileSystem::~ESP32FileSystem()
-{
-}
-bool ESP32FileSystem::Initialize()
-{
-    return false;
-}
-void ESP32FileSystem::Shutdown()
-{
-}
-std::string ESP32FileSystem::ConvertPathInternal(const char*)
-{
-    return "";
-}
-IFileSystem::FileHandle ESP32FileSystem::OpenFile(const char*, OpenMode)
-{
-    return nullptr;
-}
-void ESP32FileSystem::CloseFile(FileHandle)
-{
-}
-size_t ESP32FileSystem::ReadFile(FileHandle, void*, size_t)
-{
-    return 0;
-}
-size_t ESP32FileSystem::WriteFile(FileHandle, const void*, size_t)
-{
-    return 0;
-}
-long ESP32FileSystem::SeekFile(FileHandle, long, SeekOrigin)
-{
-    return -1;
-}
-long ESP32FileSystem::TellFile(FileHandle)
-{
-    return -1;
-}
-long ESP32FileSystem::GetFileSize(FileHandle)
-{
-    return -1;
-}
-bool ESP32FileSystem::FileExists(const char*)
-{
-    return false;
-}
-bool ESP32FileSystem::ConvertPath(const char*, char*, size_t)
-{
-    return false;
-}
-
-#endif
 
 }  // namespace Deki

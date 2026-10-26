@@ -63,7 +63,7 @@ public:
     // The generated project packs this directory into the data partition.
     std::string GetBootPayloadDirectory(const std::string& projectPath) const override
     {
-        return GetBuildDirectory(projectPath) + "/spiffs_data";
+        return GetBuildDirectory(projectPath) + "/gamedata";
     }
     std::string GetFrameworkId() const override { return "espidf"; }
     std::vector<std::string> ValidatePlatform(const PlatformConfig& config) const override;

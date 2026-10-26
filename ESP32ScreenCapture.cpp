@@ -232,15 +232,14 @@ void RestartCount()
 void OpenScene(const std::string& guid)
 {
     auto* assets = Deki::AssetManager::Get();
-    auto* scene = assets ? static_cast<Deki::Scene*>(assets->LoadByGuidAndType(guid, Deki::Scene::kAssetTypeName))
-                         : nullptr;
-    if (!scene)
+    if (!assets || assets->LookupPath(guid).empty())
     {
         std::printf("\nDEKI:SCENE:ERROR no scene %s\n", guid.c_str());
         Flush();
         return;
     }
-    Deki::Engine::GetInstance().SetRootScene(scene, true);
+    // Opened at the end of this frame, after the scene on screen is freed.
+    Deki::Engine::GetInstance().OpenScene(guid);
     std::printf("\nDEKI:SCENE:OK %s\n", guid.c_str());
     Flush();
 }

@@ -5,7 +5,7 @@
 // The package holds the ESP-IDF backends and the ESP32 SetupComponents that
 // boot.scene uses on device builds:
 // - ESP32MemorySetup (PSRAM memory backend)
-// - ESP32FileSystemSetup (LittleFS file system)
+// - ESP32FileSystem (F:/: the game's data mapped out of flash, and what the game writes)
 // - ESP32SerialSetup (serial command handler for talking to the editor)
 
 #ifdef _WIN32

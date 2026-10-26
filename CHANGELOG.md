@@ -8,6 +8,25 @@ breaking change bumps the minor across the editor, the engine and every
 package together, so a package with no changes of its own is still released
 alongside one that has them.
 
+## Unreleased
+
+### Changed
+- **Scenes open faster.** The game's data (the boot scene, `project_data.bin`
+  and, on internal storage, the assets) is flashed as one read-only image in a
+  `gamedata` partition and read where it lies, instead of from LittleFS. Finding
+  a file took 6 to 13 ms on a T-Deck Plus and now takes microseconds: the first
+  visit to the demo's meadow loads its assets in 35 ms instead of 615 ms, and
+  flashing the data takes seconds, not a 13 MB image. Needs engine with
+  `Deki::FileImage`.
+- **Games can write files.** `F:/` files the game writes (saves, settings) go
+  to a `userdata` LittleFS partition at the end of the flash: 1 MB on 16 MB,
+  512 KB on 8 MB, 128 KB on 4 MB. Flashing never touches it, so they survive
+  updates. A file of the game's data is never written: opening one to write
+  fails and logs why. A board with its own `partitionTable` needs a `gamedata`
+  partition; the build says so.
+- The partitions are mounted on first use rather than in a static constructor,
+  so what they log (a missing or damaged image) reaches the console.
+
 ## 0.20.0
 
 ### Changed
