@@ -18,6 +18,7 @@ class ESP32TimeProvider : public ITimeProvider
 public:
 #if defined(ESP32)
     uint32_t GetTicksMs() const override { return (uint32_t)(esp_timer_get_time() / 1000); }
+    uint64_t GetTicksUs() const override { return static_cast<uint64_t>(esp_timer_get_time()); }
 
     void DelayMs(uint32_t ms) const override { vTaskDelay(pdMS_TO_TICKS(ms)); }
 #else

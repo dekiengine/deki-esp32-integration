@@ -10,6 +10,10 @@ alongside one that has them.
 
 ## Unreleased
 
+### Added
+- The clock gives microseconds (`GetTicksUs`), so the engine times frames
+  finer than a millisecond.
+
 ### Changed
 - **Scenes open faster.** The game's data (the boot scene, `project_data.bin`
   and, on internal storage, the assets) is flashed as one read-only image in a
