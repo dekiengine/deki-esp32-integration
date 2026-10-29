@@ -74,6 +74,10 @@ Package Manager in the Deki Editor, or `DekiEditor --packages-add deki-esp32-int
 | `sdmmc` | ESP-IDF component (Apache 2.0) |
 | `driver` | ESP-IDF component (Apache 2.0) |
 
+## Community
+
+Questions, ideas and what you made with Deki: [the Deki Discord](https://dekiengine.com/discord/).
+
 ## License
 
 Apache 2.0. See [LICENSE](LICENSE).
