@@ -24,9 +24,10 @@ public:
     void Free(Memory::Region region, void* ptr) override;
     size_t GetAvailable(Memory::Region region) const override;
 
-    // AllocateRaw/FreeRaw keep the base malloc/free, which on ESP-IDF is
-    // heap_caps underneath with operator new's alignment. Only the size
-    // query needs the platform.
+    // operator new, std::vector and std::string. Internal RAM while more than
+    // kRawInternalHeadroom of it would stay free, PSRAM after that.
+    void* AllocateRaw(size_t size) override;
+    void FreeRaw(void* ptr) override;
     size_t GetRawBlockSize(void* ptr) const override;
 
 private:

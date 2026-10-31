@@ -139,6 +139,32 @@ size_t ESP32MemoryProvider::GetAvailable(Memory::Region region) const
     return 0;
 }
 
+// What operator new, std::vector and std::string leave free in internal RAM.
+// ESP-IDF's malloc keeps small blocks internal (SPIRAM_MALLOC_ALWAYSINTERNAL)
+// until internal RAM is gone, and only then uses PSRAM: a scene of many small
+// objects took the last bytes, and a task stack, a DMA buffer or a driver
+// asking for internal RAM afterwards failed. Past this line they go to PSRAM
+// instead; what was allocated before stays in the fast memory.
+static constexpr size_t kRawInternalHeadroom = 16 * 1024;
+
+void* ESP32MemoryProvider::AllocateRaw(size_t size)
+{
+    if (m_HasPSRAM && heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT) < kRawInternalHeadroom + size)
+    {
+        void* ptr = heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (ptr)
+        {
+            return ptr;
+        }
+    }
+    return malloc(size);
+}
+
+void ESP32MemoryProvider::FreeRaw(void* ptr)
+{
+    heap_caps_free(ptr);  // takes a block from either
+}
+
 size_t ESP32MemoryProvider::GetRawBlockSize(void* ptr) const
 {
     // Reads the block header the heap already keeps, so the raw path can

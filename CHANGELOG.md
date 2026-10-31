@@ -8,6 +8,15 @@ breaking change bumps the minor across the editor, the engine and every
 package together, so a package with no changes of its own is still released
 alongside one that has them.
 
+## 0.22.1
+
+### Fixed
+- Small allocations (operator new, std::vector, std::string) leave 16 KB of
+  internal RAM free and go to PSRAM after that. ESP-IDF kept them internal
+  until none was left, so a scene of many small objects (the demo's Widgets
+  on the T-Deck) left 39 bytes, and a task stack, DMA buffer or driver asking
+  for internal RAM afterwards failed.
+
 ## 0.22.0
 
 ### Added
