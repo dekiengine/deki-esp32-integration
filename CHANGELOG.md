@@ -17,6 +17,10 @@ alongside one that has them.
   `DEKI:MEMORY:SITE` line per call site that allocated through the engine. The
   editor's Memory panel and its `device_memory` MCP tool read it.
 
+### Changed
+- Firmware builds and flashes run at below-normal priority and with as many
+  compile jobs as free memory holds (needs editor 0.22).
+
 ## 0.21.0
 
 ### Added

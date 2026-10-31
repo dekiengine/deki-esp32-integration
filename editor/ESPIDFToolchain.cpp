@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include "ESPIDFToolchain.h"
+#include <deki-editor/BuildLoad.h>
 #include <deki-editor/SafeNames.h>
 #include <deki-editor/EditorPaths.h>
 #include <deki-editor/build/PlatformConfig.h>
@@ -439,7 +440,10 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
     std::vector<char> cmdBuf(fullCommand.begin(), fullCommand.end());
     cmdBuf.push_back('\0');
 
-    BOOL success = CreateProcessA(NULL, cmdBuf.data(), NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi);
+    // Below-normal priority, which idf.py, ninja and the compilers inherit.
+    DekiEditor::PrepareBuildJobs();
+    BOOL success = CreateProcessA(NULL, cmdBuf.data(), NULL, NULL, TRUE,
+                                  CREATE_NO_WINDOW | DekiEditor::BuildPriorityFlag(), NULL, NULL, &si, &pi);
 
     CloseHandle(hWritePipe);
 
@@ -562,7 +566,8 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
     std::string fullCommand =
         "cd \"" + idfPath + "\" && . ./export.sh && cd \"" + workDir + "\" && " + envExports + command;
 
-    FILE* pipe = popen(fullCommand.c_str(), "r");
+    DekiEditor::PrepareBuildJobs();
+    FILE* pipe = popen(DekiEditor::AtBuildPriority(fullCommand).c_str(), "r");
     if (!pipe)
     {
         return -1;
