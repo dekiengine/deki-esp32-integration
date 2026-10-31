@@ -6,7 +6,6 @@ var NAVTREEINDEX0 =
 "index.html#autotoc_md2":[3,2],
 "index.html#autotoc_md3":[3,3],
 "index.html#autotoc_md4":[3,4],
-"index.html#autotoc_md5":[3,5],
 "index.html#c-esp32qemudisplaysetup":[2,0],
 "index.html#c-esp32serialsetup":[2,1],
 "index.html#changelog":[3],
