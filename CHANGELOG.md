@@ -8,6 +8,15 @@ breaking change bumps the minor across the editor, the engine and every
 package together, so a package with no changes of its own is still released
 alongside one that has them.
 
+## Unreleased
+
+### Added
+- A board answers `DEKI:MEMORY` on its serial console with where its memory
+  is: internal and external RAM in use by the engine with their peaks, the
+  heap's free space, lowest free space since boot and size, and one
+  `DEKI:MEMORY:SITE` line per call site that allocated through the engine. The
+  editor's Memory panel and its `device_memory` MCP tool read it.
+
 ## 0.21.0
 
 ### Added

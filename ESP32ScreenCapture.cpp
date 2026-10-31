@@ -5,6 +5,7 @@
 #include <deki/Engine.h>
 #include <deki/Scene.h>
 #include <deki/Time.h>
+#include <deki/providers/Memory.h>
 #include <deki/assets/AssetManager.h>
 #include <deki/reflection/ComponentRegistry.h>
 
@@ -48,6 +49,8 @@ constexpr char kProfileRequest[] = "DEKI:PROFILE";
 constexpr size_t kProfileRequestLength = sizeof(kProfileRequest) - 1;
 constexpr char kProfileOffRequest[] = "DEKI:PROFILE:OFF";
 constexpr size_t kProfileOffRequestLength = sizeof(kProfileOffRequest) - 1;
+constexpr char kMemoryRequest[] = "DEKI:MEMORY";
+constexpr size_t kMemoryRequestLength = sizeof(kMemoryRequest) - 1;
 constexpr char kSceneRequest[] = "DEKI:SCENE ";
 constexpr size_t kSceneRequestLength = sizeof(kSceneRequest) - 1;
 
@@ -157,6 +160,32 @@ void SendFrame()
     Deki::Time::ResetFrameTime();
 }
 
+// The heap's own figures, which also cover what the engine does not place
+// (containers, ESP-IDF's own). Only heap_caps can say them.
+struct HeapFigures
+{
+    unsigned internalFree;
+    unsigned externalFree;
+    unsigned internalMinFree;  ///< the least free since boot
+    unsigned externalMinFree;
+    unsigned internalTotal;
+    unsigned externalTotal;
+};
+
+HeapFigures ReadHeap()
+{
+    HeapFigures h{};
+    h.internalFree = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);  // deki-alloc-ok: a query, not an allocation
+    h.externalFree = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);    // deki-alloc-ok: a query, not an allocation
+    h.internalMinFree =
+        heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL);  // deki-alloc-ok: a query, not an allocation
+    h.externalMinFree =
+        heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM);           // deki-alloc-ok: a query, not an allocation
+    h.internalTotal = heap_caps_get_total_size(MALLOC_CAP_INTERNAL);  // deki-alloc-ok: a query, not an allocation
+    h.externalTotal = heap_caps_get_total_size(MALLOC_CAP_SPIRAM);    // deki-alloc-ok: a query, not an allocation
+    return h;
+}
+
 void SendStats()
 {
     const FrameWindow& w = s_LastWindow;
@@ -176,6 +205,7 @@ void SendStats()
     // How frames reach the screen (RenderingProjectSettings::frameMode as
     // the render system decided it); the reason is in the boot log.
     const int32_t bandRows = DekiRendering::DekiRenderSystem::LastFrameModeRows();
+    const HeapFigures heap = ReadHeap();
     char line[240];
     const int n = std::snprintf(
         line, sizeof(line),
@@ -185,11 +215,63 @@ void SendStats()
         static_cast<unsigned>(frameCs % 100), static_cast<unsigned>(updateCs / 100),
         static_cast<unsigned>(updateCs % 100), static_cast<unsigned>(renderCs / 100),
         static_cast<unsigned>(renderCs % 100), static_cast<unsigned>(presentCs / 100),
-        static_cast<unsigned>(presentCs % 100), static_cast<unsigned>(frames),
-        static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL)),
-        static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_SPIRAM)), bandRows > 0 ? "strips" : "whole",
-        static_cast<int>(bandRows));
+        static_cast<unsigned>(presentCs % 100), static_cast<unsigned>(frames), heap.internalFree, heap.externalFree,
+        bandRows > 0 ? "strips" : "whole", static_cast<int>(bandRows));
     std::fwrite(line, 1, n > 0 ? static_cast<size_t>(n) : 0, stdout);
+    Flush();
+}
+
+// The last two parts of a path, such as "deki-2d/BitmapFont.cpp": the folder
+// says which package, and the whole build path would only add noise.
+const char* ShortPath(const char* path)
+{
+    if (!path)
+    {
+        return "?";
+    }
+    const char* last = path;
+    const char* before = path;
+    for (const char* p = path; *p; ++p)
+    {
+        if (*p == '/' || *p == '\\')
+        {
+            before = last;
+            last = p + 1;
+        }
+    }
+    return before;
+}
+
+// Where the memory is: each region's use, peak, free space, low-water mark and
+// size, then one line per call site that allocated through the engine. The
+// engine counts what it placed; the heap's own figures say what else is there.
+void SendMemory()
+{
+    const Deki::MemoryStats stats = Deki::Memory::GetStats();
+    const HeapFigures heap = ReadHeap();
+    const uint32_t sites = Deki::Memory::GetSiteCount();
+    std::printf("\nDEKI:MEMORY internal=%u external=%u internalPeak=%u externalPeak=%u internalFree=%u "
+                "externalFree=%u internalMinFree=%u externalMinFree=%u internalTotal=%u externalTotal=%u sites=%u\n",
+                static_cast<unsigned>(stats.internalRamAllocated), static_cast<unsigned>(stats.externalAllocated),
+                static_cast<unsigned>(Deki::Memory::GetPeakInternal()),
+                static_cast<unsigned>(Deki::Memory::GetPeakExternal()), heap.internalFree, heap.externalFree,
+                heap.internalMinFree, heap.externalMinFree, heap.internalTotal, heap.externalTotal,
+                static_cast<unsigned>(sites));
+    for (uint32_t i = 0; i < sites; ++i)
+    {
+        Deki::MemorySite site{};
+        if (!Deki::Memory::GetSite(i, site))
+        {
+            break;
+        }
+        // The function goes last: its signature has spaces in it.
+        std::printf("DEKI:MEMORY:SITE internal=%u external=%u peak=%u blocks=%u at=%s:%u fn=%s\n",
+                    static_cast<unsigned>(site.internalBytes), static_cast<unsigned>(site.externalBytes),
+                    static_cast<unsigned>(site.peakBytes), static_cast<unsigned>(site.blocks),
+                    site.file ? ShortPath(site.file) : "-", static_cast<unsigned>(site.line),
+                    site.function ? site.function : "-");
+    }
+    std::printf("DEKI:MEMORY:END\n");
     Flush();
 }
 
@@ -321,6 +403,11 @@ void Feed(char c)
         else if (LineIs(kStatsRequest, kStatsRequestLength))
         {
             SendStats();
+        }
+        else if (LineIs(kMemoryRequest, kMemoryRequestLength))
+        {
+            SendMemory();
+            RestartCount();
         }
         else if (LineIs(kProfileRequest, kProfileRequestLength))
         {
