@@ -57,7 +57,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">deki-esp32-integration<span id="projectnumber">&#160;0.21.0</span>
+   <div id="projectname">deki-esp32-integration<span id="projectnumber">&#160;0.22.0</span>
    </div>
    <div id="projectbrief">Deki 패키지 레퍼런스</div>
   </td>
@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded',() => { initNavTree('index.html',''
 <img src="deki-esp32-integration.png" alt=""/>
 </div>
     <p>ESP32 플랫폼 HAL: ESP-IDF SDMMC를 통한 SD 카드, FATFS 파일 시스템, 시리얼 명령, 메모리 및 파일 시스템 설정.</p>
-<p>저장소: <a href="https://github.com/dekiengine/deki-esp32-integration">github.com/dekiengine/deki-esp32-integration</a> · 최신 릴리스: 0.21.0 · 엔진 0.21.0 이상 필요 · 의존: <a href="https://dekiengine.github.io/deki-wifi/ko/">deki-wifi</a>, <a href="https://dekiengine.github.io/deki-ble/ko/">deki-ble</a>, <a href="https://dekiengine.github.io/deki-http/ko/">deki-http</a>, <a href="https://dekiengine.github.io/deki-i2s/ko/">deki-i2s</a>, <a href="https://dekiengine.github.io/deki-uart/ko/">deki-uart</a>, <a href="https://dekiengine.github.io/deki-i2c/ko/">deki-i2c</a>, <a href="https://dekiengine.github.io/deki-gpio/ko/">deki-gpio</a>, <a href="https://dekiengine.github.io/deki-sdcard/ko/">deki-sdcard</a>, <a href="https://dekiengine.github.io/deki-rendering/ko/">deki-rendering</a></p>
+<p>저장소: <a href="https://github.com/dekiengine/deki-esp32-integration">github.com/dekiengine/deki-esp32-integration</a> · 최신 릴리스: 0.22.0 · 엔진 0.22.0 이상 필요 · 의존: <a href="https://dekiengine.github.io/deki-wifi/ko/">deki-wifi</a>, <a href="https://dekiengine.github.io/deki-ble/ko/">deki-ble</a>, <a href="https://dekiengine.github.io/deki-http/ko/">deki-http</a>, <a href="https://dekiengine.github.io/deki-i2s/ko/">deki-i2s</a>, <a href="https://dekiengine.github.io/deki-uart/ko/">deki-uart</a>, <a href="https://dekiengine.github.io/deki-i2c/ko/">deki-i2c</a>, <a href="https://dekiengine.github.io/deki-gpio/ko/">deki-gpio</a>, <a href="https://dekiengine.github.io/deki-sdcard/ko/">deki-sdcard</a>, <a href="https://dekiengine.github.io/deki-rendering/ko/">deki-rendering</a></p>
 <p><span class="tt">DekiEditor --packages-add deki-esp32-integration &lt;project&gt;</span> 또는 패키지 관리자로 설치합니다. 엔진 자체의 컴포넌트와 C++ API는 <a href="https://dekiengine.github.io/docs/ko/">Deki 문서</a>에 있습니다.</p>
 <p>에디터에는 <b>ESP32 Integration</b>(으)로 표시됩니다.</p>
 <h1 class="doxsection"><a class="anchor" id="components"></a>
@@ -195,13 +195,26 @@ ESP32SerialSetup</h2>
 변경 내역</h1>
 <p>변경 내역은 영어로 되어 있습니다.</p>
 <h2 class="doxsection"><a class="anchor" id="autotoc_md0"></a>
-0.21.0</h2>
+0.22.0</h2>
 <h2 class="doxsection"><a class="anchor" id="autotoc_md1"></a>
+Added</h2>
+<ul>
+<li>A board answers <span class="tt">DEKI:MEMORY</span> on its serial console with where its memory is: internal and external RAM in use by the engine with their peaks, the heap's free space, lowest free space since boot and size, and one <span class="tt">DEKI:MEMORY:SITE</span> line per call site that allocated through the engine. The editor's Memory panel and its <span class="tt">device_memory</span> MCP tool read it.</li>
+</ul>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md2"></a>
+Changed</h2>
+<ul>
+<li>Firmware builds and flashes run at below-normal priority and with as many compile jobs as free memory holds (needs editor 0.22).</li>
+<li><span class="tt">minEngine</span> 0.22.0: built against engine 0.22.0. A build of this package from before does not load and is rebuilt.</li>
+</ul>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md3"></a>
+0.21.0</h2>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md4"></a>
 Added</h2>
 <ul>
 <li>The clock gives microseconds (<span class="tt">GetTicksUs</span>), so the engine times frames finer than a millisecond.</li>
 </ul>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md2"></a>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md5"></a>
 Changed</h2>
 <ul>
 <li><span class="tt">minEngine</span> 0.21.0: built against engine 0.21.0. A build of this package from before does not load and is rebuilt.</li>
@@ -209,32 +222,9 @@ Changed</h2>
 <li><b>Games can write files.</b> <span class="tt">F:/</span> files the game writes (saves, settings) go to a <span class="tt">userdata</span> LittleFS partition at the end of the flash: 1 MB on 16 MB, 512 KB on 8 MB, 128 KB on 4 MB. Flashing never touches it, so they survive updates. A file of the game's data is never written: opening one to write fails and logs why. A board with its own <span class="tt">partitionTable</span> needs a <span class="tt">gamedata</span> partition; the build says so.</li>
 <li>The partitions are mounted on first use rather than in a static constructor, so what they log (a missing or damaged image) reaches the console.</li>
 </ul>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md3"></a>
-0.20.0</h2>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md4"></a>
-Changed</h2>
-<ul>
-<li><span class="tt">minEngine</span> 0.20.0: built against engine 0.20.0. A build of this package from before does not load and is rebuilt.</li>
-</ul>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md5"></a>
-Added</h2>
-<ul>
-<li><span class="tt">ESPIDFGPIO::WaitForEdge</span>: the edge interrupt that counts a pin's edges also gives the pin's semaphore, made the first time a task waits on it.</li>
-<li><span class="tt">ESPIDFGPIO::TimeSinceEdge</span>: the edge interrupt also notes when it ran.</li>
-<li>The present worker gives deki-display a microsecond clock (esp_timer).</li>
-<li><span class="tt">ESPIDFSPIDevice</span> reads at the device's <span class="tt">readClockHz</span> through a second driver handle at that clock. The two share the device's chip select, which the driver callbacks then drive themselves, low as a transfer starts and high after it unless the transfer keeps it; a read lets the bus go from the other handle and takes it back. <span class="tt">threeWire</span> sets <span class="tt">SPI_DEVICE_3WIRE</span>.</li>
-<li>deki-display's parallel panel bus on ESP-IDF's esp_lcd i80 driver (the ESP32-S3's LCD peripheral, I2S on an ESP32), 8 or 16 data lines, registered as deki-display's <span class="tt">ParallelBus</span> factory with the present worker. Pixels are queued for DMA and counted back as each transfer finishes; the few bytes at either end of a part that are off the DMA's alignment go out as parameter bytes. Brings ESP-IDF's <span class="tt">esp_lcd</span> component. Built, not yet run on a board.</li>
-<li><span class="tt">ESPIDFSPIBus</span> and <span class="tt">ESPIDFSPIDevice</span>: deki-spi on ESP-IDF's <span class="tt">spi_master</span>, registered as deki-spi's factory. Long writes are queued and go out by DMA back to back; the data/command pin is set in the driver's pre-transfer callback as each transfer starts; chip select can stay low across a run of transfers while the bus is held. A bus another driver already started is joined. Optional, as the <span class="tt">spi</span> feature: installing this package does not bring deki-spi; the board that uses it does. A transfer of four bytes or less travels in the transaction itself, queued or not.</li>
-<li>deki-display's present worker: a FreeRTOS task pinned to the core the engine is not on, which sends a frame while the next is drawn. None on a single-core chip. Optional, as the <span class="tt">display_worker</span> feature: installing this package does not bring deki-display; the board that uses it does, so a project on LovyanGFX gets no new packages.</li>
-<li><span class="tt">ESPIDFI2C::WriteRead</span> and <span class="tt">WriteRaw</span>, deki-i2c's reads and writes for devices with wider registers (<span class="tt">i2c_master_transmit_receive</span>, <span class="tt">i2c_master_transmit</span>).</li>
-<li>Big-endian RGB565 (<span class="tt">DEKI_RGB565_BIG_ENDIAN</span>): <span class="tt">DEKI:SCREENSHOT</span> names the format <span class="tt">RGB565_BE</span> or <span class="tt">RGB565A8_BE</span>. <span class="tt">ESP32QemuDisplay</span> refuses such a build: the QEMU panel is little-endian.</li>
-<li>A failed allocation prints its size, caps and caller, the internal and DMA-capable heaps' free bytes, largest block and low-water mark, and how much the engine placed in each region. ESP-IDF aborts when it cannot make a FreeRTOS lock, and the abort alone does not say memory ran out.</li>
-<li><span class="tt">DEKI:PROFILE</span> names each component type and adds a <span class="tt">DEKI:PROFILE:PATH</span> line per blitter path, with nanoseconds per pixel.</li>
-<li><span class="tt">DEKI:PROFILE:OFF</span> switches the render profiler off again. A report leaves it on, and it times every draw, which costs a few frames a second, so a measurement after profiling read low until the board restarted.</li>
-</ul>
 <p>이전 릴리스: <a href="https://github.com/dekiengine/deki-esp32-integration/blob/master/CHANGELOG.md">CHANGELOG.md</a></p>
 <hr  />
-<p>패키지의 리플렉션 데이터에서 생성했습니다(엔진 0.21.0). 속성 이름은 씬 파일에서 쓰는 키입니다. 이름을 바꿔도 별칭이 유지됩니다(<a href="https://github.com/dekiengine/deki-editor/blob/master/COMPATIBILITY.md">호환성</a>). </p>
+<p>패키지의 리플렉션 데이터에서 생성했습니다(엔진 0.22.0). 속성 이름은 씬 파일에서 쓰는 키입니다. 이름을 바꿔도 별칭이 유지됩니다(<a href="https://github.com/dekiengine/deki-editor/blob/master/COMPATIBILITY.md">호환성</a>). </p>
 </div></div><!-- PageDoc -->
 <a href="doxygen_crawl.html"></a>
 </div><!-- contents -->
