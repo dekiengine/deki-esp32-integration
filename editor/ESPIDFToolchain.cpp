@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <utility>
 #include <cstdlib>
 #include "ESPIDFToolchain.h"
 #include <deki-editor/BuildLoad.h>
@@ -242,18 +243,21 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
     // escape. Forward slashes are a path to CMake on every platform.
     std::string enginePathForCMake = enginePath;
     std::replace(enginePathForCMake.begin(), enginePathForCMake.end(), '\\', '/');
-    std::string envSettings = "set \"DEKI_ENGINE_PATH=" + enginePathForCMake + "\" && ";
 
-    // Anything that must happen before export.bat runs. cmd expands %PATH%
-    // when it parses the whole line, not when each piece runs, so appending
-    // to PATH after the export would build on the old PATH and drop
-    // everything ESP-IDF just added, so idf.py would not be found. Before the
-    // export is right: export.bat prepends its own entries and keeps ours
-    // behind them.
-    std::string preExportSettings;
+    // What the build's environment adds to the editor's: given to cmd as its
+    // environment block, never written into its command line as `set` lines.
+    // A `set "PATH=...%PATH%..."` breaks on a PATH with a quote in it (Windows
+    // allows one, and a Windows Kits installer leaves one): the quote closes
+    // the set early, the rest of the line, export.bat and idf.py included,
+    // becomes the value of PATH, and cmd exits 0 having run nothing.
+    std::vector<std::pair<std::string, std::string>> childEnv;
+    childEnv.emplace_back("DEKI_ENGINE_PATH", enginePathForCMake);
+    // idf.py asks for it on a console that is not UTF-8, which the editor's
+    // pipe is not.
+    childEnv.emplace_back("PYTHONUTF8", "1");
 
-    // PATH is set once, from these two: a second `set PATH=...%PATH%...` on the
-    // same line would expand %PATH% to the value before the first and drop it.
+    // PATH as export.bat starts from: export.bat prepends its own entries and
+    // keeps these behind them.
     std::string pathFirst;  // before the inherited PATH
     std::string pathLast;   // after it
 
@@ -302,7 +306,7 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
         }
         if (!gxx16.empty())
         {
-            envSettings += "set \"DEKI_GXX16=" + gxx16 + "\" && ";
+            childEnv.emplace_back("DEKI_GXX16", gxx16);
 
             // And its own directory on PATH, or the compiler cannot run.
             //
@@ -328,24 +332,19 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
         }
     }
 
-    if (!pathFirst.empty() || !pathLast.empty())
-    {
-        preExportSettings += "set \"PATH=" + pathFirst + "%PATH%" + pathLast + "\" && ";
-    }
-
-    envSettings += "set \"DEKI_LOG_ENABLED=" + logEnabled + "\" && ";
-    envSettings += "set \"DEKI_LOG_INTERNAL_ENABLED=" + internalLogEnabled + "\" && ";
+    childEnv.emplace_back("DEKI_LOG_ENABLED", logEnabled);
+    childEnv.emplace_back("DEKI_LOG_INTERNAL_ENABLED", internalLogEnabled);
 
     if (ctx.hasPlatformConfig && ctx.platformConfig)
     {
         bool usePsram = ctx.platformConfig->externalMemorySize > 0;
-        envSettings += "set \"DEKI_USE_PSRAM=" + std::string(usePsram ? "1" : "") + "\" && ";
-        // Checked here as well as in ValidatePlatform: this is a shell line,
-        // and not every path to it runs the validation first.
+        childEnv.emplace_back("DEKI_USE_PSRAM", usePsram ? "1" : "");
+        // Checked here as well as in ValidatePlatform: CMake reads it, and
+        // not every path to here runs the validation first.
         const std::string displayBus = ctx.platformConfig->Option("displayBus");
         if (IsValidDisplayBus(displayBus))
         {
-            envSettings += "set \"DEKI_DISPLAY_BUS=" + displayBus + "\" && ";
+            childEnv.emplace_back("DEKI_DISPLAY_BUS", displayBus);
         }
     }
     else
@@ -358,8 +357,8 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
 
     if (ctx.packageDefines && !ctx.packageDefines->empty())
     {
-        // These come from package.json files and land inside a cmd.exe line:
-        // only identifier-shaped defines get through (SafeNames::IsSafeDefine).
+        // These come from package.json files and become compiler defines:
+        // only identifier-shaped ones get through (SafeNames::IsSafeDefine).
         std::string definesList;
         for (const auto& def : *ctx.packageDefines)
         {
@@ -378,7 +377,7 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
             }
             definesList += def;
         }
-        envSettings += "set \"DEKI_PACKAGE_DEFINES=" + definesList + "\" && ";
+        childEnv.emplace_back("DEKI_PACKAGE_DEFINES", definesList);
 
         if (outputCallback)
         {
@@ -404,14 +403,107 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
     std::string idfPathNative = idfPath;
     std::replace(idfPathNative.begin(), idfPathNative.end(), '/', '\\');
 
-    // Unset MSYSTEM first. export.bat refuses to run when it sees that
-    // variable, taking it to mean an MSYS shell, not CMD. Every child of an
-    // MSYS2 or Git Bash session inherits it, so an editor launched from such
-    // a shell would fail every firmware build with "This .bat file is for
+    std::string fullCommand = "cmd /s /c \"cd /d \"" + idfPathNative + "\" && call \"" + idfPathNative +
+                              "\\export.bat\" && cd /d \"" + workDir + "\" && " + command + "\"";
+
+    // The environment block: the editor's own, less MSYSTEM, with PATH and
+    // childEnv applied. MSYSTEM goes because export.bat refuses to run when it
+    // sees it, taking it to mean an MSYS shell, not CMD: every child of an
+    // MSYS2 or Git Bash session inherits it, so an editor launched from such a
+    // shell would fail every firmware build with "This .bat file is for
     // Windows CMD.EXE shell only", though the child really is CMD.
-    std::string fullCommand = "cmd /s /c \"set \"MSYSTEM=\" && " + preExportSettings + "cd /d \"" + idfPathNative +
-                              "\" && call \"" + idfPathNative + "\\export.bat\" && cd /d \"" + workDir + "\" && " +
-                              envSettings + command + "\"";
+    std::vector<std::pair<std::string, std::string>> environment;
+    if (LPCH block = ::GetEnvironmentStringsA())
+    {
+        for (const char* entry = block; *entry; entry += std::strlen(entry) + 1)
+        {
+            const char* eq = std::strchr(entry + 1, '=');  // past a leading '=' (cmd's "=C:" entries)
+            if (eq)
+            {
+                environment.emplace_back(std::string(entry, eq), std::string(eq + 1));
+            }
+        }
+        ::FreeEnvironmentStringsA(block);
+    }
+    auto sameName = [](const std::string& a, const std::string& b)
+    { return _stricmp(a.c_str(), b.c_str()) == 0; };  // Windows names ignore case
+    auto setVariable = [&](const std::string& name, const std::string& value)
+    {
+        for (auto& [existing, existingValue] : environment)
+        {
+            if (sameName(existing, name))
+            {
+                existingValue = value;
+                return;
+            }
+        }
+        environment.emplace_back(name, value);
+    };
+    environment.erase(std::remove_if(environment.begin(), environment.end(),
+                                     [&](const auto& v) { return sameName(v.first, "MSYSTEM"); }),
+                      environment.end());
+    {
+        std::string path;
+        for (const auto& [name, value] : environment)
+        {
+            if (sameName(name, "PATH"))
+            {
+                path = value;
+            }
+        }
+        // A PATH with an odd number of quotes is broken for cmd: from the
+        // lone quote on it reads the entries as one quoted run, so nothing
+        // behind it is found (export.bat then reports git missing). A
+        // Windows Kits installer leaves such an entry. Its quotes are left
+        // out of the build's PATH, and the build says so, naming the entry;
+        // the fix belongs in Windows' environment variables.
+        if (std::count(path.begin(), path.end(), '"') % 2 != 0)
+        {
+            std::string repaired;
+            size_t start = 0;
+            while (start <= path.size())
+            {
+                size_t end = path.find(';', start);
+                if (end == std::string::npos)
+                {
+                    end = path.size();
+                }
+                std::string entry = path.substr(start, end - start);
+                if (std::count(entry.begin(), entry.end(), '"') % 2 != 0)
+                {
+                    if (outputCallback)
+                    {
+                        outputCallback("[Toolchain] PATH entry " + entry +
+                                           " has a stray quote, which stops cmd finding anything after it: the "
+                                           "build uses it without the quote. Fix it in Windows' environment "
+                                           "variables.",
+                                       true);
+                    }
+                    entry.erase(std::remove(entry.begin(), entry.end(), '"'), entry.end());
+                }
+                repaired += (start == 0 ? "" : ";") + entry;
+                start = end + 1;
+            }
+            path = repaired;
+        }
+        setVariable("PATH", pathFirst + path + pathLast);
+    }
+    for (const auto& [name, value] : childEnv)
+    {
+        setVariable(name, value);
+    }
+    // Sorted by name, ignoring case, as CreateProcess expects; each NAME=value
+    // ends in a 0, and the block in one more.
+    std::sort(environment.begin(), environment.end(),
+              [](const auto& a, const auto& b) { return _stricmp(a.first.c_str(), b.first.c_str()) < 0; });
+    std::vector<char> environmentBlock;
+    for (const auto& [name, value] : environment)
+    {
+        const std::string entry = name + "=" + value;
+        environmentBlock.insert(environmentBlock.end(), entry.begin(), entry.end());
+        environmentBlock.push_back('\0');
+    }
+    environmentBlock.push_back('\0');
 
     SECURITY_ATTRIBUTES sa;
     sa.nLength = sizeof(SECURITY_ATTRIBUTES);
@@ -443,7 +535,8 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
     // Below-normal priority, which idf.py, ninja and the compilers inherit.
     DekiEditor::PrepareBuildJobs();
     BOOL success = CreateProcessA(NULL, cmdBuf.data(), NULL, NULL, TRUE,
-                                  CREATE_NO_WINDOW | DekiEditor::BuildPriorityFlag(), NULL, NULL, &si, &pi);
+                                  CREATE_NO_WINDOW | DekiEditor::BuildPriorityFlag(), environmentBlock.data(), NULL,
+                                  &si, &pi);
 
     CloseHandle(hWritePipe);
 

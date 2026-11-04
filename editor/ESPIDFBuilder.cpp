@@ -207,6 +207,10 @@ std::vector<std::pair<std::string, std::string>> ESPIDFBuilder::DescribePlatform
 }
 
 // QEMU gives these chips a screen (the ESP32QemuDisplaySetup panel).
+// The ESP-IDF project the generated CMakeLists declares, which names the
+// firmware image a build writes (build/<name>.bin).
+static constexpr const char* kFirmwareProjectName = "DekiGame";
+
 static bool QemuHasScreen(const std::string& idfTarget)
 {
     return idfTarget == "esp32s3" || idfTarget == "esp32";
@@ -531,7 +535,18 @@ void ESPIDFBuilder::DoBuild(const std::string& projectPath, BuildOutputCallback 
         }
     }
 
+    // The firmware this build must leave. Checked as well as the exit code: a
+    // build that ran nothing can still exit 0, and the editor must never call
+    // that a success.
+    const fs::path firmware = fs::path(buildDir) / "build" / (std::string(kFirmwareProjectName) + ".bin");
+    std::error_code firmwareEc;
+    const bool firmwareExisted = fs::exists(firmware, firmwareEc);
+    const auto firmwareBefore = firmwareExisted ? fs::last_write_time(firmware, firmwareEc) : fs::file_time_type::min();
+
     int exitCode = m_Toolchain.ExecuteIDF("idf.py build", buildDir, enginePath, outputCallback, MakeExecContext());
+
+    const bool firmwareThere = fs::exists(firmware, firmwareEc);
+    const bool firmwareWritten = firmwareThere && fs::last_write_time(firmware, firmwareEc) > firmwareBefore;
 
     if (m_CancelRequested)
     {
@@ -541,12 +556,25 @@ void ESPIDFBuilder::DoBuild(const std::string& projectPath, BuildOutputCallback 
             outputCallback("Build cancelled by user.", true);
         }
     }
-    else if (exitCode == 0)
+    else if (exitCode == 0 && firmwareThere)
     {
         SetProgress(BuildState::Completed, "Build successful!", 1.0f);
         if (outputCallback)
         {
-            outputCallback("Build completed successfully!", false);
+            // Not written this time: ninja found nothing to rebuild.
+            outputCallback(firmwareWritten ? "Build completed successfully!"
+                                           : "Build completed successfully! The firmware was already up to date.",
+                           false);
+            outputCallback("Firmware: " + firmware.string(), false);
+        }
+    }
+    else if (exitCode == 0)
+    {
+        SetError("ESP-IDF exited without an error but left no firmware (" + firmware.string() +
+                 " is missing), so the build did not run. Its output above shows how far it got.");
+        if (outputCallback)
+        {
+            outputCallback("Build failed: ESP-IDF reported no error but left no firmware.", true);
         }
     }
     else
@@ -1301,7 +1329,7 @@ bool ESPIDFBuilder::GenerateRootCMakeLists(const std::string& espIdfPath, const 
     file << "# Include ESP-IDF CMake functions\n";
     file << "include($ENV{IDF_PATH}/tools/cmake/project.cmake)\n";
     file << "\n";
-    file << "project(DekiGame)\n";
+    file << "project(" << kFirmwareProjectName << ")\n";
 
     return CMakeGen::WriteIfChanged(fs::path(espIdfPath) / "CMakeLists.txt", file.str());
 }

@@ -8,6 +8,25 @@ breaking change bumps the minor across the editor, the engine and every
 package together, so a package with no changes of its own is still released
 alongside one that has them.
 
+## Unreleased
+
+### Fixed
+- A firmware build from the editor runs ESP-IDF. On a machine whose PATH
+  holds an entry with a stray quote (a Windows Kits installer leaves one), the
+  build ran nothing and reported success: the variables it sets were `set`
+  lines in one cmd line, and the quote, expanded from %PATH%, closed one early
+  and turned the rest of the line, export.bat and idf.py included, into a
+  value. They are the build's environment now, not part of its command, and
+  such an entry's quote is left out of the build's PATH, which the build says,
+  naming the entry (otherwise cmd finds nothing after it, and export.bat
+  reports git missing).
+- A build is a success only when it leaves the firmware
+  (`build/DekiGame.bin`): one that exits 0 without it fails, saying so. A
+  build with nothing to rebuild says the firmware was already up to date. The
+  build output names the firmware file.
+- ESP-IDF runs with `PYTHONUTF8=1`, as idf.py asks for on a console that is
+  not UTF-8.
+
 ## 0.22.1
 
 ### Fixed
