@@ -32,11 +32,11 @@ var NAVTREE =
       [ "ESP32SerialSetup", "index.html#c-esp32serialsetup", null ]
     ] ],
     [ "Changelog", "index.html#changelog", [
-      [ "0.22.1", "index.html#autotoc_md0", null ],
-      [ "Fixed", "index.html#autotoc_md1", null ],
-      [ "0.22.0", "index.html#autotoc_md2", null ],
-      [ "Added", "index.html#autotoc_md3", null ],
-      [ "Changed", "index.html#autotoc_md4", null ]
+      [ "0.30.0", "index.html#autotoc_md0", null ],
+      [ "Changed", "index.html#autotoc_md1", null ],
+      [ "Fixed", "index.html#autotoc_md2", null ],
+      [ "0.22.1", "index.html#autotoc_md3", null ],
+      [ "Fixed", "index.html#autotoc_md4", null ]
     ] ]
   ] ]
 ];

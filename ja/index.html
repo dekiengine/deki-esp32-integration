@@ -57,7 +57,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">deki-esp32-integration<span id="projectnumber">&#160;0.22.0</span>
+   <div id="projectname">deki-esp32-integration<span id="projectnumber">&#160;0.30.0</span>
    </div>
    <div id="projectbrief">Deki パッケージリファレンス</div>
   </td>
@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded',() => { initNavTree('index.html',''
 <img src="deki-esp32-integration.png" alt=""/>
 </div>
     <p>ESP32 用のプラットフォーム HAL：ESP-IDF の SDMMC による SD カード、FATFS ファイルシステム、シリアルコマンド、メモリとファイルシステムのセットアップ。</p>
-<p>リポジトリ: <a href="https://github.com/dekiengine/deki-esp32-integration">github.com/dekiengine/deki-esp32-integration</a> · 最新リリース: 0.22.1 · エンジン 0.22.0 以降が必要 · 依存: <a href="https://dekiengine.github.io/deki-wifi/ja/">deki-wifi</a>, <a href="https://dekiengine.github.io/deki-ble/ja/">deki-ble</a>, <a href="https://dekiengine.github.io/deki-http/ja/">deki-http</a>, <a href="https://dekiengine.github.io/deki-i2s/ja/">deki-i2s</a>, <a href="https://dekiengine.github.io/deki-uart/ja/">deki-uart</a>, <a href="https://dekiengine.github.io/deki-i2c/ja/">deki-i2c</a>, <a href="https://dekiengine.github.io/deki-gpio/ja/">deki-gpio</a>, <a href="https://dekiengine.github.io/deki-sdcard/ja/">deki-sdcard</a>, <a href="https://dekiengine.github.io/deki-rendering/ja/">deki-rendering</a></p>
+<p>リポジトリ: <a href="https://github.com/dekiengine/deki-esp32-integration">github.com/dekiengine/deki-esp32-integration</a> · 最新リリース: 0.30.0 · エンジン 0.30.0 以降が必要 · 依存: <a href="https://dekiengine.github.io/deki-wifi/ja/">deki-wifi</a>, <a href="https://dekiengine.github.io/deki-ble/ja/">deki-ble</a>, <a href="https://dekiengine.github.io/deki-http/ja/">deki-http</a>, <a href="https://dekiengine.github.io/deki-i2s/ja/">deki-i2s</a>, <a href="https://dekiengine.github.io/deki-uart/ja/">deki-uart</a>, <a href="https://dekiengine.github.io/deki-i2c/ja/">deki-i2c</a>, <a href="https://dekiengine.github.io/deki-gpio/ja/">deki-gpio</a>, <a href="https://dekiengine.github.io/deki-sdcard/ja/">deki-sdcard</a>, <a href="https://dekiengine.github.io/deki-rendering/ja/">deki-rendering</a></p>
 <p><span class="tt">DekiEditor --packages-add deki-esp32-integration &lt;project&gt;</span> か、パッケージマネージャーからインストールします。エンジン自身のコンポーネントと C++ API は <a href="https://dekiengine.github.io/docs/ja/">Deki のドキュメント</a>にあります。</p>
 <p>エディターでは <b>ESP32 Integration</b> と表示されます。</p>
 <h1 class="doxsection"><a class="anchor" id="components"></a>
@@ -195,28 +195,29 @@ ESP32SerialSetup</h2>
 変更履歴</h1>
 <p>変更履歴は英語です。</p>
 <h2 class="doxsection"><a class="anchor" id="autotoc_md0"></a>
-0.22.1</h2>
+0.30.0</h2>
 <h2 class="doxsection"><a class="anchor" id="autotoc_md1"></a>
+Changed</h2>
+<ul>
+<li><span class="tt">minEngine</span> 0.30.0: built against engine 0.30.0. A build of this package from before does not load and is rebuilt.</li>
+</ul>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md2"></a>
+Fixed</h2>
+<ul>
+<li>A firmware build from the editor runs ESP-IDF. On a machine whose PATH holds an entry with a stray quote (a Windows Kits installer leaves one), the build ran nothing and reported success: the variables it sets were <span class="tt">set</span> lines in one cmd line, and the quote, expanded from PATH%, closed one early and turned the rest of the line, export.bat and idf.py included, into a value. They are the build's environment now, not part of its command, and such an entry's quote is left out of the build's PATH, which the build says, naming the entry (otherwise cmd finds nothing after it, and export.bat reports git missing).</li>
+<li>A build is a success only when it leaves the firmware (<span class="tt">build/DekiGame.bin</span>): one that exits 0 without it fails, saying so. A build with nothing to rebuild says the firmware was already up to date. The build output names the firmware file.</li>
+<li>ESP-IDF runs with <span class="tt">PYTHONUTF8=1</span>, as idf.py asks for on a console that is not UTF-8.</li>
+</ul>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md3"></a>
+0.22.1</h2>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md4"></a>
 Fixed</h2>
 <ul>
 <li>Small allocations (operator new, std::vector, std::string) leave 16 KB of internal RAM free and go to PSRAM after that. ESP-IDF kept them internal until none was left, so a scene of many small objects (the demo's Widgets on the T-Deck) left 39 bytes, and a task stack, DMA buffer or driver asking for internal RAM afterwards failed.</li>
 </ul>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md2"></a>
-0.22.0</h2>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md3"></a>
-Added</h2>
-<ul>
-<li>A board answers <span class="tt">DEKI:MEMORY</span> on its serial console with where its memory is: internal and external RAM in use by the engine with their peaks, the heap's free space, lowest free space since boot and size, and one <span class="tt">DEKI:MEMORY:SITE</span> line per call site that allocated through the engine. The editor's Memory panel and its <span class="tt">device_memory</span> MCP tool read it.</li>
-</ul>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md4"></a>
-Changed</h2>
-<ul>
-<li>Firmware builds and flashes run at below-normal priority and with as many compile jobs as free memory holds (needs editor 0.22).</li>
-<li><span class="tt">minEngine</span> 0.22.0: built against engine 0.22.0. A build of this package from before does not load and is rebuilt.</li>
-</ul>
 <p>それ以前のリリース: <a href="https://github.com/dekiengine/deki-esp32-integration/blob/master/CHANGELOG.md">CHANGELOG.md</a></p>
 <hr  />
-<p>パッケージのリフレクションデータから生成しています (エンジン 0.22.0)。プロパティ名はシーンファイルで使われるキーです。名前を変えても別名が残ります (<a href="https://github.com/dekiengine/deki-editor/blob/master/COMPATIBILITY.md">互換性</a>)。 </p>
+<p>パッケージのリフレクションデータから生成しています (エンジン 0.30.0)。プロパティ名はシーンファイルで使われるキーです。名前を変えても別名が残ります (<a href="https://github.com/dekiengine/deki-editor/blob/master/COMPATIBILITY.md">互換性</a>)。 </p>
 </div></div><!-- PageDoc -->
 <a href="doxygen_crawl.html"></a>
 </div><!-- contents -->
