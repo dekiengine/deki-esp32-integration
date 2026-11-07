@@ -8,7 +8,11 @@ breaking change bumps the minor across the editor, the engine and every
 package together, so a package with no changes of its own is still released
 alongside one that has them.
 
-## Unreleased
+## 0.30.0
+
+### Changed
+- `minEngine` 0.30.0: built against engine 0.30.0. A build of this package
+  from before does not load and is rebuilt.
 
 ### Fixed
 - A firmware build from the editor runs ESP-IDF. On a machine whose PATH
