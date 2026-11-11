@@ -90,7 +90,7 @@ void ESPIDFPower::Tick()
     }
 
     const int64_t nowUs = esp_timer_get_time();
-    const int64_t timeoutUs = (int64_t)m_IdleTimeoutSec * 1000000;
+    const int64_t timeoutUs = static_cast<int64_t>(m_IdleTimeoutSec) * 1000000;
     if (nowUs - m_LastActivityUs < timeoutUs)
     {
         return;

@@ -16,7 +16,7 @@ static const char* TAG = "ESP32Serial";
 
 void ESP32SerialSetup::Setup(SetupCallback onComplete)
 {
-    ESP_LOGI(TAG, "Initializing serial at %d baud...", (int)baudRate);
+    ESP_LOGI(TAG, "Initializing serial at %d baud...", static_cast<int>(baudRate));
 
     ESP32SerialCommands::Initialize(static_cast<unsigned long>(baudRate));
 

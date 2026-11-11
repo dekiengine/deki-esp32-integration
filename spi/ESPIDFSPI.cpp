@@ -85,7 +85,7 @@ ESPIDFSPIDevice::ESPIDFSPIDevice(void* handle, void* readHandle, int32_t softCsP
 {
     if (!m_Slots.Allocate(m_SlotCount * sizeof(spi_transaction_ext_t), Deki::Memory::Internal))
     {
-        DEKI_LOG_ERROR("ESPIDFSPI: no memory for %u transfer slots", (unsigned)m_SlotCount);
+        DEKI_LOG_ERROR("ESPIDFSPI: no memory for %u transfer slots", static_cast<unsigned>(m_SlotCount));
     }
 }
 
@@ -219,7 +219,8 @@ bool ESPIDFSPIDevice::Queue(const DekiSpi::Transfer& t)
     if (t.txBytes > m_MaxTransferBytes || t.rxBytes > m_MaxTransferBytes)
     {
         DEKI_LOG_ERROR("ESPIDFSPI: a %u-byte transfer is longer than the bus takes (%u)",
-                       (unsigned)(t.txBytes > t.rxBytes ? t.txBytes : t.rxBytes), (unsigned)m_MaxTransferBytes);
+                       static_cast<unsigned>(t.txBytes > t.rxBytes ? t.txBytes : t.rxBytes),
+                       static_cast<unsigned>(m_MaxTransferBytes));
         return false;
     }
     // Every slot in use: the oldest transfer must finish before its slot is
@@ -409,7 +410,7 @@ bool ESPIDFSPIBus::Initialize()
     m_Started = true;
     m_State = Deki::PackageState::Initialized;
     DEKI_LOG_INFO("ESPIDFSPI: host %d up (SCLK=%d MOSI=%d MISO=%d IO2=%d IO3=%d, transfers up to %u bytes)", m_Host,
-                  m_PinSclk, m_PinMosi, m_PinMiso, m_PinIo2, m_PinIo3, (unsigned)m_MaxTransferBytes);
+                  m_PinSclk, m_PinMosi, m_PinMiso, m_PinIo2, m_PinIo3, static_cast<unsigned>(m_MaxTransferBytes));
     return true;
 #else
     m_LastError = "ESPIDFSPI: hardware path only built for ESP32";

@@ -12,6 +12,7 @@
 #include "DekiRenderSystem.h"  // from deki-rendering
 #include "RenderProfiler.h"    // from deki-rendering
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -345,6 +346,7 @@ void SendProfile()
     }
     uint32_t frames = 0;
     const std::vector<Profiler::PathEntry> paths = Profiler::TakePaths();
+    const std::vector<Profiler::ObjectEntry> objects = Profiler::TakeObjects();
     const std::vector<Profiler::Entry> entries = Profiler::Take(frames);
     std::printf("\nDEKI:PROFILE frames=%u\n", static_cast<unsigned>(frames));
     const double perFrame = frames > 0 ? 1.0 / frames : 0.0;
@@ -372,6 +374,27 @@ void SendProfile()
                     p.blits * perFrame, p.pixels * perFrame, p.us * perFrame,
                     p.pixels ? 1000.0 * static_cast<double>(p.us) / static_cast<double>(p.pixels) : 0.0);
     }
+    // Each object, most expensive first: its share of finding what changed,
+    // making and drawing its pixels, and why its area was drawn again, per
+    // frame. The serial line is slow, so only the first kShown.
+    constexpr size_t kShown = 64;
+    const size_t shown = std::min(objects.size(), kShown);
+    for (size_t i = 0; i < shown; ++i)
+    {
+        const Profiler::ObjectEntry& o = objects[i];
+        std::printf("DEKI:PROFILE:OBJECT \"%s\" type=%s order=%d measureUs=%.1f contentUs=%.1f blitUs=%.1f "
+                    "pixels=%.0f draws=%.2f new=%.2f changed=%.2f still=%.2f overPin=%.2f\n",
+                    o.path.c_str(), o.type ? o.type : "?", static_cast<int>(o.order), o.measureUs * perFrame,
+                    o.contentUs * perFrame, o.blitUs * perFrame, o.pixels * perFrame, o.draws * perFrame,
+                    o.redraws[0] * perFrame, o.redraws[1] * perFrame, o.redraws[2] * perFrame,
+                    o.redraws[3] * perFrame);
+        if (i % 16 == 15)
+        {
+            Flush();
+        }
+    }
+    std::printf("DEKI:PROFILE:OBJECTS shown=%u of=%u\n", static_cast<unsigned>(shown),
+                static_cast<unsigned>(objects.size()));
     std::printf("DEKI:PROFILE:END\n");
     Flush();
 }

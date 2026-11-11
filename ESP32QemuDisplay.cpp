@@ -54,7 +54,8 @@ bool ESP32QemuDisplay::Initialize(int32_t width, int32_t height)
     }
     if (width <= 0 || height <= 0 || width > 0xFFFF || height > 0xFFFF)
     {
-        DEKI_LOG_ERROR("ESP32QemuDisplay: %dx%d is not a panel size", (int)width, (int)height);
+        DEKI_LOG_ERROR("ESP32QemuDisplay: %dx%d is not a panel size", static_cast<int>(width),
+                       static_cast<int>(height));
         return false;
     }
     kPanel->size = (static_cast<uint32_t>(width) << 16) | static_cast<uint32_t>(height);
@@ -62,7 +63,7 @@ bool ESP32QemuDisplay::Initialize(int32_t width, int32_t height)
     m_Width = width;
     m_Height = height;
     m_Initialized = true;
-    DEKI_LOG_INFO("ESP32QemuDisplay: %dx%d panel, %s", (int)width, (int)height,
+    DEKI_LOG_INFO("ESP32QemuDisplay: %dx%d panel, %s", static_cast<int>(width), static_cast<int>(height),
                   m_Format == Deki::ColorFormat::RGB565 ? "RGB565" : "ARGB8888");
     return true;
 }

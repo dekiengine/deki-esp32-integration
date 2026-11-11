@@ -26,13 +26,13 @@ void OnAllocationFailed(size_t size, uint32_t caps, const char* functionName)
     heap_caps_get_info(&dma, MALLOC_CAP_DMA);
     esp_rom_printf("Deki: %u bytes (caps 0x%x) could not be allocated in %s. Internal: %u free, largest block %u, "
                    "lowest ever %u. DMA-capable: %u free, largest block %u.\n",
-                   (unsigned)size, (unsigned)caps, functionName ? functionName : "?",
-                   (unsigned)internal.total_free_bytes, (unsigned)internal.largest_free_block,
-                   (unsigned)internal.minimum_free_bytes, (unsigned)dma.total_free_bytes,
-                   (unsigned)dma.largest_free_block);
+                   static_cast<unsigned>(size), static_cast<unsigned>(caps), functionName ? functionName : "?",
+                   static_cast<unsigned>(internal.total_free_bytes), static_cast<unsigned>(internal.largest_free_block),
+                   static_cast<unsigned>(internal.minimum_free_bytes), static_cast<unsigned>(dma.total_free_bytes),
+                   static_cast<unsigned>(dma.largest_free_block));
     const MemoryStats engine = Memory::GetStats();
     esp_rom_printf("Deki: of which the engine placed %u bytes internal and %u external.\n",
-                   (unsigned)engine.internalRamAllocated, (unsigned)engine.externalAllocated);
+                   static_cast<unsigned>(engine.internalRamAllocated), static_cast<unsigned>(engine.externalAllocated));
 }
 }  // namespace
 
@@ -139,17 +139,20 @@ size_t ESP32MemoryProvider::GetAvailable(Memory::Region region) const
     return 0;
 }
 
-// What operator new, std::vector and std::string leave free in internal RAM.
-// ESP-IDF's malloc keeps small blocks internal (SPIRAM_MALLOC_ALWAYSINTERNAL)
-// until internal RAM is gone, and only then uses PSRAM: a scene of many small
-// objects took the last bytes, and a task stack, a DMA buffer or a driver
-// asking for internal RAM afterwards failed. Past this line they go to PSRAM
-// instead; what was allocated before stays in the fast memory.
+// What operator new, std::vector and std::string leave free in internal RAM
+// that DMA can reach. ESP-IDF's malloc keeps small blocks internal
+// (SPIRAM_MALLOC_ALWAYSINTERNAL) until internal RAM is gone, and only then uses
+// PSRAM: a scene of many small objects took the last bytes, and a task stack,
+// a DMA buffer or a driver asking for internal RAM afterwards failed. Past this
+// line they go to PSRAM instead; what was allocated before stays in the fast
+// memory. Counted in DMA-capable memory, not all internal RAM: an ESP32-S3's
+// RTC fast memory (about 8 KB) is internal but no driver's DMA can use it, so
+// "16 KB internal free" could leave 1.3 KB for SD transfers and audio.
 static constexpr size_t kRawInternalHeadroom = 16 * 1024;
 
 void* ESP32MemoryProvider::AllocateRaw(size_t size)
 {
-    if (m_HasPSRAM && heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT) < kRawInternalHeadroom + size)
+    if (m_HasPSRAM && heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA) < kRawInternalHeadroom + size)
     {
         void* ptr = heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
         if (ptr)

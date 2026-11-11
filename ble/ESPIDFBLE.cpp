@@ -243,7 +243,8 @@ void DispatchScanResult(const struct ble_gap_disc_desc& disc)
         }
         if (fields.mfg_data && fields.mfg_data_len >= 2)
         {
-            dev.manufacturerId = (uint16_t)fields.mfg_data[0] | ((uint16_t)fields.mfg_data[1] << 8);
+            dev.manufacturerId =
+                static_cast<uint16_t>(fields.mfg_data[0]) | (static_cast<uint16_t>(fields.mfg_data[1]) << 8);
             uint8_t mlen = fields.mfg_data_len - 2;
             if (mlen > sizeof(dev.manufacturerData))
             {
@@ -371,7 +372,7 @@ int GattAccess(uint16_t connHandle, uint16_t attrHandle, struct ble_gatt_access_
         {
             return BLE_ATT_ERR_UNLIKELY;
         }
-        int rc = os_mbuf_append(ctxt->om, buf, (uint16_t)written);
+        int rc = os_mbuf_append(ctxt->om, buf, static_cast<uint16_t>(written));
         return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
     }
     return 0;
@@ -425,7 +426,7 @@ bool InitStackOnce()
 
     ble_hs_cfg.sync_cb = OnHostSync;
     ble_hs_cfg.reset_cb = OnHostReset;
-    ble_hs_cfg.store_status_cb = NULL;
+    ble_hs_cfg.store_status_cb = nullptr;
 
     ble_svc_gap_init();
     ble_svc_gatt_init();
@@ -513,13 +514,13 @@ bool ESPIDFBLE::StartScan(uint16_t intervalMs, uint16_t windowMs, bool active, u
     }
 
     struct ble_gap_disc_params dp = {};
-    dp.itvl = (uint16_t)((intervalMs * 1000) / 625);  // 0.625 ms units
-    dp.window = (uint16_t)((windowMs * 1000) / 625);
+    dp.itvl = static_cast<uint16_t>((intervalMs * 1000) / 625);  // 0.625 ms units
+    dp.window = static_cast<uint16_t>((windowMs * 1000) / 625);
     dp.passive = active ? 0 : 1;
     dp.filter_duplicates = 0;
     dp.limited = 0;
 
-    int32_t dur = durationMs == 0 ? BLE_HS_FOREVER : (int32_t)durationMs;
+    int32_t dur = durationMs == 0 ? BLE_HS_FOREVER : static_cast<int32_t>(durationMs);
     int rc = ble_gap_disc(s_OwnAddrType, dur, &dp, GapEvent, this);
     if (rc != 0)
     {
@@ -579,7 +580,7 @@ bool ESPIDFBLE::StartAdvertising(const DekiBle::DekiBLEAdvData& data)
         if (data.localName)
         {
             fields.name = (uint8_t*)data.localName;
-            fields.name_len = (uint8_t)std::strlen(data.localName);
+            fields.name_len = static_cast<uint8_t>(std::strlen(data.localName));
             fields.name_is_complete = 1;
         }
         // Manufacturer data, led by manufacturer_id (little-endian).
@@ -606,7 +607,7 @@ bool ESPIDFBLE::StartAdvertising(const DekiBle::DekiBLEAdvData& data)
         if (!u128s.empty())
         {
             fields.uuids128 = u128s.data();
-            fields.num_uuids128 = (uint8_t)u128s.size();
+            fields.num_uuids128 = static_cast<uint8_t>(u128s.size());
             fields.uuids128_is_complete = 1;
         }
 
@@ -622,11 +623,11 @@ bool ESPIDFBLE::StartAdvertising(const DekiBle::DekiBLEAdvData& data)
     struct ble_gap_adv_params ap = {};
     ap.conn_mode = data.connectable ? BLE_GAP_CONN_MODE_UND : BLE_GAP_CONN_MODE_NON;
     ap.disc_mode = BLE_GAP_DISC_MODE_GEN;
-    uint16_t itvl = (uint16_t)((data.intervalMs * 1000) / 625);
+    uint16_t itvl = static_cast<uint16_t>((data.intervalMs * 1000) / 625);
     ap.itvl_min = itvl;
     ap.itvl_max = itvl;
 
-    int rc = ble_gap_adv_start(s_OwnAddrType, NULL, BLE_HS_FOREVER, &ap, GapEvent, this);
+    int rc = ble_gap_adv_start(s_OwnAddrType, nullptr, BLE_HS_FOREVER, &ap, GapEvent, this);
     if (rc != 0)
     {
         m_LastError = "ble_gap_adv_start failed";
@@ -746,7 +747,7 @@ bool ESPIDFBLE::NotifyValue(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECha
     {
         return false;
     }
-    struct os_mbuf* om = ble_hs_mbuf_from_flat(data, (uint16_t)len);
+    struct os_mbuf* om = ble_hs_mbuf_from_flat(data, static_cast<uint16_t>(len));
     if (!om)
     {
         return false;
@@ -791,7 +792,7 @@ bool ESPIDFBLE::Connect(const DekiBle::DekiBLEAddress& addr, uint32_t timeoutMs)
     xSemaphoreTake(s_ClientSem, 0);  // clear a stale signal
     s_ClientOp = {};
 
-    int rc = ble_gap_connect(s_OwnAddrType, &peer, timeoutMs, NULL, GapEvent, this);
+    int rc = ble_gap_connect(s_OwnAddrType, &peer, timeoutMs, nullptr, GapEvent, this);
     if (rc != 0)
     {
         m_LastError = "ble_gap_connect failed";
@@ -850,7 +851,7 @@ int ReadCb(uint16_t connHandle, const struct ble_gatt_error* error, struct ble_g
     if (error == nullptr || error->status == 0)
     {
         uint16_t outLen = 0;
-        ble_hs_mbuf_to_flat(attr->om, s_ClientOp.readBuf, (uint16_t)s_ClientOp.readBufMax, &outLen);
+        ble_hs_mbuf_to_flat(attr->om, s_ClientOp.readBuf, static_cast<uint16_t>(s_ClientOp.readBufMax), &outLen);
         s_ClientOp.readBufWritten = outLen;
     }
     if (s_ClientSem)
@@ -952,12 +953,12 @@ bool ESPIDFBLE::WriteRemote(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECha
     }
     if (!withResponse)
     {
-        int rc = ble_gattc_write_no_rsp_flat(conn, handle, data, (uint16_t)len);
+        int rc = ble_gattc_write_no_rsp_flat(conn, handle, data, static_cast<uint16_t>(len));
         return rc == 0;
     }
     xSemaphoreTake(s_ClientSem, 0);
     s_ClientOp = {};
-    struct os_mbuf* om = ble_hs_mbuf_from_flat(data, (uint16_t)len);
+    struct os_mbuf* om = ble_hs_mbuf_from_flat(data, static_cast<uint16_t>(len));
     if (!om)
     {
         return false;
@@ -984,7 +985,7 @@ bool ESPIDFBLE::Subscribe(DekiBle::DekiBLEConnHandle conn, DekiBle::DekiBLECharH
     }
     // CCCD is the descriptor immediately after the characteristic value handle.
     uint16_t cccdHandle = handle + 1;
-    uint8_t val[2] = { (uint8_t)(enable ? 0x01 : 0x00), 0x00 };
+    uint8_t val[2] = { static_cast<uint8_t>(enable ? 0x01 : 0x00), 0x00 };
     int rc = ble_gattc_write_no_rsp_flat(conn, cccdHandle, val, 2);
     return rc == 0;
 }

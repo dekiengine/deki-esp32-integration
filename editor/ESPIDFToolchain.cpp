@@ -508,7 +508,7 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
     SECURITY_ATTRIBUTES sa;
     sa.nLength = sizeof(SECURITY_ATTRIBUTES);
     sa.bInheritHandle = TRUE;
-    sa.lpSecurityDescriptor = NULL;
+    sa.lpSecurityDescriptor = nullptr;
 
     HANDLE hReadPipe, hWritePipe;
     if (!CreatePipe(&hReadPipe, &hWritePipe, &sa, 0))
@@ -534,8 +534,8 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
 
     // Below-normal priority, which idf.py, ninja and the compilers inherit.
     DekiEditor::PrepareBuildJobs();
-    BOOL success = CreateProcessA(NULL, cmdBuf.data(), NULL, NULL, TRUE,
-                                  CREATE_NO_WINDOW | DekiEditor::BuildPriorityFlag(), environmentBlock.data(), NULL,
+    BOOL success = CreateProcessA(nullptr, cmdBuf.data(), nullptr, nullptr, TRUE,
+                                  CREATE_NO_WINDOW | DekiEditor::BuildPriorityFlag(), environmentBlock.data(), nullptr,
                                   &si, &pi);
 
     CloseHandle(hWritePipe);
@@ -558,7 +558,7 @@ int ESPIDFToolchain::ExecuteIDF(const std::string& command, const std::string& w
             break;
         }
 
-        BOOL readSuccess = ReadFile(hReadPipe, buffer, sizeof(buffer) - 1, &bytesRead, NULL);
+        BOOL readSuccess = ReadFile(hReadPipe, buffer, sizeof(buffer) - 1, &bytesRead, nullptr);
         if (!readSuccess || bytesRead == 0)
         {
             break;

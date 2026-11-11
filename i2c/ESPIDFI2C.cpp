@@ -24,7 +24,7 @@ void ESPIDFI2C::Configure(const Deki::PackageConfig& config)
     m_PinSDA = config.GetPin("SDA", -1);
     m_PinSCL = config.GetPin("SCL", -1);
     m_Port = config.GetInt("i2cPort", 0);
-    m_FreqHz = (uint32_t)config.GetInt("i2cHz", 400000);
+    m_FreqHz = static_cast<uint32_t>(config.GetInt("i2cHz", 400000));
 }
 
 #if defined(ESP32)
@@ -47,13 +47,13 @@ void* ESPIDFI2C::DeviceFor(uint8_t addr)
     cfg.scl_speed_hz = m_FreqHz;
 
     i2c_master_dev_handle_t handle = nullptr;
-    if (i2c_master_bus_add_device((i2c_master_bus_handle_t)m_Bus, &cfg, &handle) != ESP_OK)
+    if (i2c_master_bus_add_device(static_cast<i2c_master_bus_handle_t>(m_Bus), &cfg, &handle) != ESP_OK)
     {
         m_LastError = "ESPIDFI2C: could not add device at that address";
         return nullptr;
     }
 
-    m_Devices.push_back({ addr, (void*)handle });
+    m_Devices.push_back({ addr, static_cast<void*>(handle) });
     return handle;
 }
 #endif
@@ -70,8 +70,8 @@ bool ESPIDFI2C::Initialize()
 
     i2c_master_bus_config_t cfg = {};
     cfg.i2c_port = m_Port;
-    cfg.sda_io_num = (gpio_num_t)m_PinSDA;
-    cfg.scl_io_num = (gpio_num_t)m_PinSCL;
+    cfg.sda_io_num = static_cast<gpio_num_t>(m_PinSDA);
+    cfg.scl_io_num = static_cast<gpio_num_t>(m_PinSCL);
     cfg.clk_source = I2C_CLK_SRC_DEFAULT;
     cfg.glitch_ignore_cnt = 7;
     cfg.flags.enable_internal_pullup = true;
@@ -101,13 +101,13 @@ void ESPIDFI2C::Shutdown()
     // leaves them dangling.
     for (const auto& d : m_Devices)
     {
-        i2c_master_bus_rm_device((i2c_master_dev_handle_t)d.handle);
+        i2c_master_bus_rm_device(static_cast<i2c_master_dev_handle_t>(d.handle));
     }
     m_Devices.clear();
 
     if (m_Bus)
     {
-        i2c_del_master_bus((i2c_master_bus_handle_t)m_Bus);
+        i2c_del_master_bus(static_cast<i2c_master_bus_handle_t>(m_Bus));
         m_Bus = nullptr;
     }
 #endif
@@ -122,7 +122,7 @@ bool ESPIDFI2C::Probe(uint8_t addr)
         return false;
     }
     // The bus probes directly, so a device that is not there costs no handle.
-    return i2c_master_probe((i2c_master_bus_handle_t)m_Bus, addr, 50) == ESP_OK;
+    return i2c_master_probe(static_cast<i2c_master_bus_handle_t>(m_Bus), addr, 50) == ESP_OK;
 #else
     (void)addr;
     return false;
@@ -136,7 +136,7 @@ bool ESPIDFI2C::Read(uint8_t addr, uint8_t reg, uint8_t* dst, size_t len)
     {
         return false;
     }
-    auto dev = (i2c_master_dev_handle_t)DeviceFor(addr);
+    auto dev = static_cast<i2c_master_dev_handle_t>(DeviceFor(addr));
     if (!dev)
     {
         return false;
@@ -160,7 +160,7 @@ bool ESPIDFI2C::WriteRead(uint8_t addr, const uint8_t* tx, size_t txLen, uint8_t
     {
         return false;
     }
-    auto dev = (i2c_master_dev_handle_t)DeviceFor(addr);
+    auto dev = static_cast<i2c_master_dev_handle_t>(DeviceFor(addr));
     if (!dev)
     {
         return false;
@@ -183,7 +183,7 @@ bool ESPIDFI2C::WriteRaw(uint8_t addr, const uint8_t* tx, size_t len)
     {
         return false;
     }
-    auto dev = (i2c_master_dev_handle_t)DeviceFor(addr);
+    auto dev = static_cast<i2c_master_dev_handle_t>(DeviceFor(addr));
     if (!dev)
     {
         return false;
@@ -204,7 +204,7 @@ bool ESPIDFI2C::ReadRaw(uint8_t addr, uint8_t* dst, size_t len)
     {
         return false;
     }
-    auto dev = (i2c_master_dev_handle_t)DeviceFor(addr);
+    auto dev = static_cast<i2c_master_dev_handle_t>(DeviceFor(addr));
     if (!dev)
     {
         return false;
@@ -226,7 +226,7 @@ bool ESPIDFI2C::Write(uint8_t addr, uint8_t reg, const uint8_t* src, size_t len)
     {
         return false;
     }
-    auto dev = (i2c_master_dev_handle_t)DeviceFor(addr);
+    auto dev = static_cast<i2c_master_dev_handle_t>(DeviceFor(addr));
     if (!dev)
     {
         return false;

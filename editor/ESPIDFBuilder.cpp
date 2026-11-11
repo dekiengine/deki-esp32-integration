@@ -20,6 +20,8 @@
 #include <deki/FileImage.h>
 #include <deki/LogSystem.h>
 #include "imgui.h"
+#include "imgui_internal.h"
+#include <deki/interop/Plugin.h>
 #include <filesystem>
 #include <sstream>
 #include <fstream>
@@ -1656,6 +1658,11 @@ bool ESPIDFBuilder::GenerateSdkConfigDefaults(const std::string& boardPath, cons
         }
         file << "CONFIG_SPIRAM_SPEED_80M=y\n";
         file << "CONFIG_SPIRAM_BOOT_INIT=y\n";
+        // The static data ESP-IDF's libraries allow there (WiFi, lwIP, the
+        // network stack's tables: 14.4 KB in a T-Deck build) goes to PSRAM,
+        // leaving that much more internal RAM for DMA and drivers. Only WiFi
+        // touches it.
+        file << "CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY=y\n";
         file << "\n";
     }
 
@@ -1735,14 +1742,39 @@ bool ESPIDFBuilder::GenerateSdkConfigDefaults(const std::string& boardPath, cons
     file << "# Compiler\n";
     file << "CONFIG_COMPILER_OPTIMIZATION_PERF=y\n";
 
+    // The WiFi driver's code in flash, not internal RAM: 18.5 KB more for the
+    // game, the display and the radio's buffers, whether WiFi is on or not.
+    // On a T-Deck Plus, downloads over a phone hotspot averaged 140 KB/s
+    // against 149 KB/s (the ranges overlapped), and frames cost the same
+    // while WiFi was busy. A board that wants it back says so in its own
+    // "sdkconfig", which comes last.
+    file << "\n# WiFi\n";
+    file << "CONFIG_ESP_WIFI_IRAM_OPT=n\n";
+    file << "CONFIG_ESP_WIFI_RX_IRAM_OPT=n\n";
+
+    // The radio's PHY code and libc's locks in flash too: 1 KB more internal
+    // RAM, and on a T-Deck Plus frames cost the same (19.7 ms against 19.6
+    // with the farm, 32.9 against 32.9 with 16 villagers). The heap's own
+    // functions stay in internal RAM: in flash they made every frame about
+    // 5.5 ms slower, for 7.4 KB.
+    file << "CONFIG_ESP_PHY_IRAM_OPT=n\n";
+    file << "CONFIG_LIBC_LOCKS_PLACE_IN_IRAM=n\n";
+
     // ESP32-S3: 64-byte data cache lines. A game reads and writes external
     // memory (PSRAM) a frame at a time, and ESP-IDF's 32-byte lines leave that
     // slower. The cache stays 32 KB: 64 KB takes another 32 KB of internal
     // RAM, which a scene with many sprites ran out of.
+    //
+    // The instruction cache is 32 KB, not ESP-IDF's 16: a frame runs more
+    // code than 16 KB holds, so it kept missing, and how much depended on
+    // where a build happened to place the code (the same scene moved by a
+    // millisecond between unrelated builds). The other 16 KB comes out of
+    // internal RAM.
     if (idfTarget == "esp32s3")
     {
         file << "\n# Cache (ESP32-S3)\n";
         file << "CONFIG_ESP32S3_DATA_CACHE_LINE_64B=y\n";
+        file << "CONFIG_ESP32S3_INSTRUCTION_CACHE_32KB=y\n";
     }
 
     // The board's own options, last so they override anything chosen above.
@@ -1832,7 +1864,7 @@ public:
         const std::string chip = config.Option("mcuChip");
         strncpy(m_McuChip, chip.c_str(), sizeof(m_McuChip) - 1);
         m_ChipIndex = 0;
-        for (int i = 0; i < (int)m_Targets.size(); i++)
+        for (int i = 0; i < static_cast<int>(m_Targets.size()); i++)
         {
             if (m_Targets[i] == chip)
             {
@@ -1873,8 +1905,8 @@ public:
             }
             int chip = m_ChipIndex;
             ImGui::SetNextItemWidth(-FLT_MIN);
-            if (DekiEditor::SchematicCombo("##McuChip", &chip, chips.data(), (int)chips.size()) && chip >= 0 &&
-                chip < (int)m_Targets.size())
+            if (DekiEditor::SchematicCombo("##McuChip", &chip, chips.data(), static_cast<int>(chips.size())) &&
+                chip >= 0 && chip < static_cast<int>(m_Targets.size()))
             {
                 m_ChipIndex = chip;
                 strncpy(m_McuChip, m_Targets[chip].c_str(), sizeof(m_McuChip) - 1);
@@ -2032,8 +2064,9 @@ extern "C"
 {
     DEKI_BUILDER_API const DekiBuilderAbi* DekiBuilderGetAbi(void)
     {
-        static const DekiBuilderAbi kAbi = DekiBuilderThisAbi((uint32_t)sizeof(DekiEditor::PlatformConfig),
-                                                              (uint32_t)sizeof(DekiEditor::CMakeGen::PackageEntry));
+        static const DekiBuilderAbi kAbi =
+            DekiBuilderThisAbi(static_cast<uint32_t>(sizeof(DekiEditor::PlatformConfig)),
+                               static_cast<uint32_t>(sizeof(DekiEditor::CMakeGen::PackageEntry)));
         return &kAbi;
     }
 
@@ -2061,3 +2094,23 @@ extern "C"
     }
 
 }  // extern "C"
+
+// This package calls ImGui directly, which runs on this DLL's own copy of it. The
+// editor hands that copy its context here; without these the first call writes
+// through a null context.
+extern "C"
+{
+    DEKI_PLUGIN_API void DekiPluginSetImGuiContext(void* context)
+    {
+        ImGui::SetCurrentContext(static_cast<ImGuiContext*>(context));
+        if (context != nullptr)
+        {
+            ImTextInitClassifiers();
+        }
+    }
+
+    DEKI_PLUGIN_API unsigned int DekiPluginGetImGuiContextSize(void)
+    {
+        return sizeof(ImGuiContext);
+    }
+}

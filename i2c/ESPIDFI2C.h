@@ -26,7 +26,7 @@ public:
     int GetPort() const override { return m_Port; }
     int GetSdaPin() const override { return m_PinSDA; }
     int GetSclPin() const override { return m_PinSCL; }
-    int GetFrequencyHz() const override { return (int)m_FreqHz; }
+    int GetFrequencyHz() const override { return static_cast<int>(m_FreqHz); }
     bool Probe(uint8_t addr) override;
     bool Read(uint8_t addr, uint8_t reg, uint8_t* dst, size_t len) override;
     bool Write(uint8_t addr, uint8_t reg, const uint8_t* src, size_t len) override;

@@ -68,7 +68,7 @@ void ESP32SerialCommands::ProcessCommands()
     // Read up to the newline.
     char buf[SERIAL_BUF_SIZE];
     int len = 0;
-    while (len < (int)sizeof(buf) - 1)
+    while (len < static_cast<int>(sizeof(buf)) - 1)
     {
         uint8_t c;
         int read = uart_read_bytes(SERIAL_UART_NUM, &c, 1, pdMS_TO_TICKS(10));

@@ -148,6 +148,37 @@ TEST_F(ESPIDFBuildFilesTest, SdkconfigNamesTheTargetAndThePartitionTable)
     EXPECT_TRUE(Contains(s, "CONFIG_IDF_TARGET=\"esp32c3\"\n"));
     EXPECT_TRUE(Contains(s, "CONFIG_PARTITION_TABLE_CUSTOM_FILENAME=\"test_board/partitions.csv\"\n"));
     EXPECT_FALSE(Contains(s, "CONFIG_ESP32S3_DATA_CACHE_LINE_64B"));  // S3 only
+    EXPECT_FALSE(Contains(s, "CONFIG_ESP32S3_INSTRUCTION_CACHE_32KB"));
+}
+
+// An ESP32-S3 gets the 32 KB instruction cache, and a board's own "sdkconfig"
+// lines, written after, can take it back to 16 KB.
+TEST_F(ESPIDFBuildFilesTest, AnS3HasTheLargerInstructionCacheUnlessTheBoardSaysOtherwise)
+{
+    const std::string s = Sdkconfig(Board("esp32s3"));
+    EXPECT_TRUE(Contains(s, "CONFIG_ESP32S3_INSTRUCTION_CACHE_32KB=y\n"));
+
+    PlatformConfig c = Board("esp32s3");
+    c.SetOptionList("sdkconfig", { "CONFIG_ESP32S3_INSTRUCTION_CACHE_16KB=y" });
+    const std::string own = Sdkconfig(c);
+    EXPECT_GT(own.find("CONFIG_ESP32S3_INSTRUCTION_CACHE_16KB=y"), own.find("CONFIG_ESP32S3_INSTRUCTION_CACHE_32KB=y"));
+}
+
+// The WiFi driver's code stays in flash on every board, and a board's own
+// "sdkconfig" lines, written after, can bring it back into internal RAM.
+TEST_F(ESPIDFBuildFilesTest, TheWifiDriversCodeStaysInFlashUnlessTheBoardSaysOtherwise)
+{
+    const std::string s = Sdkconfig(Board("esp32s3"));
+    EXPECT_TRUE(Contains(s, "CONFIG_ESP_WIFI_IRAM_OPT=n\n"));
+    EXPECT_TRUE(Contains(s, "CONFIG_ESP_WIFI_RX_IRAM_OPT=n\n"));
+    EXPECT_TRUE(Contains(s, "CONFIG_ESP_PHY_IRAM_OPT=n\n"));
+    EXPECT_TRUE(Contains(s, "CONFIG_LIBC_LOCKS_PLACE_IN_IRAM=n\n"));
+    EXPECT_FALSE(Contains(s, "HEAP_PLACE_FUNCTION_INTO_FLASH"));  // slows every frame
+
+    PlatformConfig c = Board("esp32s3");
+    c.SetOptionList("sdkconfig", { "CONFIG_ESP_WIFI_IRAM_OPT=y" });
+    const std::string own = Sdkconfig(c);
+    EXPECT_GT(own.find("CONFIG_ESP_WIFI_IRAM_OPT=y"), own.find("CONFIG_ESP_WIFI_IRAM_OPT=n"));
 }
 
 TEST_F(ESPIDFBuildFilesTest, FlashSizeRoundsDownToWhatESPIDFOffers)
@@ -165,11 +196,14 @@ TEST_F(ESPIDFBuildFilesTest, PsramFollowsExternalMemory)
 {
     PlatformConfig c = Board();
     EXPECT_FALSE(Contains(Sdkconfig(c), "CONFIG_SPIRAM=y"));
+    EXPECT_FALSE(Contains(Sdkconfig(c), "CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY"));
     c.externalMemorySize = 8u * 1024 * 1024;
     c.SetOption("psramMode", "oct");
     const std::string s = Sdkconfig(c);
     EXPECT_TRUE(Contains(s, "CONFIG_SPIRAM=y"));
     EXPECT_TRUE(Contains(s, "CONFIG_SPIRAM_MODE_OCT=y"));
+    // The libraries' static data that may live in PSRAM goes there.
+    EXPECT_TRUE(Contains(s, "CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY=y\n"));
 }
 
 TEST_F(ESPIDFBuildFilesTest, TheBoardsOwnLinesComeLastAndWin)

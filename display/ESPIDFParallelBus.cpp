@@ -110,8 +110,8 @@ public:
             return false;
         }
         DEKI_LOG_INFO("ESPIDFParallelBus: %d-bit bus up (WR %d, DC %d, CS %d, D0 %d) at %u Hz", m_Width,
-                      (int)config.wrPin, (int)config.dcPin, (int)config.csPin, (int)config.dataPins[0],
-                      (unsigned)config.clockHz);
+                      static_cast<int>(config.wrPin), static_cast<int>(config.dcPin), static_cast<int>(config.csPin),
+                      static_cast<int>(config.dataPins[0]), static_cast<unsigned>(config.clockHz));
         return true;
     }
 

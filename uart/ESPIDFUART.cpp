@@ -15,8 +15,8 @@ void ESPIDFUART::Configure(const Deki::PackageConfig& config)
     m_Port = config.GetInt("uartPort", 1);
     // "baudRate", as deki-gps and the components name it; "baud" was read
     // alone, so every UART ran at 9600 whatever was configured.
-    m_Baud = (uint32_t)config.GetInt("baudRate", config.GetInt("baud", 9600));
-    m_RxBufSize = (size_t)config.GetInt("rx_buf_size", 1024);
+    m_Baud = static_cast<uint32_t>(config.GetInt("baudRate", config.GetInt("baud", 9600)));
+    m_RxBufSize = static_cast<size_t>(config.GetInt("rx_buf_size", 1024));
 }
 
 bool ESPIDFUART::Initialize()
@@ -30,16 +30,18 @@ bool ESPIDFUART::Initialize()
     }
 
     uart_config_t cfg = {};
-    cfg.baud_rate = (int)m_Baud;
+    cfg.baud_rate = static_cast<int>(m_Baud);
     cfg.data_bits = UART_DATA_8_BITS;
     cfg.parity = UART_PARITY_DISABLE;
     cfg.stop_bits = UART_STOP_BITS_1;
     cfg.flow_ctrl = UART_HW_FLOWCTRL_DISABLE;
     cfg.source_clk = UART_SCLK_DEFAULT;
 
-    if (uart_param_config((uart_port_t)m_Port, &cfg) != ESP_OK ||
-        uart_set_pin((uart_port_t)m_Port, m_PinTX, m_PinRX, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE) != ESP_OK ||
-        uart_driver_install((uart_port_t)m_Port, (int)m_RxBufSize, 0, 0, nullptr, 0) != ESP_OK)
+    if (uart_param_config(static_cast<uart_port_t>(m_Port), &cfg) != ESP_OK ||
+        uart_set_pin(static_cast<uart_port_t>(m_Port), m_PinTX, m_PinRX, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE) !=
+            ESP_OK ||
+        uart_driver_install(static_cast<uart_port_t>(m_Port), static_cast<int>(m_RxBufSize), 0, 0, nullptr, 0) !=
+            ESP_OK)
     {
         m_LastError = "ESPIDFUART: uart driver install failed";
         m_State = Deki::PackageState::Error;
@@ -58,7 +60,7 @@ bool ESPIDFUART::Initialize()
 void ESPIDFUART::Shutdown()
 {
 #if defined(ESP32)
-    uart_driver_delete((uart_port_t)m_Port);
+    uart_driver_delete(static_cast<uart_port_t>(m_Port));
 #endif
     m_State = Deki::PackageState::Uninitialized;
 }
@@ -70,7 +72,7 @@ int ESPIDFUART::Read(uint8_t* dst, size_t maxLen, uint32_t timeoutMs)
     {
         return 0;
     }
-    return uart_read_bytes((uart_port_t)m_Port, dst, maxLen, pdMS_TO_TICKS(timeoutMs));
+    return uart_read_bytes(static_cast<uart_port_t>(m_Port), dst, maxLen, pdMS_TO_TICKS(timeoutMs));
 #else
     (void)dst;
     (void)maxLen;
@@ -86,7 +88,7 @@ int ESPIDFUART::Write(const uint8_t* src, size_t len)
     {
         return 0;
     }
-    return uart_write_bytes((uart_port_t)m_Port, (const char*)src, len);
+    return uart_write_bytes(static_cast<uart_port_t>(m_Port), reinterpret_cast<const char*>(src), len);
 #else
     (void)src;
     (void)len;

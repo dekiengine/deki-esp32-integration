@@ -8,6 +8,53 @@ breaking change bumps the minor across the editor, the engine and every
 package together, so a package with no changes of its own is still released
 alongside one that has them.
 
+## Unreleased
+
+### Added
+- `DEKI:PROFILE` also reports each object in the scene, most expensive first:
+  a `DEKI:PROFILE:OBJECT` line with its path, type, sorting order, its share
+  of finding what changed, of making and drawing its pixels, how many times it
+  was drawn and why (new, changed, still, overPin), per frame; the first 64,
+  then `DEKI:PROFILE:OBJECTS` with how many there were.
+
+### Changed
+- Builds keep the WiFi driver's code in flash (`CONFIG_ESP_WIFI_IRAM_OPT=n`,
+  `CONFIG_ESP_WIFI_RX_IRAM_OPT=n`): 18.5 KB more internal RAM for the game,
+  the display and the radio's own buffers, whether WiFi is on or not.
+  Measured on a T-Deck Plus: 1 MB downloads over a phone hotspot averaged
+  140 KB/s against 149 KB/s (the ranges overlap), and frames cost the same
+  while WiFi was busy. A board that wants the driver's code in internal RAM
+  again sets both to `y` in its platform's `sdkconfig` list, which comes
+  last. Existing projects get it on their next build: the builder regenerates
+  a stale `sdkconfig` when its defaults change.
+- Builds also keep the radio's PHY code and libc's locks in flash
+  (`CONFIG_ESP_PHY_IRAM_OPT=n`, `CONFIG_LIBC_LOCKS_PLACE_IN_IRAM=n`): 1 KB
+  more internal RAM. Frames on a T-Deck Plus cost the same (19.7 ms against
+  19.6 on a farm map, 32.9 against 32.9 with 16 sprites walking). The heap's
+  functions stay in internal RAM: in flash they cost about 5.5 ms a frame.
+- ESP32-S3 builds have a 32 KB instruction cache
+  (`CONFIG_ESP32S3_INSTRUCTION_CACHE_32KB=y`; ESP-IDF's default is 16 KB). A
+  frame runs more code than 16 KB holds, and how often it missed depended on
+  where a build placed the code: the same scene moved by a millisecond
+  between unrelated builds. Measured on a T-Deck Plus with a scrolling farm:
+  19.0 to 16.9 ms a frame, 21.9 to 18.5 ms with 4 sprites walking, 30.6 to
+  26.0 ms with 16, and builds within 0.2 ms of each other. It takes 16 KB of
+  internal RAM; a board that needs it back sets
+  `CONFIG_ESP32S3_INSTRUCTION_CACHE_16KB=y` in its `sdkconfig` list.
+- Boards with PSRAM keep the static data ESP-IDF's libraries allow there in
+  PSRAM (`CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY=y`): 14.4 KB of WiFi,
+  lwIP and network tables in a T-Deck build, which only WiFi touches.
+- Allocations through `operator new`, `std::vector` and `std::string` go to
+  PSRAM once DMA-capable internal RAM, not all internal RAM, is down to
+  16 KB. An ESP32-S3's RTC fast memory (about 8 KB) is internal but no
+  driver's DMA reaches it, so the old count let a scene's objects leave
+  drivers almost nothing. With these three changes, a T-Deck Plus running the
+  farm in whole frames keeps 14.9 KB of DMA-capable RAM free (largest block
+  13.8 KB), room for an SD card and audio started mid-game.
+
+### Fixed
+- Choosing ESP-IDF in the New Platform dialog no longer crashes the panel: the package now takes the editor's ImGui context.
+
 ## 0.30.0
 
 ### Changed
