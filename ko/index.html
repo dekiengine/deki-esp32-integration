@@ -10,6 +10,9 @@
 <meta name="generator" content="Doxygen 1.18.0"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>deki-esp32-integration: deki-esp32-integration</title>
+<link rel="icon" href="https://dekiengine.com/favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" href="https://dekiengine.com/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="https://dekiengine.com/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap">
@@ -25,14 +28,51 @@
 <link href="doxygen-awesome.css" rel="stylesheet" type="text/css"/>
 <link href="doxygen-awesome-sidebar-only.css" rel="stylesheet" type="text/css"/>
 <link href="deki.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript">
+/* Pressing a group in the sidebar opens the page and its list too. The tree is
+   built after load, hence the retries. */
+window.addEventListener('load', function () {
+  var tries = 0;
+  var timer = setInterval(function () {
+    var closed = document.querySelector('#nav-tree-contents .selected .arrowhead.closed');
+    if (closed) {
+      closed.closest('a').click();
+    }
+    if (closed || ++tries > 30) {
+      clearInterval(timer);
+    }
+  }, 100);
+});
+</script>
 </head>
 <body>
 <div class="deki-bar">
   <a class="deki-brand" href="https://dekiengine.com/ko/">
-    <span class="deki-mark"><span class="deki-dot"></span></span>
+    <!-- The site's cat, hugo-dekiengine/layouts/partials/deki-cat.html, kept still by deki.css.
+         Its clip path is gone: only the entrance animation needs it. -->
+    <svg class="brand-mark deki-cat" aria-hidden="true" focusable="false" viewBox="0 0 16 9" width="32" height="18" shape-rendering="crispEdges"><style>.deki-cat .cat-paws{opacity:1}
+@keyframes deki-cat-paws-in{0%{opacity:0}30.77%{opacity:1}100%{opacity:1}}
+.deki-cat .cat-paws{animation:deki-cat-paws-in 1.3s step-end 0s both}
+.deki-cat .cat-peek{transform:none}
+@keyframes deki-cat-peek-in{0%{transform:translateY(8px)}46.15%{transform:translateY(7px)}53.85%{transform:translateY(6px)}61.54%{transform:translateY(5px)}69.23%{transform:translateY(4px)}76.92%{transform:translateY(3px)}84.62%{transform:translateY(2px)}92.31%{transform:translateY(1px)}100%{transform:none}}
+.deki-cat .cat-peek{animation:deki-cat-peek-in 1.3s step-end 0s both}
+.deki-cat .cat-shut{opacity:0}
+@keyframes deki-cat-shut-idle{0%{opacity:0}8.53%{opacity:1}8.81%{opacity:0}41.96%{opacity:1}42.24%{opacity:0}42.58%{opacity:1}42.87%{opacity:0}77.26%{opacity:1}79.82%{opacity:0}100%{opacity:0}}
+.deki-cat .cat-shut{animation:deki-cat-shut-idle 35.18s step-end 1.3s infinite}
+.deki-cat .cat-face{transform:none}
+@keyframes deki-cat-face-idle{0%{transform:none}18.76%{transform:translate(-1px,0px)}22.74%{transform:none}51.39%{transform:translate(1px,0px)}55.37%{transform:none}65.32%{transform:translate(0px,-1px)}68.73%{transform:none}88.35%{transform:translate(-1px,0px)}90.62%{transform:translate(1px,0px)}92.89%{transform:none}100%{transform:none}}
+.deki-cat .cat-face{animation:deki-cat-face-idle 35.18s step-end 1.3s infinite}
+.deki-cat .cat-ear{transform:none}
+@keyframes deki-cat-ear-idle{0%{transform:none}31.27%{transform:translateY(1px)}31.5%{transform:none}31.78%{transform:translateY(1px)}32.01%{transform:none}100%{transform:none}}
+.deki-cat .cat-ear{animation:deki-cat-ear-idle 35.18s step-end 1.3s infinite}
+@media (prefers-reduced-motion:reduce){.deki-cat *{animation:none!important}}</style><g><g><g class="cat-peek"><g class="cat-ear"><rect x="12" y="0" width="1" height="1" fill="#3bc3ff"/><rect x="11" y="1" width="2" height="1" fill="#3bc3ff"/></g><rect x="3" y="0" width="1" height="1" fill="#3bc3ff"/><rect x="3" y="1" width="2" height="1" fill="#3bc3ff"/><rect x="3" y="2" width="10" height="1" fill="#3bc3ff"/><rect x="2" y="3" width="12" height="1" fill="#3bc3ff"/><rect x="2" y="4" width="12" height="1" fill="#3bc3ff"/><rect x="2" y="5" width="12" height="1" fill="#3bc3ff"/><rect x="2" y="6" width="12" height="1" fill="#3bc3ff"/><rect x="2" y="7" width="12" height="1" fill="#3bc3ff"/><g class="cat-face"><rect x="4" y="4" width="1" height="1" fill="#0a0b0d"/><rect x="5" y="4" width="1" height="1" fill="#e8e6e1"/><rect x="10" y="4" width="1" height="1" fill="#0a0b0d"/><rect x="11" y="4" width="1" height="1" fill="#e8e6e1"/><rect x="4" y="5" width="2" height="1" fill="#0a0b0d"/><rect x="10" y="5" width="2" height="1" fill="#0a0b0d"/><rect x="7" y="6" width="2" height="1" fill="#ff8fb8"/><g class="cat-shut"><rect x="4" y="4" width="2" height="1" fill="#3bc3ff"/><rect x="10" y="4" width="2" height="1" fill="#3bc3ff"/></g></g></g></g><g class="cat-paws"><rect x="3" y="7" width="2" height="1" fill="#9de1ff"/><rect x="11" y="7" width="2" height="1" fill="#9de1ff"/></g><rect x="0" y="8" width="16" height="1" fill="#0c82bf"/></g></svg>
     <span class="deki-brand-name">DEKI<span class="deki-slash">/</span>ENGINE</span>
   </a>
   <span class="deki-bar-tag">문서</span>
+  <div class="deki-tabs">
+    <a class="deki-tab deki-tab-manual" href="https://dekiengine.github.io/docs/ko/index.html"><span class="deki-nav-label">매뉴얼</span></a>
+    <a class="deki-tab deki-tab-api" href="https://dekiengine.github.io/docs/annotated.html"><span class="deki-nav-label">API 참조</span></a>
+  </div>
   <div class="deki-bar-links">
     <a href="https://dekiengine.com/ko/"><span class="deki-nav-label">사이트</span></a>
     <a href="https://dekiengine.com/ko/packages/"><span class="deki-nav-label">패키지</span></a>
@@ -40,7 +80,8 @@
     <span class="deki-bar-sep"></span>
     <a class="deki-chip" href="https://github.com/orgs/dekiengine/repositories" rel="noopener"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg><span>github</span></a>
     <a class="deki-chip deki-chip-accent" href="https://dekiengine.com/ko/discord/" rel="noopener"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg><span>discord</span></a>
-    <a class="deki-chip deki-chip-solid" href="https://dekiengine.com/ko/donate/"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5 3.9 12.4a4.8 4.8 0 0 1 0-6.8 4.8 4.8 0 0 1 6.8 0l1.3 1.3 1.3-1.3a4.8 4.8 0 0 1 6.8 0 4.8 4.8 0 0 1 0 6.8Z"/></svg><span>후원</span></a>
+    <a class="deki-chip deki-chip-solid" href="https://dekiengine.com/editor/#download"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12m-5-5 5 5 5-5M5 20h14"/></svg><span>다운로드</span></a>
+    <a class="deki-chip" href="https://dekiengine.com/ko/donate/"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5 3.9 12.4a4.8 4.8 0 0 1 0-6.8 4.8 4.8 0 0 1 6.8 0l1.3 1.3 1.3-1.3a4.8 4.8 0 0 1 6.8 0 4.8 4.8 0 0 1 0 6.8Z"/></svg><span>후원</span></a>
     <details class="deki-lang"><summary aria-label="언어: 한국어"><span class="deki-nav-label">한국어</span></summary><div class="deki-lang-menu"><a href="../index.html" data-deki-root="../" hreflang="en" lang="en">English</a><a href="../ja/index.html" data-deki-root="../ja/" hreflang="ja" lang="ja">日本語</a><a href="../zh/index.html" data-deki-root="../zh/" hreflang="zh" lang="zh">简体中文</a><a href="../ko/index.html" data-deki-root="../ko/" hreflang="ko" lang="ko" aria-current="true">한국어</a></div></details>
     <script>(function () {
       var page = location.pathname.split('/').pop() || 'index.html';
@@ -57,7 +98,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">deki-esp32-integration<span id="projectnumber">&#160;0.30.3</span>
+   <div id="projectname">deki-esp32-integration<span id="projectnumber">&#160;0.40.0</span>
    </div>
    <div id="projectbrief">Deki 패키지 레퍼런스</div>
   </td>
@@ -115,7 +156,7 @@ document.addEventListener('DOMContentLoaded',() => { initNavTree('index.html',''
 <img src="deki-esp32-integration.png" alt=""/>
 </div>
     <p>ESP32 플랫폼 HAL: ESP-IDF SDMMC를 통한 SD 카드, FATFS 파일 시스템, 시리얼 명령, 메모리 및 파일 시스템 설정.</p>
-<p>저장소: <a href="https://github.com/dekiengine/deki-esp32-integration">github.com/dekiengine/deki-esp32-integration</a> · 최신 릴리스: 0.30.0 · 엔진 0.30.0 이상 필요 · 의존: <a href="https://dekiengine.github.io/deki-wifi/ko/">deki-wifi</a>, <a href="https://dekiengine.github.io/deki-ble/ko/">deki-ble</a>, <a href="https://dekiengine.github.io/deki-http/ko/">deki-http</a>, <a href="https://dekiengine.github.io/deki-i2s/ko/">deki-i2s</a>, <a href="https://dekiengine.github.io/deki-uart/ko/">deki-uart</a>, <a href="https://dekiengine.github.io/deki-i2c/ko/">deki-i2c</a>, <a href="https://dekiengine.github.io/deki-gpio/ko/">deki-gpio</a>, <a href="https://dekiengine.github.io/deki-sdcard/ko/">deki-sdcard</a>, <a href="https://dekiengine.github.io/deki-rendering/ko/">deki-rendering</a></p>
+<p>저장소: <a href="https://github.com/dekiengine/deki-esp32-integration">github.com/dekiengine/deki-esp32-integration</a> · 최신 릴리스: 0.40.0 · 엔진 0.40.0 이상 필요 · 의존: <a href="https://dekiengine.github.io/deki-wifi/ko/">deki-wifi</a>, <a href="https://dekiengine.github.io/deki-ble/ko/">deki-ble</a>, <a href="https://dekiengine.github.io/deki-http/ko/">deki-http</a>, <a href="https://dekiengine.github.io/deki-i2s/ko/">deki-i2s</a>, <a href="https://dekiengine.github.io/deki-uart/ko/">deki-uart</a>, <a href="https://dekiengine.github.io/deki-i2c/ko/">deki-i2c</a>, <a href="https://dekiengine.github.io/deki-gpio/ko/">deki-gpio</a>, <a href="https://dekiengine.github.io/deki-sdcard/ko/">deki-sdcard</a>, <a href="https://dekiengine.github.io/deki-rendering/ko/">deki-rendering</a></p>
 <p><span class="tt">DekiEditor --packages-add deki-esp32-integration &lt;project&gt;</span> 또는 패키지 관리자로 설치합니다. 엔진 자체의 컴포넌트와 C++ API는 <a href="https://dekiengine.github.io/docs/ko/">Deki 문서</a>에 있습니다.</p>
 <p>에디터에는 <b>ESP32 Integration</b>(으)로 표시됩니다.</p>
 <h1 class="doxsection"><a class="anchor" id="components"></a>
@@ -195,29 +236,44 @@ ESP32SerialSetup</h2>
 변경 내역</h1>
 <p>변경 내역은 영어로 되어 있습니다.</p>
 <h2 class="doxsection"><a class="anchor" id="autotoc_md0"></a>
-0.30.0</h2>
+0.40.0</h2>
 <h2 class="doxsection"><a class="anchor" id="autotoc_md1"></a>
+Added</h2>
+<ul>
+<li><span class="tt">DEKI:PROFILE</span> also reports each object in the scene, most expensive first: a <span class="tt">DEKI:PROFILE:OBJECT</span> line with its path, type, sorting order, its share of finding what changed, of making and drawing its pixels, how many times it was drawn and why (new, changed, still, overPin), per frame; the first 64, then <span class="tt">DEKI:PROFILE:OBJECTS</span> with how many there were.</li>
+</ul>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md2"></a>
+Changed</h2>
+<ul>
+<li><span class="tt">minEngine</span> 0.40.0: built against engine 0.40.0. A build of this package from before does not load and is rebuilt.</li>
+<li>Builds keep the WiFi driver's code in flash (<span class="tt">CONFIG_ESP_WIFI_IRAM_OPT=n</span>, <span class="tt">CONFIG_ESP_WIFI_RX_IRAM_OPT=n</span>): 18.5 KB more internal RAM for the game, the display and the radio's own buffers, whether WiFi is on or not. Measured on a T-Deck Plus: 1 MB downloads over a phone hotspot averaged 140 KB/s against 149 KB/s (the ranges overlap), and frames cost the same while WiFi was busy. A board that wants the driver's code in internal RAM again sets both to <span class="tt">y</span> in its platform's <span class="tt">sdkconfig</span> list, which comes last. Existing projects get it on their next build: the builder regenerates a stale <span class="tt">sdkconfig</span> when its defaults change.</li>
+<li>Builds also keep the radio's PHY code and libc's locks in flash (<span class="tt">CONFIG_ESP_PHY_IRAM_OPT=n</span>, <span class="tt">CONFIG_LIBC_LOCKS_PLACE_IN_IRAM=n</span>): 1 KB more internal RAM. Frames on a T-Deck Plus cost the same (19.7 ms against 19.6 on a farm map, 32.9 against 32.9 with 16 sprites walking). The heap's functions stay in internal RAM: in flash they cost about 5.5 ms a frame.</li>
+<li>ESP32-S3 builds have a 32 KB instruction cache (<span class="tt">CONFIG_ESP32S3_INSTRUCTION_CACHE_32KB=y</span>; ESP-IDF's default is 16 KB). A frame runs more code than 16 KB holds, and how often it missed depended on where a build placed the code: the same scene moved by a millisecond between unrelated builds. Measured on a T-Deck Plus with a scrolling farm: 19.0 to 16.9 ms a frame, 21.9 to 18.5 ms with 4 sprites walking, 30.6 to 26.0 ms with 16, and builds within 0.2 ms of each other. It takes 16 KB of internal RAM; a board that needs it back sets <span class="tt">CONFIG_ESP32S3_INSTRUCTION_CACHE_16KB=y</span> in its <span class="tt">sdkconfig</span> list.</li>
+<li>Boards with PSRAM keep the static data ESP-IDF's libraries allow there in PSRAM (<span class="tt">CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY=y</span>): 14.4 KB of WiFi, lwIP and network tables in a T-Deck build, which only WiFi touches.</li>
+<li>Allocations through <span class="tt">operator new</span>, <span class="tt">std::vector</span> and <span class="tt">std::string</span> go to PSRAM once DMA-capable internal RAM, not all internal RAM, is down to 16 KB. An ESP32-S3's RTC fast memory (about 8 KB) is internal but no driver's DMA reaches it, so the old count let a scene's objects leave drivers almost nothing. With these three changes, a T-Deck Plus running the farm in whole frames keeps 14.9 KB of DMA-capable RAM free (largest block 13.8 KB), room for an SD card and audio started mid-game.</li>
+</ul>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md3"></a>
+Fixed</h2>
+<ul>
+<li>Choosing ESP-IDF in the New Platform dialog no longer crashes the panel: the package now takes the editor's ImGui context.</li>
+</ul>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md4"></a>
+0.30.0</h2>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md5"></a>
 Changed</h2>
 <ul>
 <li><span class="tt">minEngine</span> 0.30.0: built against engine 0.30.0. A build of this package from before does not load and is rebuilt.</li>
 </ul>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md2"></a>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md6"></a>
 Fixed</h2>
 <ul>
 <li>A firmware build from the editor runs ESP-IDF. On a machine whose PATH holds an entry with a stray quote (a Windows Kits installer leaves one), the build ran nothing and reported success: the variables it sets were <span class="tt">set</span> lines in one cmd line, and the quote, expanded from PATH%, closed one early and turned the rest of the line, export.bat and idf.py included, into a value. They are the build's environment now, not part of its command, and such an entry's quote is left out of the build's PATH, which the build says, naming the entry (otherwise cmd finds nothing after it, and export.bat reports git missing).</li>
 <li>A build is a success only when it leaves the firmware (<span class="tt">build/DekiGame.bin</span>): one that exits 0 without it fails, saying so. A build with nothing to rebuild says the firmware was already up to date. The build output names the firmware file.</li>
 <li>ESP-IDF runs with <span class="tt">PYTHONUTF8=1</span>, as idf.py asks for on a console that is not UTF-8.</li>
 </ul>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md3"></a>
-0.22.1</h2>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md4"></a>
-Fixed</h2>
-<ul>
-<li>Small allocations (operator new, std::vector, std::string) leave 16 KB of internal RAM free and go to PSRAM after that. ESP-IDF kept them internal until none was left, so a scene of many small objects (the demo's Widgets on the T-Deck) left 39 bytes, and a task stack, DMA buffer or driver asking for internal RAM afterwards failed.</li>
-</ul>
 <p>이전 릴리스: <a href="https://github.com/dekiengine/deki-esp32-integration/blob/master/CHANGELOG.md">CHANGELOG.md</a></p>
 <hr  />
-<p>패키지의 리플렉션 데이터에서 생성했습니다(엔진 0.30.3). 속성 이름은 씬 파일에서 쓰는 키입니다. 이름을 바꿔도 별칭이 유지됩니다(<a href="https://github.com/dekiengine/deki-editor/blob/master/COMPATIBILITY.md">호환성</a>). </p>
+<p>패키지의 리플렉션 데이터에서 생성했습니다(엔진 0.40.0). 속성 이름은 씬 파일에서 쓰는 키입니다. 이름을 바꿔도 별칭이 유지됩니다(<a href="https://github.com/dekiengine/deki-editor/blob/master/COMPATIBILITY.md">호환성</a>). </p>
 </div></div><!-- PageDoc -->
 <a href="doxygen_crawl.html"></a>
 </div><!-- contents -->
