@@ -8,7 +8,7 @@ breaking change bumps the minor across the editor, the engine and every
 package together, so a package with no changes of its own is still released
 alongside one that has them.
 
-## Unreleased
+## 0.40.0
 
 ### Added
 - `DEKI:PROFILE` also reports each object in the scene, most expensive first:
@@ -18,6 +18,8 @@ alongside one that has them.
   then `DEKI:PROFILE:OBJECTS` with how many there were.
 
 ### Changed
+- `minEngine` 0.40.0: built against engine 0.40.0. A build of this package
+  from before does not load and is rebuilt.
 - Builds keep the WiFi driver's code in flash (`CONFIG_ESP_WIFI_IRAM_OPT=n`,
   `CONFIG_ESP_WIFI_RX_IRAM_OPT=n`): 18.5 KB more internal RAM for the game,
   the display and the radio's own buffers, whether WiFi is on or not.
