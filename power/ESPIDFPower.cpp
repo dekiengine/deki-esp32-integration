@@ -7,6 +7,7 @@
 #include <esp_sleep.h>
 #include <esp_timer.h>
 #include <driver/gpio.h>
+#include <soc/soc_caps.h>
 #endif
 
 namespace DekiEsp32
@@ -111,7 +112,15 @@ void ESPIDFPower::EnterSleep(SleepMode mode)
 
     if (m_WakeGpio >= 0)
     {
-        esp_sleep_enable_ext0_wakeup(static_cast<gpio_num_t>(m_WakeGpio), m_WakeLevel);
+        const auto pin = static_cast<gpio_num_t>(m_WakeGpio);
+#if SOC_PM_SUPPORT_EXT0_WAKEUP
+        esp_sleep_enable_ext0_wakeup(pin, m_WakeLevel);
+#else
+        // Chips without ext0 (the ESP32-P4) wake from light sleep on a GPIO
+        // level instead, the only sleep this provider enters.
+        gpio_wakeup_enable(pin, m_WakeLevel ? GPIO_INTR_HIGH_LEVEL : GPIO_INTR_LOW_LEVEL);
+        esp_sleep_enable_gpio_wakeup();
+#endif
     }
 
     m_State = State::Sleeping;

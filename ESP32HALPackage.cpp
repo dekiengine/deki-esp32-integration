@@ -13,6 +13,9 @@
 #include "ESP32FileSystem.h"
 #include "ESP32TimeProvider.h"
 #include <deki/providers/Memory.h>
+#if defined(ESP32)
+#include <esp_heap_caps.h>
+#endif
 #include <deki/providers/FileSystem.h>
 #include <deki/Time.h>
 #include "sd/ESPIDFSDCard.h"
@@ -31,6 +34,14 @@
 #include "display/ESPIDFParallelBus.h"
 #include "display/ESPIDFPresentWorker.h"
 #endif
+// An older deki-display has no DSI panel.
+#if __has_include("MipiDsi.h")
+#include <soc/soc_caps.h>
+#if SOC_MIPI_DSI_SUPPORTED
+#define DEKI_ESP32_HAS_DSI 1
+#include "display/ESPIDFDsiPanel.h"
+#endif
+#endif
 #include "gpio/ESPIDFGPIO.h"
 #include "DekiGPIO.h"  // from deki-gpio
 #include "uart/ESPIDFUART.h"
@@ -38,6 +49,8 @@
 #include "i2s/ESPIDFI2S.h"
 #include "DekiI2S.h"  // from deki-i2s
 #include "blit/S3PIEBlitKernels.h"
+#include "blit/DualCoreRows.h"
+#include "blit/P4DmaCopy.h"
 #include "wifi/ESPIDFWiFi.h"
 #include "DekiWiFi.h"  // from deki-wifi
 #include "ble/ESPIDFBLE.h"
@@ -80,6 +93,11 @@ struct ESP32BackendInit
         DekiDisplay::PanelDisplay::SetWorkerBackend(&ESPIDFPresentWorker());
         DekiDisplay::ParallelBus::SetFactory(&CreateESPIDFParallelBus);
 #endif
+#if defined(DEKI_ESP32_HAS_DSI)
+        // Only on a chip with DSI: elsewhere a DSI Panel step finds no
+        // factory and starts nothing, as in the editor.
+        DekiDisplay::MipiDsi::SetFactory(&CreateESPIDFDsiPanel);
+#endif
         DekiUart::DekiUART::SetFactory([]() -> DekiUart::IDekiUART* { return new ESPIDFUART(); });
         DekiI2s::DekiI2S::SetFactory([]() -> DekiI2s::IDekiI2S* { return new ESPIDFI2S(); });
 
@@ -119,6 +137,28 @@ struct ESP32BackendInit
         // first gathers eight 3-byte pixels.)
         QuadBlit::RegisterKernel(QuadBlit::KernelOp::RGB565CopyRow, &DekiEsp32::Blit::S3PIERGB565CopyRow);
 #endif
+        // ESP32-P4: large blits draw their lower rows on the other core
+        // (blit/DualCoreRows.cpp).
+        if (DekiEsp32::Blit::HasDualCoreRows())
+        {
+            QuadBlit::RegisterParallelRows(&DekiEsp32::Blit::DualCoreRows, DekiEsp32::Blit::kDualCoreMinPixels);
+        }
+        // ESP32-P4: large plain copies by DMA (blit/P4DmaCopy.cpp).
+        if (DekiEsp32::Blit::HasDmaRectCopy())
+        {
+            QuadBlit::RegisterRectCopy(&DekiEsp32::Blit::DmaCopyRect, &DekiEsp32::Blit::DmaCopyWait,
+                                       DekiEsp32::Blit::kDmaCopyMinPixels);
+            // With PSRAM to spare, sprites keep a scaled copy of every frame
+            // they are drawn in: drawn 1:1 from it, a 2x sprite costs a
+            // third of drawing it scaled (the Elecrow 9", 32 MB: Tiny Farm
+            // from 52 to 56.5 fps in strips).
+#if defined(ESP32)
+            if (heap_caps_get_total_size(MALLOC_CAP_SPIRAM) >= 8u * 1024u * 1024u)
+            {
+                QuadBlit::SetScaledCacheLimits(2u * 1024u * 1024u, 256);
+            }
+#endif
+        }
     }
 };
 static ESP32BackendInit s_Esp32Init;

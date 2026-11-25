@@ -29,7 +29,7 @@ inline constexpr const char* kESPIDFToolchainDefinition = R"json(
   "id": "espidf",
   "name": "ESP-IDF",
   "family": "espressif",
-  "supportedTargets": ["esp32", "esp32s2", "esp32s3", "esp32c3", "esp32c6", "esp32h2"],
+  "supportedTargets": ["esp32", "esp32s2", "esp32s3", "esp32c3", "esp32c6", "esp32h2", "esp32p4"],
   "buildDirectory": "builders/esp-idf",
   "debug": {
     "gdb": {

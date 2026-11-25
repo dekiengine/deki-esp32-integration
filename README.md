@@ -15,6 +15,31 @@ using namespace DekiEsp32;
 obj->AddComponent<SomeComponent>();
 ```
 
+## Chips
+
+A platform names its chip in `idfTarget`: `esp32`, `esp32s2`, `esp32s3`,
+`esp32c3`, `esp32c6`, `esp32h2` or `esp32p4`.
+
+**ESP32-P4: runs on the Elecrow CrowPanel Advanced 9" (chip v1.3).** What differs from the other
+chips:
+
+- PSRAM runs at 200 MHz in its one mode (16 lines); `psramMode` does not apply.
+- `cpuFreqHz` is 360 or 400 MHz, the two speeds ESP-IDF has for it; any
+  other is refused. With none set, ESP-IDF picks the chip revision's default.
+- A build is for chip revisions 3.x unless the platform's `sdkconfig` list
+  has `CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y`; ESP-IDF cannot make one image
+  for both, and a 3.x image does not boot on a 1.x chip.
+- The partition table is at 0x9000, not 0x8000: the P4's bootloader starts
+  at 0x2000 and does not fit before 0x8000. The default table's NVS is 16 KB.
+- The P4 has no radio. WiFi compiles (through ESP-IDF's `esp_wifi_remote`)
+  but does not connect: a board's WiFi chip needs Espressif's `esp_hosted`,
+  which this package does not set up yet. Bluetooth is not available.
+- No QEMU.
+- Large blits draw their lower rows on the second core, and large plain copies (a map's view into the frame) go to the AXI DMA, which does not read the destination before writing it as the CPU's cache does. A copy over whole rows of the frame goes on while the game draws, each blit waiting only for the rows it touches.
+- deki-display's MIPI-DSI panels run on its DSI. Its LDO regulators are
+  turned on from the boot scene with `ESP32LdoSetup` (channel, millivolts);
+  the DSI PHY needs channel 3 at 2.5 V before the panel.
+
 ## Pins
 
 The ESP-IDF side of `deki-gpio`: drive, read and count a pin's edges by

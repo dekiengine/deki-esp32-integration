@@ -8,6 +8,57 @@ breaking change bumps the minor across the editor, the engine and every
 package together, so a package with no changes of its own is still released
 alongside one that has them.
 
+## Unreleased
+
+### Added
+- ESP32-P4 builds (`idfTarget` `esp32p4`), with ESP-IDF 6.1; run on the
+  Elecrow CrowPanel Advanced 9" (chip revision 1.3). Its PSRAM runs at 200 MHz (`psramMode` does not
+  apply), `cpuFreqHz` must be 360 or 400 MHz, and its partition table is at
+  0x9000 with a 16 KB NVS, since its bootloader starts at 0x2000. WiFi
+  compiles but does not connect yet (it needs `esp_hosted` for the board's
+  WiFi chip); there is no Bluetooth or QEMU. See the README's Chips section.
+- The platform editor offers 360 and 400 MHz for a P4 and no PSRAM mode.
+- deki-display's MIPI-DSI panels on ESP-IDF's esp_lcd DSI driver (the P4):
+  commands over DBI, then frames streamed by DMA from up to three frame
+  buffers the driver keeps in PSRAM. A Show takes effect at the end of the
+  refresh going on; the buffers being sent and queued are reported busy. The
+  backlight can be PWM on LEDC (timer 0, channel 0, 11 bits).
+- ESP32-P4: large blits draw their lower rows on the other core
+  (`blit/DualCoreRows.cpp`, deki-rendering's `RegisterParallelRows`), from
+  2048 pixels. The farm's 2x sprites went from 9.8 to 6.9 ms; copies, which
+  PSRAM bounds, gained nothing.
+- ESP32-P4: large plain copies by the AXI DMA (`blit/P4DmaCopy.cpp`,
+  deki-rendering's `RegisterRectCopy`), one transfer with a descriptor per
+  row. The CPU's cache reads each line in before it overwrites it, so a CPU
+  copy into PSRAM moves three times its size and the DMA twice: a 1.2 MB copy
+  takes 15.9 ms on the CPU, 8.5 by DMA. Over whole rows of the frame the copy
+  goes on while the CPU draws, each blit waiting only for its rows. The
+  farm's map: 16 ms of CPU to 1.3 (setting the transfer up). Uses ESP-IDF's
+  `esp_private` GDMA API, which its own async memcpy is built on.
+- ESP32-P4: a DSI panel's strips go into its frame buffers by DMA, on a
+  channel of their own (deki-display's `drawInStrips`). A copy whose rows
+  follow on one another on both sides goes as one block in pieces of 3968
+  bytes rather than a descriptor a row: a strip of 28 rows is set up in half
+  the time.
+- ESP32-P4 with 8 MB of PSRAM or more: the scaled cache holds 2 MB and 256
+  sizes, so an animated sprite keeps a scaled copy of each of its frames
+  (deki-rendering's `SetScaledCacheLimits`). Tiny Farm in strips on the
+  Elecrow 9": 52 to 56.5 fps.
+- `ESP32LdoSetup`: turns on one of the chip's LDO regulators at a set
+  voltage for the program's life, such as the P4's DSI PHY supply (channel 3
+  at 2.5 V). On a chip without them it fails, saying so.
+
+### Fixed
+- A board wired to the computer through a USB-UART bridge answers the
+  editor's requests (stats, screenshots, profiles, memory) on it. With
+  ESP-IDF's default consoles (the UART, and USB Serial/JTAG as the second, as
+  on the ESP32-P4 and ESP32-S3) the requests were read only from the chip's
+  own USB port; now the UART is read too.
+
+### Changed
+- On chips without `ext0` wake-up (the P4), light sleep wakes on the wake
+  GPIO's level through ESP-IDF's GPIO wake-up. Other chips are unchanged.
+
 ## 0.40.0
 
 ### Added

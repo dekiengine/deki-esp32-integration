@@ -27,13 +27,20 @@
 #include "esp_timer.h"
 #include "sdkconfig.h"
 
-// The console the editor talks to. ESP-IDF reads the USB Serial/JTAG console
-// only through its driver, which the firmware does not install (the console
-// would then go through it too), so that one is read from its FIFO here; a
-// UART console is read through stdin, which works without a driver.
+// The consoles the editor may talk to. ESP-IDF reads the USB Serial/JTAG
+// console only through its driver, which the firmware does not install (the
+// console would then go through it too), so that one is read from its FIFO
+// here; a UART console is read through stdin, which works without a driver.
+// A UART console with USB Serial/JTAG as the second one (ESP-IDF's default on
+// the ESP32-S3 and the P4) is read on both: a board wired to the computer
+// through a USB-UART bridge talks on the UART, one plugged into the chip's
+// own USB port on the other. Replies go to stdout, which reaches both.
 #if defined(CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG) || defined(CONFIG_ESP_CONSOLE_SECONDARY_USB_SERIAL_JTAG)
 #include "hal/usb_serial_jtag_ll.h"
 #define DEKI_CAPTURE_USB_SERIAL_JTAG 1
+#endif
+#if !defined(CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG)
+#define DEKI_CAPTURE_STDIN 1
 #endif
 
 namespace DekiEsp32
@@ -486,7 +493,8 @@ void Poll(uint32_t)
         }
         Feed(static_cast<char>(c));
     }
-#else
+#endif
+#if defined(DEKI_CAPTURE_STDIN)
     static bool s_NonBlocking = false;
     if (!s_NonBlocking)
     {

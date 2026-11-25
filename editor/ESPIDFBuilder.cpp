@@ -46,8 +46,16 @@ namespace DekiEditor
 // should be a change to this builder, not an editor release.
 const std::vector<std::string>& SupportedIdfTargets()
 {
-    static const std::vector<std::string> kTargets = { "esp32", "esp32s2", "esp32s3", "esp32c3", "esp32c6", "esp32h2" };
+    static const std::vector<std::string> kTargets = { "esp32",   "esp32s2", "esp32s3", "esp32c3",
+                                                       "esp32c6", "esp32h2", "esp32p4" };
     return kTargets;
+}
+
+// The CPU speeds ESP-IDF offers the ESP32-P4: 360 MHz on chips before
+// revision 3, 400 from it. It has none of the other chips' 80/160/240.
+static bool IsP4CpuSpeed(uint32_t mhz)
+{
+    return mhz == 360 || mhz == 400;
 }
 
 // "SPI", "PARALLEL_8BIT", "SOFTWARE".
@@ -102,6 +110,16 @@ std::vector<std::string> ESPIDFBuilder::ValidatePlatform(const PlatformConfig& c
     if (!displayBus.empty() && !IsValidDisplayBus(displayBus))
     {
         problems.push_back("displayBus '" + displayBus + "' is not an identifier (A-Z, 0-9, '_')");
+    }
+
+    // A speed the chip has no setting for would be dropped by ESP-IDF with a
+    // warning in the build log, and the board would run at another one.
+    const uint32_t cpuMhz = config.OptionU32("cpuFreqHz") / 1000000;
+    if (config.Option("idfTarget") == "esp32p4" && cpuMhz != 0 && !IsP4CpuSpeed(cpuMhz))
+    {
+        problems.push_back("cpuFreqHz " + std::to_string(cpuMhz) +
+                           " MHz is not a speed the ESP32-P4 runs at; use 360 MHz (chip revisions before 3) "
+                           "or 400 MHz");
     }
 
     return problems;
@@ -343,8 +361,9 @@ static std::string GetIdfTarget(const PlatformConfig& config)
     {
         return config.Option("mcuChip");
     }
+    // "esp32" last: it is part of every other chip's name.
     static const std::vector<std::string> kKnownChips = {
-        "esp32s3", "esp32s2", "esp32c3", "esp32c6", "esp32h2", "esp32"
+        "esp32s3", "esp32s2", "esp32c3", "esp32c6", "esp32h2", "esp32p4", "esp32"
     };
     for (const auto& chip : kKnownChips)
     {
@@ -1651,12 +1670,23 @@ bool ESPIDFBuilder::GenerateSdkConfigDefaults(const std::string& boardPath, cons
         file << "# PSRAM Configuration\n";
         file << "CONFIG_SPIRAM=y\n";
 
-        // PSRAM SPI mode: "oct" for Octal SPI, otherwise Quad
-        if (config.Option("psramMode", "quad") == "oct")
+        if (idfTarget == "esp32p4")
         {
-            file << "CONFIG_SPIRAM_MODE_OCT=y\n";
+            // The P4's PSRAM is in the chip's package, on 16 lines (its only
+            // mode), and runs at 200 MHz, ESP-IDF's default for it; 80 MHz
+            // would leave it at less than half its speed. psramMode does not
+            // apply.
+            file << "CONFIG_SPIRAM_SPEED_200M=y\n";
         }
-        file << "CONFIG_SPIRAM_SPEED_80M=y\n";
+        else
+        {
+            // PSRAM SPI mode: "oct" for Octal SPI, otherwise Quad
+            if (config.Option("psramMode", "quad") == "oct")
+            {
+                file << "CONFIG_SPIRAM_MODE_OCT=y\n";
+            }
+            file << "CONFIG_SPIRAM_SPEED_80M=y\n";
+        }
         file << "CONFIG_SPIRAM_BOOT_INIT=y\n";
         // The static data ESP-IDF's libraries allow there (WiFi, lwIP, the
         // network stack's tables: 14.4 KB in a T-Deck build) goes to PSRAM,
@@ -1674,7 +1704,18 @@ bool ESPIDFBuilder::GenerateSdkConfigDefaults(const std::string& boardPath, cons
     }
 
     file << "# CPU Configuration\n";
-    if (cpuMhz >= 240)
+    if (idfTarget == "esp32p4")
+    {
+        // A P4 with no speed set runs at ESP-IDF's default for the chip
+        // revisions the build is for (400 MHz, 360 before revision 3).
+        // ValidatePlatform refuses any other speed.
+        const uint32_t p4Mhz = config.OptionU32("cpuFreqHz") / 1000000;
+        if (IsP4CpuSpeed(p4Mhz))
+        {
+            file << "CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_" << p4Mhz << "=y\n";
+        }
+    }
+    else if (cpuMhz >= 240)
     {
         file << "CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y\n";
     }
@@ -1721,6 +1762,13 @@ bool ESPIDFBuilder::GenerateSdkConfigDefaults(const std::string& boardPath, cons
     file << "CONFIG_PARTITION_TABLE_CUSTOM=y\n";
     file << "CONFIG_PARTITION_TABLE_CUSTOM_FILENAME=\"" << config.id << "/partitions.csv\"\n";
     file << "CONFIG_PARTITION_TABLE_FILENAME=\"" << config.id << "/partitions.csv\"\n";
+    // The P4's bootloader starts at 0x2000, not 0x0, so before a table at
+    // ESP-IDF's 0x8000 it has 24 KB, and with QIO flash it is 24.3 KB. The
+    // table goes 4 KB later; the default table below starts after it.
+    if (idfTarget == "esp32p4")
+    {
+        file << "CONFIG_PARTITION_TABLE_OFFSET=0x9000\n";
+    }
     file << "\n";
 
     // Stack sizes
@@ -1748,16 +1796,24 @@ bool ESPIDFBuilder::GenerateSdkConfigDefaults(const std::string& boardPath, cons
     // against 149 KB/s (the ranges overlapped), and frames cost the same
     // while WiFi was busy. A board that wants it back says so in its own
     // "sdkconfig", which comes last.
-    file << "\n# WiFi\n";
-    file << "CONFIG_ESP_WIFI_IRAM_OPT=n\n";
-    file << "CONFIG_ESP_WIFI_RX_IRAM_OPT=n\n";
+    // The ESP32-P4 has no radio, so it has none of these options.
+    const bool hasRadio = idfTarget != "esp32p4";
+    if (hasRadio)
+    {
+        file << "\n# WiFi\n";
+        file << "CONFIG_ESP_WIFI_IRAM_OPT=n\n";
+        file << "CONFIG_ESP_WIFI_RX_IRAM_OPT=n\n";
+    }
 
     // The radio's PHY code and libc's locks in flash too: 1 KB more internal
     // RAM, and on a T-Deck Plus frames cost the same (19.7 ms against 19.6
     // with the farm, 32.9 against 32.9 with 16 villagers). The heap's own
     // functions stay in internal RAM: in flash they made every frame about
     // 5.5 ms slower, for 7.4 KB.
-    file << "CONFIG_ESP_PHY_IRAM_OPT=n\n";
+    if (hasRadio)
+    {
+        file << "CONFIG_ESP_PHY_IRAM_OPT=n\n";
+    }
     file << "CONFIG_LIBC_LOCKS_PLACE_IN_IRAM=n\n";
 
     // ESP32-S3: 64-byte data cache lines. A game reads and writes external
@@ -1838,7 +1894,16 @@ bool ESPIDFBuilder::GeneratePartitionsCsv(const std::string& boardPath, const Pl
         const uint32_t dataSize = userOffset - kDataPartitionOffset;
         file << "# Deki Game Partition Table\n";
         file << "# Name,   Type, SubType, Offset,   Size,     Flags\n";
-        file << "nvs,      data, nvs,     0x9000,   0x5000,\n";
+        // On the P4 the table itself is at 0x9000 (see the sdkconfig), so
+        // its NVS starts after it and is 16 KB instead of 20.
+        if (GetIdfTarget(config) == "esp32p4")
+        {
+            file << "nvs,      data, nvs,     0xa000,   0x4000,\n";
+        }
+        else
+        {
+            file << "nvs,      data, nvs,     0x9000,   0x5000,\n";
+        }
         file << "otadata,  data, ota,     0xe000,   0x2000,\n";
         file << "app0,     app,  ota_0,   0x10000,  0x300000,\n";
         file << std::hex;
@@ -1977,15 +2042,24 @@ public:
                 ImGui::PopID();
             };
             presetRow(TrMark("Flash (MB)"), "flash", &m_FlashSizeMB, { 4, 8, 16 });
+            const bool p4 = std::string(m_McuChip) == "esp32p4";
             presetRow("PSRAM (MB)", "psram", &m_PsramSizeMB, { 0, 2, 8 });
-            if (m_PsramSizeMB > 0)
+            // The P4's PSRAM has one mode, so there is nothing to pick.
+            if (m_PsramSizeMB > 0 && !p4)
             {
                 ui.PropertyRow("PSRAM Mode");
                 static const char* s_PsramModes[] = { "Quad SPI", "Octal SPI" };
                 ImGui::SetNextItemWidth(-FLT_MIN);
                 DekiEditor::SchematicCombo("##PsramMode", &m_PsramModeIndex, s_PsramModes, 2);
             }
-            presetRow("CPU (MHz)", "cpu", &m_CpuFreqMHz, { 80, 160, 240 });
+            if (p4)
+            {
+                presetRow("CPU (MHz)", "cpu", &m_CpuFreqMHz, { 360, 400 });
+            }
+            else
+            {
+                presetRow("CPU (MHz)", "cpu", &m_CpuFreqMHz, { 80, 160, 240 });
+            }
             DekiEditor::EndPropertyContext();
             DekiEditor::SchematicSectionEnd();
         }
@@ -2012,7 +2086,10 @@ public:
 
         config.SetOptionU32("flashSize", static_cast<uint32_t>(m_FlashSizeMB) * 1024 * 1024);
         config.externalMemorySize = static_cast<uint32_t>(m_PsramSizeMB) * 1024 * 1024;
-        config.SetOption("psramMode", (m_PsramModeIndex == 1) ? "oct" : "quad");
+        if (std::string(m_McuChip) != "esp32p4")
+        {
+            config.SetOption("psramMode", (m_PsramModeIndex == 1) ? "oct" : "quad");
+        }
         config.SetOptionU32("cpuFreqHz", static_cast<uint32_t>(m_CpuFreqMHz) * 1000000);
 
         config.defines = m_Defines;

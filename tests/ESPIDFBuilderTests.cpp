@@ -67,10 +67,26 @@ bool Contains(const std::string& text, const std::string& line)
 TEST(ESPIDFBuilder, AKnownTargetIsValid)
 {
     ESPIDFBuilder builder;
-    for (const char* t : { "esp32", "esp32s2", "esp32s3", "esp32c3", "esp32c6", "esp32h2" })
+    for (const char* t : { "esp32", "esp32s2", "esp32s3", "esp32c3", "esp32c6", "esp32h2", "esp32p4" })
     {
         EXPECT_TRUE(builder.ValidatePlatform(Board(t)).empty()) << t;
     }
+}
+
+// The P4 has two speeds; one it does not have is refused rather than left to
+// ESP-IDF, which would drop it with a warning and run at another.
+TEST(ESPIDFBuilder, AP4RunsAt360Or400MHz)
+{
+    ESPIDFBuilder builder;
+    for (uint32_t mhz : { 360u, 400u })
+    {
+        PlatformConfig c = Board("esp32p4");
+        c.SetOptionU32("cpuFreqHz", mhz * 1000000);
+        EXPECT_TRUE(builder.ValidatePlatform(c).empty()) << mhz;
+    }
+    PlatformConfig c = Board("esp32p4");
+    c.SetOptionU32("cpuFreqHz", 240u * 1000000);
+    EXPECT_TRUE(HasProblemMentioning(builder.ValidatePlatform(c), "cpuFreqHz"));
 }
 
 TEST(ESPIDFBuilder, AMissingOrUnknownTargetIsRefused)
@@ -206,6 +222,38 @@ TEST_F(ESPIDFBuildFilesTest, PsramFollowsExternalMemory)
     EXPECT_TRUE(Contains(s, "CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY=y\n"));
 }
 
+// The P4's PSRAM has one mode, at 200 MHz; the S3's octal mode and 80 MHz
+// are not written for it, whatever psramMode says.
+TEST_F(ESPIDFBuildFilesTest, AP4sPsramRunsAt200MHz)
+{
+    PlatformConfig c = Board("esp32p4");
+    c.externalMemorySize = 32u * 1024 * 1024;
+    c.SetOption("psramMode", "oct");
+    const std::string s = Sdkconfig(c);
+    EXPECT_TRUE(Contains(s, "CONFIG_SPIRAM=y\n"));
+    EXPECT_TRUE(Contains(s, "CONFIG_SPIRAM_SPEED_200M=y\n"));
+    EXPECT_FALSE(Contains(s, "CONFIG_SPIRAM_MODE_OCT"));
+    EXPECT_FALSE(Contains(s, "CONFIG_SPIRAM_SPEED_80M"));
+}
+
+// A P4 gets its own speed line, or none (ESP-IDF's default for the chip
+// revision), never the other chips' 240 MHz. It has no radio options.
+TEST_F(ESPIDFBuildFilesTest, AP4HasItsOwnCpuSpeedAndNoRadioOptions)
+{
+    PlatformConfig c = Board("esp32p4");
+    std::string s = Sdkconfig(c);
+    EXPECT_FALSE(Contains(s, "CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_"));
+    EXPECT_FALSE(Contains(s, "CONFIG_ESP_WIFI_IRAM_OPT"));
+    EXPECT_FALSE(Contains(s, "CONFIG_ESP_PHY_IRAM_OPT"));
+    EXPECT_TRUE(Contains(s, "CONFIG_LIBC_LOCKS_PLACE_IN_IRAM=n\n"));
+    EXPECT_FALSE(Contains(s, "CONFIG_ESP32S3_"));
+
+    c.SetOptionU32("cpuFreqHz", 360u * 1000000);
+    s = Sdkconfig(c);
+    EXPECT_TRUE(Contains(s, "CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_360=y\n"));
+    EXPECT_FALSE(Contains(s, "CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240"));
+}
+
 TEST_F(ESPIDFBuildFilesTest, TheBoardsOwnLinesComeLastAndWin)
 {
     PlatformConfig c = Board();
@@ -237,6 +285,22 @@ TEST_F(ESPIDFBuildFilesTest, TheDefaultPartitionTableFillsTheFlash)
              << ",";
         EXPECT_TRUE(Contains(csv, data.str())) << mb << " MB:\n" << csv;
     }
+}
+
+// The P4's bootloader starts at 0x2000 and does not fit before a table at
+// 0x8000, so its table is at 0x9000 and NVS starts after it.
+TEST_F(ESPIDFBuildFilesTest, AP4sPartitionTableStartsAfterItsBootloader)
+{
+    PlatformConfig c = Board("esp32p4");
+    c.SetOptionU32("flashSize", 16u * 1024 * 1024);
+    EXPECT_TRUE(Contains(Sdkconfig(c), "CONFIG_PARTITION_TABLE_OFFSET=0x9000\n"));
+    const std::string csv = ReadFile(Generate(c) / "partitions.csv");
+    EXPECT_TRUE(Contains(csv, "nvs,      data, nvs,     0xa000,   0x4000,")) << csv;
+    EXPECT_TRUE(Contains(csv, "otadata,  data, ota,     0xe000,   0x2000,")) << csv;
+
+    PlatformConfig s3 = Board("esp32s3");
+    EXPECT_FALSE(Contains(Sdkconfig(s3), "CONFIG_PARTITION_TABLE_OFFSET"));
+    EXPECT_TRUE(Contains(ReadFile(Generate(s3) / "partitions.csv"), "nvs,      data, nvs,     0x9000,   0x5000,"));
 }
 
 TEST_F(ESPIDFBuildFilesTest, ABoardsOwnPartitionTableIsUsedAsIs)

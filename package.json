@@ -124,6 +124,15 @@
       ]
     },
     {
+      "id": "ldo",
+      "displayName": "LDO regulators (ESP32-P4)",
+      "buildDefine": "DEKI_FEATURE_ESP32_LDO",
+      "defaultEnabled": true,
+      "componentTypes": [
+        "ESP32LdoSetup"
+      ]
+    },
+    {
       "id": "http",
       "displayName": "HTTPS client (ESP-IDF)",
       "buildDefine": "DEKI_FEATURE_ESP32_HTTP",
@@ -142,6 +151,9 @@
       "esp_driver_i2s",
       "esp_driver_spi",
       "esp_lcd",
+      "esp_driver_ledc",
+      "esp_driver_dma",
+      "esp_mm",
       "esp_driver_sdmmc",
       "esp_driver_sdspi",
       "esp_wifi",
