@@ -15,8 +15,8 @@ alongside one that has them.
   Elecrow CrowPanel Advanced 9" (chip revision 1.3). Its PSRAM runs at 200 MHz (`psramMode` does not
   apply), `cpuFreqHz` must be 360 or 400 MHz, and its partition table is at
   0x9000 with a 16 KB NVS, since its bootloader starts at 0x2000. WiFi
-  compiles but does not connect yet (it needs `esp_hosted` for the board's
-  WiFi chip); there is no Bluetooth or QEMU. See the README's Chips section.
+  goes through the board's WiFi chip (below); there is no Bluetooth or QEMU.
+  See the README's Chips section.
 - The platform editor offers 360 and 400 MHz for a P4 and no PSRAM mode.
 - deki-display's MIPI-DSI panels on ESP-IDF's esp_lcd DSI driver (the P4):
   commands over DBI, then frames streamed by DMA from up to three frame
@@ -46,11 +46,21 @@ alongside one that has them.
   (deki-rendering's `SetScaledCacheLimits`; a copy may take a quarter of the
   cache). On the Elecrow 9" (32 MB, an 8 MB cache): Tiny Farm in strips 52 to
   56.5 fps, a new project's full-screen gradient 42 to 56.4.
+- WiFi on a chip without its own (the P4), through the board's WiFi chip
+  over Espressif's `esp_hosted` 3.1: a platform names the chip in
+  `wifiCoprocessor` and the link's settings in `wifiCoprocessorSdkconfig`,
+  and a game that uses deki-wifi gets both. On the Elecrow 9" (ESP32-C6 over
+  4-bit SDIO, its firmware 2.12.3) a scan finds the access points in about
+  2.5 s; the link takes about 114 KB of internal RAM.
 - `ESP32LdoSetup`: turns on one of the chip's LDO regulators at a set
   voltage for the program's life, such as the P4's DSI PHY supply (channel 3
   at 2.5 V). On a chip without them it fails, saying so.
 
 ### Fixed
+- WiFi: a scan before any `Connect` always failed (WiFi was only started by
+  `Connect`); it starts WiFi itself now. Starting WiFi no longer connects on
+  its own unless `Connect` asked, a `Connect` after a scan connects, and
+  `Disconnect` stops the reconnecting.
 - A board wired to the computer through a USB-UART bridge answers the
   editor's requests (stats, screenshots, profiles, memory) on it. With
   ESP-IDF's default consoles (the UART, and USB Serial/JTAG as the second, as

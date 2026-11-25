@@ -26,6 +26,7 @@
 #include <sstream>
 #include <fstream>
 #include <algorithm>
+#include <cctype>
 #include <cstring>
 #include <functional>
 #include <map>
@@ -230,6 +231,18 @@ std::vector<std::pair<std::string, std::string>> ESPIDFBuilder::DescribePlatform
 // The ESP-IDF project the generated CMakeLists declares, which names the
 // firmware image a build writes (build/<name>.bin).
 static constexpr const char* kFirmwareProjectName = "DekiGame";
+
+// The esp_hosted the P4 side of WiFi is built with. Its version has to suit
+// the firmware on the board's WiFi chip; a project can pin another in
+// deki-packages.json's "dependencies".
+static constexpr const char* kEspHosted = "espressif/esp_hosted";
+static constexpr const char* kEspHostedVersion = "~3.1.0";
+
+// Chips with WiFi of their own; the others reach it through a WiFi chip.
+static bool HasOwnWifi(const std::string& idfTarget)
+{
+    return idfTarget != "esp32p4" && idfTarget != "esp32h2";
+}
 
 static bool QemuHasScreen(const std::string& idfTarget)
 {
@@ -1268,6 +1281,13 @@ bool ESPIDFBuilder::GenerateBuildFiles(const std::string& projectPath, const Pla
         // What the game writes on F:/, in the user data partition.
         file << "  joltwallet/littlefs:\n";
         file << "    version: \"*\"\n";
+        if (m_HostedWifi)
+        {
+            const auto pinned = depOverrides.find(kEspHosted);
+            file << "  " << kEspHosted << ":\n";
+            file << "    version: \"" << (pinned != depOverrides.end() ? pinned->second : kEspHostedVersion)
+                 << "\"\n";
+        }
         for (const auto& dep : EditorSettings::GetPlatformDependencies("espidf", depOverrides))
         {
             file << "  " << dep.name << ":\n";
@@ -1389,6 +1409,13 @@ bool ESPIDFBuilder::GenerateMainCMakeLists(const std::string& mainPath, const st
         }
     }
     auto activeIds = CMakeGen::ResolveActivePackages(allPackages, allDefines, config.Capabilities());
+
+    // A chip without WiFi of its own (the P4) reaches it through the board's
+    // WiFi chip, over Espressif's esp_hosted: when the game uses WiFi and the
+    // platform names that chip ("wifiCoprocessor"). A game without WiFi
+    // carries none of it, and the WiFi chip is left alone.
+    m_HostedWifi = !HasOwnWifi(GetIdfTarget(config)) && activeIds.count("deki-wifi") > 0 &&
+                   !config.Option("wifiCoprocessor").empty();
 
     // The transform width: the widest any active package or the project
     // declares (CMakeGenUtils, COMPATIBILITY.md).
@@ -1831,6 +1858,24 @@ bool ESPIDFBuilder::GenerateSdkConfigDefaults(const std::string& boardPath, cons
         file << "\n# Cache (ESP32-S3)\n";
         file << "CONFIG_ESP32S3_DATA_CACHE_LINE_64B=y\n";
         file << "CONFIG_ESP32S3_INSTRUCTION_CACHE_32KB=y\n";
+    }
+
+    // WiFi through the board's WiFi chip (esp_hosted, see
+    // GenerateMainCMakeLists). None of Espressif's own boards: the pins are
+    // the platform's, from its "wifiCoprocessorSdkconfig", written only into
+    // builds that have esp_hosted (elsewhere ESP-IDF would not know them).
+    if (m_HostedWifi)
+    {
+        std::string chip = config.Option("wifiCoprocessor");
+        std::transform(chip.begin(), chip.end(), chip.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+        file << "\n# WiFi through the board's " << config.Option("wifiCoprocessor") << " (esp_hosted)\n";
+        file << "CONFIG_SLAVE_IDF_TARGET_" << chip << "=y\n";
+        file << "CONFIG_ESP_HOSTED_P4_DEV_BOARD_NONE=y\n";
+        for (const auto& line : config.OptionList("wifiCoprocessorSdkconfig"))
+        {
+            file << line << "\n";
+        }
     }
 
     // The board's own options, last so they override anything chosen above.

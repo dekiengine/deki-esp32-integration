@@ -31,9 +31,14 @@ chips:
   for both, and a 3.x image does not boot on a 1.x chip.
 - The partition table is at 0x9000, not 0x8000: the P4's bootloader starts
   at 0x2000 and does not fit before 0x8000. The default table's NVS is 16 KB.
-- The P4 has no radio. WiFi compiles (through ESP-IDF's `esp_wifi_remote`)
-  but does not connect: a board's WiFi chip needs Espressif's `esp_hosted`,
-  which this package does not set up yet. Bluetooth is not available.
+- The P4 has no radio. Its WiFi goes through the board's WiFi chip (an
+  ESP32-C6, say) over Espressif's `esp_hosted`, when the platform names that
+  chip in `wifiCoprocessor` and the game uses deki-wifi: the build then gets
+  `esp_hosted` (3.1) and the platform's `wifiCoprocessorSdkconfig` lines, the
+  link's pins and reset. A game without WiFi gets neither. The link takes
+  about 114 KB of internal RAM. A 3.x `esp_hosted` works with the 2.x
+  firmware boards ship on their WiFi chip; a project can pin another version
+  in `deki-packages.json`'s `dependencies`. Bluetooth is not available.
 - No QEMU.
 - Large blits draw their lower rows on the second core, and large plain copies (a map's view into the frame) go to the AXI DMA, which does not read the destination before writing it as the CPU's cache does. A copy over whole rows of the frame goes on while the game draws, each blit waiting only for the rows it touches.
 - deki-display's MIPI-DSI panels run on its DSI. Its LDO regulators are

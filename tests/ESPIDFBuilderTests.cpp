@@ -362,3 +362,41 @@ TEST_F(ESPIDFBuildFilesTest, ABoardsOwnPartitionTableNeedsTheGameDataPartition)
     c.SetOption("partitionTable", "nvs, data, nvs, 0x9000, 0x6000,\ngamedata, data, 0x40, 0x310000, 0x100000,\n");
     EXPECT_TRUE(builder.GenerateBuildFiles(m_Project.string(), c, {}));
 }
+
+// A P4 has no WiFi of its own. When its board names a WiFi chip and the game
+// uses deki-wifi, the build gets Espressif's esp_hosted and the board's lines
+// for the link; a game without WiFi gets neither, so its WiFi chip is left
+// alone and ESP-IDF never sees options it does not know.
+TEST_F(ESPIDFBuildFilesTest, AP4ReachesWifiThroughTheBoardsWifiChipOnlyWhenTheGameUsesIt)
+{
+    fs::create_directories(m_Project / "packages" / "deki-wifi");
+    std::ofstream(m_Project / "packages" / "deki-wifi" / "package.json")
+        << R"({"id":"deki-wifi","buildDefine":"DEKI_PACKAGE_WIFI","deviceNeeds":["wifi"],"requires":[]})";
+
+    PlatformConfig c = Board("esp32p4");
+    c.provides = { "wifi" };
+    c.SetOption("wifiCoprocessor", "esp32c6");
+    c.SetOptionList("wifiCoprocessorSdkconfig", { "CONFIG_ESP_HOSTED_HOST_RESET_GPIO=32" });
+    const fs::path build = builder.GetBuildDirectory(m_Project.string());
+
+    ASSERT_TRUE(builder.GenerateBuildFiles(m_Project.string(), c, { "DEKI_PACKAGE_WIFI" }));
+    EXPECT_TRUE(Contains(ReadFile(build / "main" / "idf_component.yml"), "espressif/esp_hosted:"));
+    std::string s = ReadFile(build / c.id / "sdkconfig.defaults");
+    EXPECT_TRUE(Contains(s, "CONFIG_SLAVE_IDF_TARGET_ESP32C6=y\n"));
+    EXPECT_TRUE(Contains(s, "CONFIG_ESP_HOSTED_P4_DEV_BOARD_NONE=y\n"));
+    EXPECT_TRUE(Contains(s, "CONFIG_ESP_HOSTED_HOST_RESET_GPIO=32\n"));
+
+    // No WiFi in the game.
+    ASSERT_TRUE(builder.GenerateBuildFiles(m_Project.string(), c, {}));
+    EXPECT_FALSE(Contains(ReadFile(build / "main" / "idf_component.yml"), "esp_hosted"));
+    s = ReadFile(build / c.id / "sdkconfig.defaults");
+    EXPECT_FALSE(Contains(s, "ESP_HOSTED"));
+    EXPECT_FALSE(Contains(s, "SLAVE_IDF_TARGET"));
+
+    // A chip with WiFi of its own needs none of it.
+    PlatformConfig s3 = Board("esp32s3");
+    s3.provides = { "wifi" };
+    s3.SetOption("wifiCoprocessor", "esp32c6");
+    ASSERT_TRUE(builder.GenerateBuildFiles(m_Project.string(), s3, { "DEKI_PACKAGE_WIFI" }));
+    EXPECT_FALSE(Contains(ReadFile(build / "main" / "idf_component.yml"), "esp_hosted"));
+}

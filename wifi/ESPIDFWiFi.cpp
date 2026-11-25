@@ -20,6 +20,8 @@ namespace
 
 #if defined(ESP32)
 static bool s_StackInited = false;
+static bool s_Started = false;      // esp_wifi_start done: a scan needs it too
+static bool s_WantConnect = false;  // Connect asked, Disconnect not since
 static bool s_Connected = false;
 static EventGroupHandle_t s_WifiEvents = nullptr;
 constexpr int BIT_CONNECTED = BIT0;
@@ -29,14 +31,23 @@ void WifiEventHandler(void* /*arg*/, esp_event_base_t base, int32_t id, void* /*
 {
     if (base == WIFI_EVENT && id == WIFI_EVENT_STA_START)
     {
-        esp_wifi_connect();
+        // Started for a scan, not to connect: a connection attempt would
+        // make the scan fail.
+        if (s_WantConnect)
+        {
+            esp_wifi_connect();
+        }
     }
     else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED)
     {
         s_Connected = false;
         xEventGroupSetBits(s_WifiEvents, BIT_DISCONNECT);
-        // Best-effort reconnect, limited by Connect's timeoutMs.
-        esp_wifi_connect();
+        // Best-effort reconnect, limited by Connect's timeoutMs; none after
+        // Disconnect.
+        if (s_WantConnect)
+        {
+            esp_wifi_connect();
+        }
     }
     else if (base == IP_EVENT && id == IP_EVENT_STA_GOT_IP)
     {
@@ -106,9 +117,11 @@ void ESPIDFWiFi::Shutdown()
     {
         return;
     }
+    s_WantConnect = false;
     esp_wifi_stop();
     esp_wifi_deinit();
     s_StackInited = false;
+    s_Started = false;
     s_Connected = false;
 #endif
     m_State = Deki::PackageState::Uninitialized;
@@ -141,17 +154,33 @@ bool ESPIDFWiFi::Connect(const char* ssid, const char* password, uint32_t timeou
         return false;
     }
 
-    // Returns ESP_OK when WiFi is already running; anything else is a real
-    // failure, and waiting for a connection would only run out the timeout.
-    const esp_err_t startErr = esp_wifi_start();
-    if (startErr != ESP_OK)
+    xEventGroupClearBits(s_WifiEvents, BIT_CONNECTED | BIT_DISCONNECT);
+    s_WantConnect = true;
+    if (s_Started)
     {
-        m_LastError = std::string("esp_wifi_start failed: ") + esp_err_to_name(startErr);
-        DEKI_LOG_ERROR("[wifi] esp_wifi_start failed: %s", esp_err_to_name(startErr));
-        return false;
+        // Started earlier (by a scan): no start event comes to connect on.
+        const esp_err_t connectErr = esp_wifi_connect();
+        if (connectErr != ESP_OK)
+        {
+            m_LastError = std::string("esp_wifi_connect failed: ") + esp_err_to_name(connectErr);
+            DEKI_LOG_ERROR("[wifi] esp_wifi_connect failed: %s", esp_err_to_name(connectErr));
+            return false;
+        }
+    }
+    else
+    {
+        // Anything but ESP_OK is a real failure, and waiting for a
+        // connection would only run out the timeout. The start event connects.
+        const esp_err_t startErr = esp_wifi_start();
+        if (startErr != ESP_OK)
+        {
+            m_LastError = std::string("esp_wifi_start failed: ") + esp_err_to_name(startErr);
+            DEKI_LOG_ERROR("[wifi] esp_wifi_start failed: %s", esp_err_to_name(startErr));
+            return false;
+        }
+        s_Started = true;
     }
 
-    xEventGroupClearBits(s_WifiEvents, BIT_CONNECTED | BIT_DISCONNECT);
     EventBits_t bits = xEventGroupWaitBits(s_WifiEvents, BIT_CONNECTED, pdFALSE, pdFALSE, pdMS_TO_TICKS(timeoutMs));
 
     if (bits & BIT_CONNECTED)
@@ -174,6 +203,7 @@ bool ESPIDFWiFi::Connect(const char* ssid, const char* password, uint32_t timeou
 void ESPIDFWiFi::Disconnect()
 {
 #if defined(ESP32)
+    s_WantConnect = false;
     if (s_StackInited)
     {
         esp_wifi_disconnect();
@@ -202,12 +232,25 @@ int ESPIDFWiFi::ScanAPs(DekiWifi::DekiAP* out, int maxCount)
     {
         return -1;
     }
+    // A scan needs WiFi started, which before this only Connect did: a scan
+    // before any Connect always failed.
+    if (!s_Started)
+    {
+        const esp_err_t startErr = esp_wifi_start();
+        if (startErr != ESP_OK)
+        {
+            DEKI_LOG_ERROR("[wifi] esp_wifi_start failed: %s", esp_err_to_name(startErr));
+            return -1;
+        }
+        s_Started = true;
+    }
 
     wifi_scan_config_t scan_cfg = {};
     scan_cfg.show_hidden = false;
-    if (esp_wifi_scan_start(&scan_cfg, true) != ESP_OK)
+    const esp_err_t scanErr = esp_wifi_scan_start(&scan_cfg, true);
+    if (scanErr != ESP_OK)
     {
-        DEKI_LOG_ERROR("[wifi] esp_wifi_scan_start failed");
+        DEKI_LOG_ERROR("[wifi] esp_wifi_scan_start failed: %s", esp_err_to_name(scanErr));
         return -1;
     }
 

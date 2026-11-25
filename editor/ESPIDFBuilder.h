@@ -76,6 +76,9 @@ public:
 
 private:
     ESPIDFToolchain m_Toolchain;
+    // This build's WiFi goes through the board's WiFi chip (esp_hosted), set
+    // by GenerateMainCMakeLists for the files generated after it.
+    bool m_HostedWifi = false;
 
     ESPIDFExecContext MakeExecContext();
 
