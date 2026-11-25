@@ -151,11 +151,14 @@ struct ESP32BackendInit
             // With PSRAM to spare, sprites keep a scaled copy of every frame
             // they are drawn in: drawn 1:1 from it, a 2x sprite costs a
             // third of drawing it scaled (the Elecrow 9", 32 MB: Tiny Farm
-            // from 52 to 56.5 fps in strips).
+            // from 52 to 56.5 fps in strips). A quarter of the PSRAM, so a
+            // copy (at most a quarter of that) can be a whole screen: a
+            // full-screen gradient on the 9" went from 42 to 56 fps.
 #if defined(ESP32)
-            if (heap_caps_get_total_size(MALLOC_CAP_SPIRAM) >= 8u * 1024u * 1024u)
+            const size_t psram = heap_caps_get_total_size(MALLOC_CAP_SPIRAM);
+            if (psram >= 8u * 1024u * 1024u)
             {
-                QuadBlit::SetScaledCacheLimits(2u * 1024u * 1024u, 256);
+                QuadBlit::SetScaledCacheLimits(psram / 4u, 256);
             }
 #endif
         }

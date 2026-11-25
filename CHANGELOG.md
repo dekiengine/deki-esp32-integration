@@ -40,10 +40,12 @@ alongside one that has them.
   follow on one another on both sides goes as one block in pieces of 3968
   bytes rather than a descriptor a row: a strip of 28 rows is set up in half
   the time.
-- ESP32-P4 with 8 MB of PSRAM or more: the scaled cache holds 2 MB and 256
-  sizes, so an animated sprite keeps a scaled copy of each of its frames
-  (deki-rendering's `SetScaledCacheLimits`). Tiny Farm in strips on the
-  Elecrow 9": 52 to 56.5 fps.
+- ESP32-P4 with 8 MB of PSRAM or more: the scaled cache holds a quarter of
+  the PSRAM and 256 sizes, so an animated sprite keeps a scaled copy of each
+  of its frames, and a full-screen background scaled up keeps one too
+  (deki-rendering's `SetScaledCacheLimits`; a copy may take a quarter of the
+  cache). On the Elecrow 9" (32 MB, an 8 MB cache): Tiny Farm in strips 52 to
+  56.5 fps, a new project's full-screen gradient 42 to 56.4.
 - `ESP32LdoSetup`: turns on one of the chip's LDO regulators at a set
   voltage for the program's life, such as the P4's DSI PHY supply (channel 3
   at 2.5 V). On a chip without them it fails, saying so.
